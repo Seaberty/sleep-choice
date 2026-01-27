@@ -1,0 +1,37 @@
+name: Continuous Sleep Audit
+
+on:
+    schedule:
+        - cron: "0 */6 * * *" # 每 6 小时自动运行
+    workflow_dispatch: # 支持手动触发
+
+jobs:
+    audit_and_deploy:
+        runs-on: ubuntu-latest
+        steps:
+            - name: Checkout Code
+              uses: actions/checkout@v4
+
+            - name: Set up Python
+              uses: actions/setup-python@v4
+              with:
+                  python-version: "3.10"
+
+            - name: Install Dependencies
+              run: pip install requests beautifulsoup4
+
+            - name: Run Audit Crawler
+              run: python scripts/audit_crawler.py
+              env:
+                  GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+
+            - name: Commit and Push if Registry Changed
+              run: |
+                  git config --local user.email "audit-bot@sleepchoiceguide.com"
+                  git config --local user.name "Audit Bot"
+                  git add data/registry.json
+                  git commit -m "System: Auto-update pricing and biometric logs" || exit 0
+                  git push
+
+            - name: Trigger Vercel Deploy # 如果你使用 Vercel，它会自动检测 Git push 并重新构建
+              run: echo "Deploying updated audit data..."

@@ -1,0 +1,102 @@
+{
+    "last_updated": "2026-01-07T22:00:00Z",
+    "version": "1.0.0",
+    "products": {
+        "saatva-classic": {
+            "id": "saatva-classic",
+            "brand": "Saatva",
+            "name": "Classic Hybrid",
+            "price": 1295,
+            "rating": 4.9,
+            "tag": "Overall Best Pick",
+            "isBestSeller": true,
+            "metrics": {
+                "support": 9.8,
+                "cooling": 8.5,
+                "pressure": 9.2
+            },
+            "pros": [
+                "Organic Cotton Cover",
+                "Lifetime Warranty",
+                "Free White-Glove Delivery"
+            ],
+            "offers": [
+                {
+                    "site": "Official Store",
+                    "price": 1295,
+                    "promo": "$200 OFF CODE",
+                    "primary": true,
+                    "url": "/api/dispatch/saatva-classic"
+                },
+                {
+                    "site": "Amazon",
+                    "price": 1395,
+                    "primary": false,
+                    "url": "https://amazon.com/dp/example1"
+                }
+            ]
+        },
+        "helix-midnight-luxe": {
+            "id": "helix-midnight-luxe",
+            "brand": "Helix",
+            "name": "Midnight Luxe",
+            "price": 1899,
+            "rating": 4.8,
+            "tag": "Best for Side Sleepers",
+            "isBestSeller": false,
+            "metrics": {
+                "support": 9.2,
+                "cooling": 9.5,
+                "pressure": 9.7
+            },
+            "pros": [
+                "Zoned Lumbar Support",
+                "Tencel Cooling Cover",
+                "Greenguard Gold Certified"
+            ],
+            "offers": [
+                {
+                    "site": "Official Store",
+                    "price": 1899,
+                    "promo": "25% OFF + PILLOWS",
+                    "primary": true,
+                    "url": "/api/dispatch/helix-midnight"
+                },
+                {
+                    "site": "Walmart",
+                    "price": 1950,
+                    "primary": false,
+                    "url": "https://walmart.com/example2"
+                }
+            ]
+        },
+        "dreamcloud-premier": {
+            "id": "dreamcloud-premier",
+            "brand": "DreamCloud",
+            "name": "Premier Hybrid",
+            "price": 1099,
+            "rating": 4.7,
+            "tag": "Best Value Luxury",
+            "isBestSeller": true,
+            "metrics": {
+                "support": 9.0,
+                "cooling": 8.8,
+                "pressure": 9.0
+            },
+            "pros": [
+                "Cashmere Blend Cover",
+                "365-Night Trial",
+                "Forever Warranty"
+            ],
+            "offers": [
+                {
+                    "site": "Official Store",
+                    "price": 1099,
+                    "promo": "40% OFF FLASH DEAL",
+                    "primary": true,
+                    "url": "/api/dispatch/dreamcloud-premier"
+                }
+            ]
+        }
+    }
+}
