@@ -8,19 +8,11 @@ const nextConfig = {
         // 图片缓存策略：设置为 1 年，提升 LCP 评分
         minimumCacheTTL: 31536000,
 
-        // 核心修复点：数组内直接放对象，不要再次嵌套 remotePatterns 键
         remotePatterns: [
             {
                 protocol: "https",
-                hostname: "**.supabase.co"
-            },
-            {
-                protocol: "https",
-                hostname: "**.saatva.com"
-            },
-            {
-                protocol: "https",
-                hostname: "helixsleep.com"
+                hostname: "saatva.imgix.net",
+                pathname: "**" // 允许该域名下的所有路径
             }
         ]
     },
