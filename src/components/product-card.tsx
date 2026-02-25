@@ -90,7 +90,7 @@ export function ProductCard({
             >
                 {data.image_url && !imageError ? (
                     <Image
-                        src={data.image_url} // 顺便给 src 也加个兜底
+                        src={data.image_url || "/placeholder-product.png"} // 顺便给 src 也加个兜底
                         alt={data.name || "Product Image"} // 👈 修复：确保这里永远是 string
                         className="w-full h-full object-contain p-8 transition-transform duration-1000 ease-out group-hover:scale-110"
                         onError={() => setImageError(true)}
