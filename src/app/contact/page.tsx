@@ -1,7 +1,7 @@
 "use client"
 
 import React, { useState } from "react"
-import { motion, AnimatePresence } from "framer-motion"
+import { motion } from "framer-motion"
 import {
     Mail,
     MessageSquare,
@@ -14,7 +14,9 @@ import {
     Hash,
     Command,
     Activity,
-    Lock
+    Lock,
+    Cpu,
+    Fingerprint
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 
@@ -24,10 +26,10 @@ const CONTACT_CONFIG = {
     methods: [
         {
             icon: MessageSquare,
-            title: "EDITORIAL_UNIT",
-            tag: "CONTENT_FEEDBACK",
+            title: "NEURAL_FEEDBACK",
+            tag: "ALGORITHM_AUDIT",
             description:
-                "Found a typo or have a suggestion for our mattress reviews?",
+                "Found an anomaly in our Scored-Matrix™ or have data suggestions?",
             email: "editorial",
             color: "text-blue-500 bg-blue-500/5 border-blue-500/20"
         },
@@ -36,15 +38,16 @@ const CONTACT_CONFIG = {
             title: "PARTNERSHIP_NODE",
             tag: "COLLABORATION",
             description:
-                "For brand collaborations, affiliate inquiries, and advertising.",
+                "For affiliate inquiries, data licensing, and strategic alliances.",
             email: "partners",
             color: "text-indigo-500 bg-indigo-500/5 border-indigo-500/20"
         },
         {
             icon: ShieldCheck,
-            title: "LEGAL_COMPLIANCE",
+            title: "LEGAL_ENDPOINT",
             tag: "DATA_PRIVACY",
-            description: "Data privacy requests (GDPR/CCPA) and DMCA notices.",
+            description:
+                "Data extraction requests (GDPR/CCPA) and protocol notices.",
             email: "legal",
             color: "text-emerald-500 bg-emerald-500/5 border-emerald-500/20"
         }
@@ -58,19 +61,20 @@ export default function ContactPage() {
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
         setIsSubmitting(true)
+        // 模拟上行链路传输
         await new Promise((resolve) => setTimeout(resolve, 1500))
         setIsSubmitting(false)
         setIsSent(true)
     }
 
     return (
-        <main className="bg-white min-h-screen pb-24 pt-20">
+        <main className="bg-white min-h-screen pb-24 pt-20 font-sans">
             {/* Header: 工业风大标题 */}
             <section className="relative overflow-hidden py-24 border-b border-slate-100">
                 <div className="absolute inset-0 bg-[radial-gradient(#e2e8f0_1px,transparent_1px)] [background-size:20px_20px] opacity-30" />
                 <div className="container mx-auto px-6 relative z-10 text-center">
                     <motion.div
-                        initial={{ opacity: 0, y: 20 }}
+                        initial={{ opacity: 0, y: 10 }}
                         animate={{ opacity: 1, y: 0 }}
                         className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-slate-950 text-white text-[10px] font-black uppercase tracking-[0.2em] mb-8"
                     >
@@ -81,15 +85,16 @@ export default function ContactPage() {
                         Get In <span className="text-blue-600">Touch</span>_
                     </h1>
                     <p className="text-slate-500 font-bold max-w-2xl mx-auto uppercase tracking-wider text-xs md:text-sm leading-relaxed">
-                        Direct access to our editorial desk and lab technicians.{" "}
-                        <br />
-                        All inquiries are processed through our secure node.
+                        Direct access to our data audit desk and algorithm
+                        engineers. <br />
+                        All inquiries are processed through our secure relay
+                        node.
                     </p>
                 </div>
             </section>
 
             <section className="container mx-auto px-6 -mt-10 relative z-20">
-                {/* Contact Methods Grid: 科技卡片风格 */}
+                {/* Contact Methods Grid */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-24">
                     {CONTACT_CONFIG.methods.map((method, i) => {
                         const Icon = method.icon
@@ -99,7 +104,7 @@ export default function ContactPage() {
                                 initial={{ opacity: 0, y: 20 }}
                                 animate={{ opacity: 1, y: 0 }}
                                 transition={{ delay: i * 0.1 }}
-                                className="group bg-white rounded-2xl p-8 border border-slate-200 shadow-sm hover:shadow-xl hover:border-blue-200 transition-all cursor-pointer"
+                                className="group bg-white rounded-2xl p-8 border border-slate-200 shadow-sm hover:shadow-xl hover:border-blue-200 transition-all"
                             >
                                 <div
                                     className={cn(
@@ -115,18 +120,18 @@ export default function ContactPage() {
                                         {method.title}
                                     </h3>
                                 </div>
-                                <p className="text-slate-500 text-[11px] font-bold uppercase tracking-tight mb-8 leading-relaxed">
+                                <p className="text-slate-500 text-[11px] font-bold uppercase tracking-tight mb-8 leading-relaxed h-12">
                                     {method.description}
                                 </p>
                                 <a
                                     href={`mailto:${method.email}@${CONTACT_CONFIG.domain}`}
-                                    className="flex items-center justify-between group/link text-[10px] font-black text-slate-950 bg-slate-50 px-4 py-3 rounded-lg hover:bg-blue-600 hover:text-white transition-all"
+                                    className="flex items-center justify-between group/link text-[10px] font-black text-slate-950 bg-slate-50 px-4 py-3 rounded-lg hover:bg-blue-600 hover:text-white transition-all overflow-hidden"
                                 >
-                                    <span>
+                                    <span className="truncate mr-2">
                                         {method.email.toUpperCase()}@
                                         {CONTACT_CONFIG.domain.toUpperCase()}
                                     </span>
-                                    <Command className="w-3 h-3 opacity-30 group-hover/link:opacity-100" />
+                                    <Command className="w-3 h-3 opacity-30 group-hover/link:opacity-100 shrink-0" />
                                 </a>
                             </motion.div>
                         )
@@ -136,18 +141,18 @@ export default function ContactPage() {
                 <div className="max-w-6xl mx-auto grid lg:grid-cols-5 gap-12 items-start">
                     {/* Left: Metadata & Commitments */}
                     <div className="lg:col-span-2 space-y-8">
-                        <div className="bg-slate-950 text-white p-8 rounded-3xl border border-white/5 relative overflow-hidden">
+                        <div className="bg-slate-950 text-white p-8 rounded-3xl border border-white/5 relative overflow-hidden shadow-2xl">
                             <div className="absolute top-0 right-0 p-4 opacity-10">
-                                <Terminal className="w-24 h-24" />
+                                <Cpu className="w-24 h-24 text-blue-500" />
                             </div>
-                            <h2 className="text-xl font-black uppercase tracking-tighter mb-6 flex items-center gap-2">
+                            <h2 className="text-xl font-black uppercase tracking-tighter mb-6 flex items-center gap-2 relative z-10">
                                 <Lock className="w-5 h-5 text-blue-500" />
-                                PROTOCOL_V3
+                                PROTOCOL_V3.1
                             </h2>
                             <div className="space-y-6 relative z-10">
                                 <div className="space-y-2">
                                     <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest">
-                                        Efficiency
+                                        Efficiency_Index
                                     </span>
                                     <div className="flex items-center gap-3 text-sm font-bold">
                                         <Clock className="w-4 h-4 text-blue-500" />
@@ -159,19 +164,32 @@ export default function ContactPage() {
                                 </div>
                                 <div className="space-y-2">
                                     <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest">
-                                        Security
+                                        Data_Safety
                                     </span>
                                     <div className="flex items-center gap-3 text-sm font-bold">
                                         <ShieldCheck className="w-4 h-4 text-emerald-500" />
-                                        <span>ENCRYPTED_SUBMISSION_ACTIVE</span>
+                                        <span>ENCRYPTED_UPLINK_ACTIVE</span>
                                     </div>
                                 </div>
-                                <p className="text-[11px] text-slate-400 font-medium leading-relaxed pt-4 border-t border-white/10 italic">
-                                    "We process inquiries directly through our
-                                    internal review engine. No bots, no generic
-                                    filters."
-                                </p>
+                                <div className="pt-6 border-t border-white/10 flex items-center gap-3">
+                                    <Fingerprint className="w-4 h-4 text-slate-600" />
+                                    <span className="text-[9px] font-mono text-slate-500 tracking-tighter uppercase">
+                                        ID: NODE_USA_EAST_01
+                                    </span>
+                                </div>
                             </div>
+                        </div>
+
+                        <div className="p-8 bg-blue-50 rounded-3xl border border-blue-100">
+                            <h4 className="text-[10px] font-black text-blue-600 uppercase tracking-widest mb-4 flex items-center gap-2">
+                                <Activity className="w-3 h-3" /> System_Note
+                            </h4>
+                            <p className="text-xs text-blue-900/70 font-bold leading-relaxed italic">
+                                "All submissions are parsed by our NLP engine
+                                for prioritization. We maintain a zero-spam
+                                policy to protect the integrity of our audit
+                                queue."
+                            </p>
                         </div>
                     </div>
 
@@ -191,7 +209,8 @@ export default function ContactPage() {
                                         Transmission_Success
                                     </h3>
                                     <p className="text-slate-500 font-bold uppercase text-xs">
-                                        Acknowledge: Message logged in queue.
+                                        Acknowledge: Message logged in secure
+                                        vault.
                                     </p>
                                     <button
                                         onClick={() => setIsSent(false)}
@@ -207,7 +226,7 @@ export default function ContactPage() {
                                             Quick_Message
                                         </h3>
                                         <div className="flex gap-1">
-                                            <div className="w-2 h-2 rounded-full bg-slate-200" />
+                                            <div className="w-2 h-2 rounded-full bg-slate-100" />
                                             <div className="w-2 h-2 rounded-full bg-slate-200" />
                                             <div className="w-2 h-2 rounded-full bg-blue-600" />
                                         </div>
@@ -225,7 +244,7 @@ export default function ContactPage() {
                                                     required
                                                     type="text"
                                                     className="w-full bg-slate-50 border-2 border-slate-100 rounded-xl px-5 py-4 focus:outline-none focus:border-blue-600 focus:bg-white transition-all font-bold text-sm"
-                                                    placeholder="NAME_REQUIRED"
+                                                    placeholder="IDENTIFIER"
                                                 />
                                             </div>
                                             <div className="space-y-2">
@@ -248,7 +267,7 @@ export default function ContactPage() {
                                                 required
                                                 rows={5}
                                                 className="w-full bg-slate-50 border-2 border-slate-100 rounded-xl px-5 py-4 focus:outline-none focus:border-blue-600 focus:bg-white transition-all font-bold text-sm resize-none"
-                                                placeholder="ENTER_YOUR_INQUIRY_HERE..."
+                                                placeholder="DESCRIBE_YOUR_QUERY..."
                                             />
                                         </div>
                                         <button

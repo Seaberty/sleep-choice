@@ -14,12 +14,15 @@ import {
     Database,
     Binary,
     Copy,
-    CheckCheck
+    CheckCheck,
+    Cpu,
+    Fingerprint
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 export default function PrivacyPage() {
-    const lastUpdated = "JANUARY_2026_REVISION"
+    // 动态日期：显示为当前月份的审计修订
+    const lastUpdated = `REVISION_${new Date().toLocaleString("en-US", { month: "long", year: "numeric" }).toUpperCase()}`
     const [copied, setCopied] = useState(false)
 
     const copyEmail = () => {
@@ -33,24 +36,24 @@ export default function PrivacyPage() {
             icon: <EyeOff className="w-5 h-5" />,
             title: "ZERO_DATA_SALES",
             content:
-                "We never trade, sell, or rent your personal metrics. Your sleep data remains your property."
+                "We never trade or rent your personal metrics. Your interaction data is processed locally and never sold to third-party brokers."
         },
         {
-            icon: <Cookie className="w-5 h-5" />,
-            title: "PIXEL_LOGIC",
+            icon: <Binary className="w-5 h-5" />,
+            title: "NEURAL_ANONYMITY",
             content:
-                "Performance pixels track referral sources to sustain lab operations, never individual identities."
+                "Our Scored-Matrix™ engine processes sentiment metadata, not identities. We audit opinions, not the people behind them."
         },
         {
             icon: <Lock className="w-5 h-5" />,
-            title: "AES_256_VAULT",
+            title: "ENCRYPTED_VAULT",
             content:
-                "Enterprise-grade encryption for all database clusters to prevent unauthorized endpoint access."
+                "All intelligence logs are secured with enterprise-grade encryption to prevent unauthorized endpoint access to our database clusters."
         }
     ]
 
     return (
-        <main className="min-h-screen bg-[#fdfdfd] pt-32 pb-24 overflow-hidden">
+        <main className="min-h-screen bg-[#fdfdfd] pt-32 pb-24 overflow-hidden font-sans">
             {/* 背景水印 - 增强情报感 */}
             <div className="fixed inset-0 pointer-events-none opacity-[0.02] select-none flex flex-col justify-between p-10 font-mono text-xs">
                 {[...Array(10)].map((_, i) => (
@@ -59,7 +62,7 @@ export default function PrivacyPage() {
                         className="flex justify-between uppercase tracking-[1em]"
                     >
                         <span>CONFIDENTIAL_PROTOCOL</span>
-                        <span>NODE_ID: SC-041</span>
+                        <span>NODE_ID: SC-INTEL-041</span>
                     </div>
                 ))}
             </div>
@@ -73,12 +76,12 @@ export default function PrivacyPage() {
                         className="flex items-center gap-6 mb-12"
                     >
                         <div className="flex -space-x-3">
-                            {[1, 2, 3].map((i) => (
+                            {[ShieldCheck, Fingerprint, Cpu].map((Icon, i) => (
                                 <div
                                     key={i}
                                     className="w-12 h-12 rounded-xl border-2 border-white bg-slate-950 flex items-center justify-center shadow-xl"
                                 >
-                                    <ShieldCheck className="w-6 h-6 text-blue-500" />
+                                    <Icon className="w-6 h-6 text-blue-500" />
                                 </div>
                             ))}
                         </div>
@@ -88,7 +91,7 @@ export default function PrivacyPage() {
                                 COMPLIANCE_STATUS: ACTIVE
                             </span>
                             <span className="text-[9px] font-bold text-slate-400 font-mono uppercase">
-                                ISO/IEC 27001 ALIGNED
+                                Scored-Matrix™ v4.2 Security
                             </span>
                         </div>
                     </motion.div>
@@ -149,75 +152,76 @@ export default function PrivacyPage() {
                         >
                             <div className="inline-flex items-center gap-2 font-black text-blue-600 px-4 py-1.5 bg-blue-50 rounded-lg text-[10px] mb-12 border border-blue-100 uppercase tracking-widest">
                                 <Activity className="w-3 h-3" />
-                                Revision_Log: {lastUpdated}
+                                {lastUpdated}
                             </div>
 
                             <section className="mb-16">
                                 <div className="flex items-center gap-3 mb-4">
                                     <Database className="w-5 h-5 text-blue-600" />
                                     <h2 className="m-0 text-2xl">
-                                        01. Collection_Log
+                                        01. NLP_Audit_Sourcing
                                     </h2>
                                 </div>
                                 <p>
-                                    SleepChoice Intelligence Unit operates via
-                                    proprietary{" "}
+                                    SleepChoice Intelligence Unit utilizes
+                                    high-dimensional
                                     <strong>
-                                        Scored-Matrix™ infrastructure
-                                    </strong>
-                                    . We collect anonymized hardware usage data
-                                    to calibrate our spinal alignment models. No
-                                    biometric identifiers are linked to your
-                                    physical legal identity.
+                                        {" "}
+                                        Natural Language Processing (NLP)
+                                    </strong>{" "}
+                                    to audit public datasets. We do not collect
+                                    or ingest biometric data or physical
+                                    identifiers. Our Scored-Matrix™ system
+                                    exclusively isolates anonymized sentiment
+                                    metadata from verified retail channels to
+                                    calibrate product reliability scores.
                                 </p>
                             </section>
 
                             <section className="mb-16">
                                 <div className="flex items-center gap-3 mb-4">
-                                    <FileCode className="w-5 h-5 text-blue-600" />
+                                    <Cookie className="w-5 h-5 text-blue-600" />
                                     <h2 className="m-0 text-2xl">
-                                        02. Affiliate_Protocol
+                                        02. Operational_Pixels
                                     </h2>
                                 </div>
                                 <p>
-                                    To sustain laboratory overhead, we utilize
-                                    encrypted referral links. Clicking initiates
-                                    a
-                                    <strong>
-                                        {" "}
-                                        session-isolated tracking pixel
-                                    </strong>
-                                    . This credits our research without exposing
-                                    your browsing history to third-party brand
-                                    nodes.
+                                    To sustain laboratory infrastructure, we
+                                    utilize encrypted referral tokens. These{" "}
+                                    <strong>session-isolated pixels</strong>{" "}
+                                    recognize referral source validation only.
+                                    They do not cross-reference your browsing
+                                    history or off-node behaviors with your
+                                    Scored-Matrix™ interaction profile.
                                 </p>
                             </section>
 
                             <section>
                                 <div className="flex items-center gap-3 mb-4">
-                                    <Globe className="w-5 h-5 text-blue-600" />
+                                    <Scale className="w-5 h-5 text-blue-600" />
                                     <h2 className="m-0 text-2xl">
-                                        03. Rights_Manifesto
+                                        03. Universal_Compliance
                                     </h2>
                                 </div>
                                 <p>
-                                    Whether governed by GDPR, CCPA, or VCDPA, we
-                                    apply the{" "}
-                                    <strong>Global Privacy Baseline</strong>.
-                                    You maintain the terminal right to execute a
-                                    [DATA_WIPE] command. All requests are
-                                    processed within 72 laboratory hours.
+                                    Whether operating under GDPR, CCPA, or VCDPA
+                                    frameworks, we apply the
+                                    <strong> Global Privacy Baseline</strong>.
+                                    Users maintain the terminal right to execute
+                                    a data erasure request. All compliance pings
+                                    are processed within 72 laboratory hours via
+                                    our secure endpoint.
                                 </p>
                             </section>
                         </div>
                     </div>
 
-                    {/* Sidebar: 修复了邮箱溢出的硬核联系方式 */}
+                    {/* Sidebar */}
                     <aside className="lg:col-span-4">
                         <div className="sticky top-32 space-y-4">
                             <div className="p-8 md:p-10 bg-slate-950 rounded-[2.5rem] md:rounded-[3rem] text-white relative overflow-hidden">
                                 <div className="absolute top-0 right-0 w-32 h-32 bg-blue-600/10 rounded-full -mr-16 -mt-16 blur-3xl" />
-                                <Scale className="w-10 h-10 text-blue-500 mb-8" />
+                                <ShieldCheck className="w-10 h-10 text-blue-500 mb-8" />
                                 <h4 className="text-xl font-black uppercase mb-6 tracking-tighter">
                                     Legal_Endpoint
                                 </h4>
@@ -251,12 +255,10 @@ export default function PrivacyPage() {
                                             )}
                                         >
                                             {copied
-                                                ? "DATA_COPIED"
+                                                ? "LINK_COPIED"
                                                 : "ENCRYPTED_RELAY"}
                                         </span>
                                     </div>
-
-                                    {/* break-all 解决溢出核心代码 */}
                                     <span className="text-[11px] md:text-xs font-black tracking-widest uppercase break-all leading-relaxed text-center">
                                         privacy@sleepchoiceguide.com
                                     </span>

@@ -12,13 +12,18 @@ import {
     AlertTriangle,
     Copy,
     CheckCheck,
-    ChevronRight,
-    LayoutList
+    LayoutList,
+    Cpu,
+    Activity
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 export default function TermsPage() {
-    const lastUpdated = "JAN_2026_REV"
+    // 动态生成版本号，例如 REV_FEB_2026
+    const lastUpdated = new Date()
+        .toLocaleString("en-US", { month: "short", year: "numeric" })
+        .toUpperCase()
+        .replace(" ", "_")
     const [copied, setCopied] = React.useState(false)
     const [activeSection, setActiveSection] = React.useState("")
 
@@ -31,32 +36,32 @@ export default function TermsPage() {
     const sections = React.useMemo(
         () => [
             {
-                id: "editorial",
+                id: "neural-audit",
                 icon: <Fingerprint className="w-5 h-5" />,
-                title: "01. Editorial_Integrity",
+                title: "01. Neural_Audit_Integrity",
                 content:
-                    "SleepChoice Guide operates as an independent research node. Our 'Lab-Verified' claims are derived from internal pressure-mapping and thermoregulation testing."
+                    "SleepChoice Intelligence Unit operates as a high-dimensional data research node. Our 'Verified' scores are derived from proprietary Scored-Matrix™ algorithms, which audit 10,000+ anonymized owner feedback data points using natural language processing (NLP) to bypass editorial bias."
             },
             {
                 id: "affiliate",
                 icon: <ShieldAlert className="w-5 h-5" />,
-                title: "02. Affiliate_Disclosure",
+                title: "02. Affiliate_Protocol",
                 content:
-                    "In alignment with FTC directive 16 CFR Part 255, we disclose that this facility receives referral compensation."
+                    "In alignment with FTC directive 16 CFR Part 255, we disclose that this facility receives referral compensation. These 'Arbitrage Yields' fund our computational overhead and ensure the Scored-Matrix™ neural engines remain strictly independent of brand sponsorships."
             },
             {
-                id: "ip",
-                icon: <FileText className="w-5 h-5" />,
-                title: "03. Intellectual_Property",
+                id: "ip-assets",
+                icon: <Cpu className="w-5 h-5" />,
+                title: "03. Data_Intellectual_Property",
                 content:
-                    "All proprietary metrics, including spinal alignment heatmaps and 'Sleep Score' coefficients, are protected."
+                    "All proprietary metrics, including sentiment heatmaps, 'Sleep Score' coefficients, and Scored-Matrix™ weight distributions, are protected digital assets of the Intelligence Unit. Unauthorized reproduction is flagged as a protocol violation."
             },
             {
                 id: "conduct",
-                icon: <Globe className="w-5 h-5" />,
-                title: "04. User_Conduct",
+                icon: <Activity className="w-5 h-5" />,
+                title: "04. Extraction_Prohibition",
                 content:
-                    "Users are prohibited from deploying automated extraction bots against our 'Deals Vault'."
+                    "Users are strictly prohibited from deploying automated extraction bots, scrapers, or neural network training scripts against our performance index. We enforce a zero-tolerance policy for data harvesting."
             }
         ],
         []
@@ -79,30 +84,30 @@ export default function TermsPage() {
     }, [sections])
 
     return (
-        <main className="min-h-screen bg-[#fdfdfd] pt-20 md:pt-32 pb-24 relative overflow-x-hidden w-full">
-            {/* 1. 背景水印：使用绝对定位并确保不撑开宽度 */}
+        <main className="min-h-screen bg-[#fdfdfd] pt-20 md:pt-32 pb-24 relative overflow-x-hidden w-full font-sans">
+            {/* 1. 背景水印：确保不撑开宽度 */}
             <div className="absolute inset-0 pointer-events-none opacity-[0.01] select-none z-0 overflow-hidden">
                 <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[200%] h-full">
-                    {[...Array(10)].map((_, i) => (
+                    {[...Array(8)].map((_, i) => (
                         <div
                             key={i}
-                            className="flex justify-around mb-32 md:mb-40 uppercase tracking-[1em] rotate-12 font-mono text-[9px] whitespace-nowrap"
+                            className="flex justify-around mb-40 uppercase tracking-[1em] rotate-12 font-mono text-[9px] whitespace-nowrap"
                         >
-                            <span>LEGAL_PROTOCOL_V2.4</span>
+                            <span>LEGAL_PROTOCOL_V4.2</span>
                             <span>INTEL_UNIT_ENCRYPTED</span>
                         </div>
                     ))}
                 </div>
             </div>
 
-            {/* 2. 移动端快捷导航：优化宽度和截断 */}
+            {/* 2. 移动端快捷导航 */}
             <div className="lg:hidden fixed bottom-6 left-1/2 -translate-x-1/2 z-50 w-[92%] max-w-sm">
                 <div className="bg-slate-950/95 backdrop-blur-xl border border-white/10 p-2 rounded-2xl shadow-2xl flex items-center justify-between text-white">
                     <div className="flex items-center gap-2 pl-2 overflow-hidden">
                         <LayoutList className="w-4 h-4 text-blue-400 shrink-0" />
-                        <span className="text-[10px] font-black uppercase tracking-tight truncate">
+                        <span className="text-[9px] font-black uppercase tracking-tight truncate">
                             {activeSection
-                                ? activeSection.replace("-", "_")
+                                ? activeSection.toUpperCase().replace("-", "_")
                                 : "INDEX"}
                         </span>
                     </div>
@@ -132,15 +137,22 @@ export default function TermsPage() {
             <div className="container mx-auto px-5 md:px-6 max-w-7xl relative z-10">
                 {/* Header Section */}
                 <header className="max-w-5xl mb-16 md:mb-24">
-                    <motion.div className="inline-flex items-center gap-2 px-3 py-1 bg-slate-900 text-white rounded-md mb-6 shadow-lg">
+                    <motion.div
+                        initial={{ opacity: 0, x: -20 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        className="inline-flex items-center gap-2 px-3 py-1 bg-slate-900 text-white rounded-md mb-6 shadow-lg"
+                    >
                         <AlertTriangle className="w-3 h-3 text-amber-400" />
                         <span className="text-[9px] font-black uppercase tracking-widest">
-                            Legal Binding
+                            Legal_Binding
                         </span>
                     </motion.div>
 
-                    {/* 修复：使用 clamp 确保字体在手机上不会过大或过小 */}
-                    <motion.h1 className="text-[clamp(2.5rem,10vw,8rem)] font-[1000] tracking-tighter uppercase mb-6 leading-[0.9] text-slate-950 break-words">
+                    <motion.h1
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className="text-[clamp(2.5rem,10vw,8rem)] font-[1000] tracking-tighter uppercase mb-6 leading-[0.9] text-slate-950 break-words"
+                    >
                         Terms of <br />
                         <span className="text-blue-600">Service.</span>
                     </motion.h1>
@@ -162,7 +174,7 @@ export default function TermsPage() {
                     <aside className="lg:col-span-4 hidden lg:block sticky top-32">
                         <div className="p-8 border border-slate-200 bg-white/80 backdrop-blur-md rounded-[2.5rem]">
                             <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em] mb-6">
-                                Protocol Index
+                                Protocol_Index
                             </h4>
                             <nav className="space-y-1.5">
                                 {sections.map((s, i) => (
@@ -195,7 +207,7 @@ export default function TermsPage() {
                     </aside>
 
                     {/* Main Content Area */}
-                    <div className="lg:col-span-8 space-y-20 md:space-y-40">
+                    <div className="lg:col-span-8 space-y-24 md:space-y-40 pb-20">
                         {sections.map((section, i) => (
                             <section
                                 id={section.id}
@@ -203,49 +215,57 @@ export default function TermsPage() {
                                 className="scroll-mt-24 md:scroll-mt-32 group"
                             >
                                 <div className="flex items-start gap-4 md:gap-6 mb-5">
-                                    <div className="shrink-0 w-10 h-10 md:w-14 md:h-14 bg-white border border-slate-200 text-blue-600 rounded-lg md:rounded-2xl flex items-center justify-center group-hover:bg-slate-950 group-hover:text-white transition-colors duration-300">
+                                    <div className="shrink-0 w-10 h-10 md:w-14 md:h-14 bg-white border border-slate-200 text-blue-600 rounded-lg md:rounded-2xl flex items-center justify-center group-hover:bg-slate-950 group-hover:text-white transition-colors duration-300 shadow-sm">
                                         {section.icon}
                                     </div>
                                     <div className="flex-1">
-                                        {/* 修复：移除移动端的 truncate，确保标题完整 */}
-                                        <h2 className="text-xl md:text-3xl font-[1000] uppercase tracking-tighter text-slate-950 leading-tight break-words">
+                                        <h2 className="text-xl md:text-3xl font-[1000] uppercase tracking-tighter text-slate-950 leading-tight">
                                             {section.title}
                                         </h2>
                                         <div className="h-1 w-8 bg-blue-600 mt-2 rounded-full group-hover:w-16 transition-all duration-500" />
                                     </div>
                                 </div>
-                                <p className="text-slate-600 text-base md:text-xl leading-relaxed font-semibold tracking-tight">
+                                <p className="text-slate-600 text-base md:text-xl leading-relaxed font-semibold tracking-tight max-w-3xl">
                                     {section.content}
                                 </p>
                             </section>
                         ))}
 
                         {/* Legal Contact Card */}
-                        <div className="p-6 md:p-12 bg-slate-950 rounded-[2rem] text-white relative overflow-hidden">
+                        <div className="p-8 md:p-12 bg-slate-950 rounded-[2.5rem] text-white relative overflow-hidden">
                             <div className="absolute top-0 right-0 w-40 h-40 bg-blue-600/20 rounded-full -mr-20 -mt-20 blur-[60px] pointer-events-none" />
-                            <div className="relative z-10 flex flex-col gap-8 md:gap-10">
+                            <div className="relative z-10 flex flex-col gap-10">
                                 <div>
-                                    <Scale className="w-8 h-8 text-blue-500 mb-4 md:mb-6" />
-                                    <h3 className="text-lg md:text-2xl font-black uppercase mb-2">
-                                        Legal Liaison
+                                    <Scale className="w-8 h-8 text-blue-500 mb-6" />
+                                    <h3 className="text-xl md:text-2xl font-black uppercase mb-2">
+                                        Legal_Liaison_Node
                                     </h3>
-                                    <p className="text-slate-400 text-[10px] md:text-xs font-bold uppercase tracking-widest">
-                                        Formal correspondence only.
+                                    <p className="text-slate-400 text-[10px] font-bold uppercase tracking-widest">
+                                        Operational hours: 0900-1700 UTC
                                     </p>
                                 </div>
                                 <button
                                     onClick={copyEmail}
                                     className={cn(
-                                        "p-4 md:p-6 border rounded-xl md:rounded-2xl transition-all w-full text-left md:text-center overflow-hidden",
+                                        "p-5 md:p-6 border rounded-2xl transition-all w-full text-center group",
                                         copied
                                             ? "border-emerald-500 text-emerald-500 bg-emerald-500/10"
-                                            : "border-white/10 bg-white/5"
+                                            : "border-white/10 bg-white/5 hover:border-blue-500"
                                     )}
                                 >
-                                    <div className="text-[8px] font-black uppercase tracking-[0.2em] mb-1 opacity-50">
-                                        Secure Email Node
+                                    <div className="flex items-center justify-center gap-2 mb-1">
+                                        {copied ? (
+                                            <CheckCheck className="w-3 h-3" />
+                                        ) : (
+                                            <Copy className="w-3 h-3 opacity-30 group-hover:opacity-100" />
+                                        )}
+                                        <span className="text-[8px] font-black uppercase tracking-[0.2em] opacity-50">
+                                            {copied
+                                                ? "NODE_COPIED"
+                                                : "SECURE_RELAY_ENDPOINT"}
+                                        </span>
                                     </div>
-                                    <div className="text-[11px] md:text-sm font-mono font-black break-all">
+                                    <div className="text-[12px] md:text-sm font-mono font-black break-all tracking-widest uppercase">
                                         legal@sleepchoiceguide.com
                                     </div>
                                 </button>

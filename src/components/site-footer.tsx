@@ -11,11 +11,10 @@ import {
     Loader2,
     CheckCircle2,
     FlaskConical,
-    Binary,
     Fingerprint,
     Cpu,
-    FileText,
-    AlertCircle
+    AlertCircle,
+    Command
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { subscribeAction } from "@/app/actions/subscribe"
@@ -137,8 +136,8 @@ export function SiteFooter() {
                                                 status === "success"
                                                     ? "border-emerald-500 bg-emerald-50 text-emerald-700"
                                                     : status === "error"
-                                                    ? "border-red-500 bg-red-50"
-                                                    : "border-slate-200 focus:border-blue-600 focus:ring-2 focus:ring-blue-600/5"
+                                                      ? "border-red-500 bg-red-50"
+                                                      : "border-slate-200 focus:border-blue-600 focus:ring-2 focus:ring-blue-600/5"
                                             )}
                                         />
                                     </div>
@@ -174,7 +173,7 @@ export function SiteFooter() {
 
                     {/* 2. Navigation Matrix */}
                     <div className="lg:col-span-7 grid grid-cols-2 md:grid-cols-3 gap-12">
-                        {/* 保持之前的导航结构，确保链接正确 */}
+                        {/* 保持之前的导航结构 */}
                         <div className="space-y-8">
                             <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.25em]">
                                 Research Base
@@ -213,30 +212,42 @@ export function SiteFooter() {
                             <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.25em]">
                                 Resources
                             </h4>
-                            <nav className="flex flex-col gap-4 text-xs font-bold text-slate-600">
+                            <nav className="flex flex-col gap-4 text-[10px] font-black uppercase tracking-widest text-slate-500">
                                 <Link
                                     href="/calculator"
-                                    className="hover:text-blue-600"
+                                    className="hover:text-blue-600 transition-colors flex items-center gap-2"
                                 >
-                                    Dimension Calc
+                                    <span className="w-1 h-1 bg-slate-300 rounded-full"></span>
+                                    Dimension_Matrix
                                 </Link>
                                 <Link
                                     href="/quiz"
-                                    className="hover:text-blue-600"
+                                    className="hover:text-blue-600 transition-colors flex items-center gap-2"
                                 >
-                                    Match Engine
+                                    <span className="w-1 h-1 bg-slate-300 rounded-full"></span>
+                                    Neural_Match_AI
                                 </Link>
                                 <Link
                                     href="/compare"
-                                    className="hover:text-blue-600"
+                                    className="hover:text-blue-600 transition-colors flex items-center gap-2"
                                 >
-                                    Data Comparison
+                                    <span className="w-1 h-1 bg-slate-300 rounded-full"></span>
+                                    Audit_Comparison
                                 </Link>
                                 <Link
-                                    href="/about"
-                                    className="hover:text-blue-600"
+                                    href="/methodology"
+                                    className="hover:text-blue-600 transition-colors flex items-center gap-2"
                                 >
-                                    Expert Registry
+                                    <span className="w-1 h-1 bg-slate-300 rounded-full"></span>
+                                    Audit_Methodology
+                                </Link>
+                                {/* 新增：Disclosure 披露入口 */}
+                                <Link
+                                    href="/disclosure"
+                                    className="hover:text-blue-600 transition-colors flex items-center gap-2 text-slate-950"
+                                >
+                                    <ShieldCheck className="w-3.5 h-3.5 text-blue-600" />
+                                    Full_Disclosure
                                 </Link>
                             </nav>
                         </div>
@@ -263,53 +274,85 @@ export function SiteFooter() {
                     </div>
                 </div>
 
-                {/* 3. Disclosure Area */}
+                {/* 3. Disclosure Area - 高稳定性版本 */}
                 <div className="border-t border-slate-200 pt-12">
-                    <div className="bg-slate-50 p-8 rounded-[2rem] border border-slate-200 mb-12">
+                    <div className="bg-slate-50 p-8 rounded-[2rem] border border-slate-200 mb-12 relative overflow-hidden">
+                        <div className="absolute right-[-20px] bottom-[-20px] opacity-[0.03] pointer-events-none select-none">
+                            <Cpu className="w-40 h-40 text-slate-900" />
+                        </div>
+
                         <div className="flex items-center gap-2 mb-4">
-                            <FileText className="w-4 h-4 text-slate-900" />
+                            <div className="w-1.5 h-1.5 bg-blue-600 rounded-full animate-pulse" />
                             <h5 className="text-[10px] font-black text-slate-900 uppercase tracking-[0.2em]">
-                                Transparency Protocol
+                                Data_Integrity_Manifesto
                             </h5>
                         </div>
-                        <p className="text-[11px] leading-relaxed text-slate-500 font-medium max-w-5xl">
-                            <strong>SleepChoice Intelligence Unit</strong>{" "}
-                            operates on a
-                            <span className="text-slate-900 font-bold">
-                                {" "}
-                                Scored-Matrix™
+
+                        <p className="text-[11px] leading-relaxed text-slate-500 font-medium max-w-5xl relative z-10">
+                            <span className="text-blue-600 font-bold mr-1">
+                                [PROTOCOL_v4.2]
                             </span>
-                            infrastructure. Our laboratory utilizes automated
-                            sensors and material density checks to remove
-                            editorial bias. Referral fees from standard retail
-                            links fund our anonymous procurement process.
+                            <strong>
+                                SleepChoiceGuide (Intelligence Unit)
+                            </strong>{" "}
+                            operates via the{" "}
+                            <span className="text-slate-900 font-bold">
+                                Scored-Matrix™
+                            </span>{" "}
+                            neural engine. Our system bypasses editorial
+                            subjectivity by utilizing{" "}
+                            <span className="text-slate-900 font-bold">
+                                high-dimensional NLP audits
+                            </span>{" "}
+                            and multi-node sentiment triangulation from verified
+                            user datasets. To maintain zero-bias integrity, 100%
+                            of insights are extracted through{" "}
+                            <span className="text-slate-900 font-bold">
+                                algorithmic scraping of retail channels
+                            </span>
+                            . Operational costs are sustained by referral
+                            yields, ensuring our audit logs remain strictly
+                            independent and brand-agnostic.
                         </p>
                     </div>
 
                     <div className="flex flex-col lg:flex-row justify-between items-center gap-8 px-4">
                         <div className="flex flex-wrap justify-center lg:justify-start gap-x-8 gap-y-3 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">
                             <Link
-                                href="/privacy"
-                                className="hover:text-slate-950 transition-colors"
+                                href="/about"
+                                className="hover:text-blue-600 transition-colors flex items-center gap-1.5"
                             >
-                                Privacy_Vault
+                                <Command className="w-3 h-3 text-blue-500" />{" "}
+                                Agency_Intelligence
+                            </Link>
+                            <Link
+                                href="/privacy"
+                                className="hover:text-blue-600 transition-colors flex items-center gap-1.5"
+                            >
+                                <Lock className="w-3 h-3" /> Privacy_Vault
                             </Link>
                             <Link
                                 href="/terms"
-                                className="hover:text-slate-950 transition-colors"
+                                className="hover:text-blue-600 transition-colors"
                             >
-                                Terms_of_Service
+                                Service_Protocols
                             </Link>
                             <Link
                                 href="/contact"
-                                className="hover:text-slate-950 transition-colors"
+                                className="hover:text-blue-600 transition-colors flex items-center gap-1.5"
                             >
-                                Endpoint_Contact
+                                <Globe className="w-3 h-3" /> Endpoint_Contact
                             </Link>
                         </div>
-                        <p className="text-[10px] font-black text-slate-950 uppercase tracking-tighter">
-                            © {currentYear} SleepChoice Intel Unit.
-                        </p>
+                        <div className="flex items-center gap-3">
+                            {/* 增加一个纯文本的校验码，增加硬核感 */}
+                            <div className="text-[9px] font-mono text-slate-300">
+                                CRC: 0xEB041F21
+                            </div>
+                            <p className="text-[10px] font-black text-slate-950 uppercase tracking-tighter">
+                                © {currentYear} SleepChoice Intelligence Unit.
+                            </p>
+                        </div>
                     </div>
                 </div>
             </div>

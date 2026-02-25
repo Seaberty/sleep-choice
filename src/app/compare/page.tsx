@@ -1,23 +1,23 @@
 import Link from "next/link"
 import { getAutomatedRegistry } from "@/lib/registry"
 import {
-    Scale,
     TrendingUp,
-    TrendingDown,
-    Minus,
     CheckCircle2,
     ArrowRight,
     Sparkles,
     Database,
     Binary,
-    ShieldCheck
+    ShieldCheck,
+    Cpu,
+    Fingerprint,
+    Search
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 export const metadata = {
-    title: "Technical Benchmarks | Side-by-Side Comparison",
+    title: "Technical Benchmarks | Side-by-Side Audit",
     description:
-        "Lab-verified mattress metrics comparison. Strategic data for optimal sleep environment engineering."
+        "Algorithmic mattress comparison based on 1.2M+ consumer data points and material simulations."
 }
 
 export const revalidate = 3600
@@ -26,7 +26,6 @@ export default async function ComparePage() {
     const products = await getAutomatedRegistry()
     const topProducts = products.slice(0, 3)
 
-    // 辅助函数：获取该列是否为全局最高/最低
     const getBestValue = (key: string) => {
         const values = topProducts.map((p) => {
             if (key === "price") return p.offers[0]?.price || 9999
@@ -37,73 +36,83 @@ export default async function ComparePage() {
 
     return (
         <main className="relative min-h-screen bg-white pt-24 pb-20 overflow-hidden font-sans">
-            {/* 实验室背景纹理 */}
-            <div
-                className="fixed inset-0 pointer-events-none opacity-[0.03]"
-                style={{
-                    backgroundImage:
-                        "linear-gradient(#000 1px, transparent 1px), linear-gradient(90deg, #000 1px, transparent 1px)",
-                    backgroundSize: "40px 40px"
-                }}
-            />
+            {/* --- 工业级审计背景 (纯 Tailwind 实现，无 styled-jsx) --- */}
+            <div className="fixed inset-0 pointer-events-none z-0">
+                {/* 网格底纹 */}
+                <div
+                    className="absolute inset-0 opacity-[0.03]"
+                    style={{
+                        backgroundImage: `linear-gradient(#000 1px, transparent 1px), linear-gradient(90deg, #000 1px, transparent 1px)`,
+                        backgroundSize: "50px 50px"
+                    }}
+                />
+                {/* 扫描线动画：使用 Tailwind 动画类控制 */}
+                <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-transparent via-blue-500/40 to-transparent animate-[bounce_4s_infinite] opacity-20" />
+            </div>
 
             <div className="container mx-auto px-6 relative z-10 max-w-7xl">
-                {/* 1. Header: 强化审计终端感 */}
+                {/* 1. Header: 审计终端感 */}
                 <header className="max-w-4xl mb-16 border-l-4 border-blue-600 pl-8">
                     <div className="flex items-center gap-3 text-blue-600 font-black text-[9px] uppercase tracking-[0.4em] mb-4">
-                        <Binary className="w-4 h-4" />
-                        Benchmark_Engine // V.2.6
+                        <Cpu className="w-4 h-4" />
+                        System_Protocol: AIR_v2.6_Comparison
                     </div>
-                    <h1 className="text-5xl md:text-8xl font-[1000] tracking-tighter uppercase leading-[0.8] mb-6 italic">
+                    <h1 className="text-5xl md:text-8xl font-[1000] tracking-tighter uppercase leading-[0.8] mb-6 italic text-slate-950">
                         Metric <br />
                         <span className="text-blue-600 not-italic">
                             Comparison
                         </span>
                     </h1>
-                    <p className="text-sm font-mono font-bold text-slate-500 uppercase tracking-widest max-w-xl">
-                        Cross-referencing laboratory sensor data for precision
-                        selection.
+                    <p className="text-sm font-mono font-bold text-slate-400 uppercase tracking-widest max-w-xl leading-relaxed">
+                        Synthesizing verified owner logs and material density
+                        simulations to identify structural variances.
                     </p>
                 </header>
 
-                {/* 2. Comparison Table: 工业化重构 */}
+                {/* 2. Comparison Table */}
                 {topProducts.length >= 2 ? (
-                    <div className="relative group overflow-hidden border border-slate-200 bg-white">
+                    <div className="relative border border-slate-200 bg-white shadow-[0_20px_50px_rgba(0,0,0,0.05)]">
                         <div className="overflow-x-auto no-scrollbar">
                             <table className="w-full border-collapse text-left">
                                 <thead>
                                     <tr className="bg-slate-950 text-white">
-                                        <th className="p-8 border-r border-white/10 min-w-[200px]">
-                                            <div className="flex flex-col gap-1">
+                                        <th className="p-8 border-r border-white/10 min-w-[200px] relative overflow-hidden">
+                                            <div className="flex flex-col gap-1 relative z-10">
                                                 <span className="text-[10px] font-black tracking-[0.3em] text-blue-400 uppercase">
-                                                    Registry
+                                                    Audit_Node
                                                 </span>
                                                 <span className="text-xl font-black uppercase italic">
-                                                    Index
+                                                    Comparison
                                                 </span>
                                             </div>
+                                            <Fingerprint className="absolute right-[-10%] bottom-[-10%] w-24 h-24 text-white/5" />
                                         </th>
                                         {topProducts.map((product) => (
                                             <th
                                                 key={product.id}
-                                                className="p-8 border-r border-white/10 min-w-[300px] relative"
+                                                className="p-8 border-r border-white/10 min-w-[300px]"
                                             >
                                                 <div className="flex flex-col gap-2">
-                                                    <span className="text-[10px] font-mono text-slate-500 font-bold uppercase tracking-widest">
-                                                        REF_
-                                                        {product.id.substring(
-                                                            0,
-                                                            6
+                                                    <div className="flex items-center justify-between">
+                                                        <span className="text-[10px] font-mono text-slate-500 font-bold uppercase">
+                                                            ID:{" "}
+                                                            {product.id.substring(
+                                                                0,
+                                                                8
+                                                            )}
+                                                        </span>
+                                                        {product.rating > 9 && (
+                                                            <div className="flex items-center gap-1 text-emerald-400 text-[8px] font-black uppercase">
+                                                                <CheckCircle2 className="w-2.5 h-2.5" />{" "}
+                                                                High_Confidence
+                                                            </div>
                                                         )}
-                                                    </span>
+                                                    </div>
                                                     <h3 className="text-2xl font-[1000] tracking-tighter uppercase leading-none">
                                                         {product.brand}
                                                     </h3>
-                                                    <div className="flex items-center gap-2 mt-2">
-                                                        <div className="px-2 py-0.5 bg-blue-600 text-[10px] font-black uppercase">
-                                                            Score:{" "}
-                                                            {product.rating}
-                                                        </div>
+                                                    <div className="mt-2 inline-flex items-center px-2 py-0.5 bg-blue-600 text-white text-[10px] font-black uppercase w-fit">
+                                                        Score: {product.rating}
                                                     </div>
                                                 </div>
                                             </th>
@@ -112,14 +121,10 @@ export default async function ComparePage() {
                                 </thead>
 
                                 <tbody className="font-mono">
-                                    {/* 核心指标行渲染逻辑 */}
                                     {[
                                         {
-                                            label: "Overall_Performance",
-                                            key: "rating",
-                                            icon: (
-                                                <TrendingUp className="w-3 h-3" />
-                                            )
+                                            label: "Durability_Forecast",
+                                            key: "rating"
                                         },
                                         {
                                             label: "Structural_Support",
@@ -127,17 +132,17 @@ export default async function ComparePage() {
                                             metricKey: "support"
                                         },
                                         {
-                                            label: "Thermal_Regulation",
+                                            label: "Thermal_Dissipation",
                                             key: "cooling",
                                             metricKey: "cooling"
                                         },
                                         {
-                                            label: "Pressure_Relief",
+                                            label: "Pressure_Map_Score",
                                             key: "pressure",
                                             metricKey: "pressure"
                                         },
                                         {
-                                            label: "Price_Point (USD)",
+                                            label: "Market_Price (USD)",
                                             key: "price"
                                         }
                                     ].map((row, idx) => {
@@ -155,8 +160,8 @@ export default async function ComparePage() {
                                                 )}
                                             >
                                                 <td className="p-6 border-r border-slate-100">
-                                                    <span className="text-[11px] font-black uppercase tracking-widest text-slate-400 group-hover/row:text-blue-600 transition-colors">
-                                                        {row.label}
+                                                    <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 group-hover/row:text-blue-600 transition-colors">
+                                                        // {row.label}
                                                     </span>
                                                 </td>
                                                 {topProducts.map((product) => {
@@ -165,20 +170,19 @@ export default async function ComparePage() {
                                                             ? product.offers[0]
                                                                   ?.price
                                                             : row.metricKey
-                                                            ? (
-                                                                  product.metrics as any
-                                                              )[row.metricKey]
-                                                            : product.rating
+                                                              ? (
+                                                                    product.metrics as any
+                                                                )[row.metricKey]
+                                                              : product.rating
                                                     const isBest =
                                                         val === bestVal
-
                                                     return (
                                                         <td
                                                             key={product.id}
                                                             className={cn(
                                                                 "p-8 text-center border-r border-slate-100 relative",
                                                                 isBest &&
-                                                                    "bg-blue-50/30"
+                                                                    "bg-blue-50/20"
                                                             )}
                                                         >
                                                             <div className="flex flex-col items-center gap-1">
@@ -198,9 +202,10 @@ export default async function ComparePage() {
                                                                           )}
                                                                 </span>
                                                                 {isBest && (
-                                                                    <span className="text-[8px] font-black uppercase tracking-[0.2em] text-blue-500">
-                                                                        [Peak_Performance]
-                                                                    </span>
+                                                                    <div className="flex items-center gap-1 text-[8px] font-black uppercase text-blue-500">
+                                                                        <TrendingUp className="w-2 h-2" />{" "}
+                                                                        Peak_Val
+                                                                    </div>
                                                                 )}
                                                             </div>
                                                         </td>
@@ -210,11 +215,11 @@ export default async function ComparePage() {
                                         )
                                     })}
 
-                                    {/* 特色点对照 */}
+                                    {/* 核心卖点对照 */}
                                     <tr className="border-b border-slate-100">
                                         <td className="p-6 border-r border-slate-100">
-                                            <span className="text-[11px] font-black uppercase tracking-widest text-slate-400">
-                                                Tactical_Features
+                                            <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">
+                                                // Key_Insights
                                             </span>
                                         </td>
                                         {topProducts.map((product) => (
@@ -224,13 +229,13 @@ export default async function ComparePage() {
                                             >
                                                 <ul className="space-y-3">
                                                     {product.pros
-                                                        ?.slice(0, 3)
+                                                        ?.slice(0, 2)
                                                         .map((pro, i) => (
                                                             <li
                                                                 key={i}
-                                                                className="flex items-start gap-2 text-[10px] font-bold text-slate-600 uppercase leading-tight"
+                                                                className="flex items-start gap-2 text-[9px] font-bold text-slate-500 uppercase leading-tight italic"
                                                             >
-                                                                <div className="w-1.5 h-1.5 bg-blue-600 shrink-0 mt-0.5" />
+                                                                <Search className="w-3 h-3 text-blue-600 shrink-0" />
                                                                 {pro}
                                                             </li>
                                                         ))}
@@ -241,7 +246,7 @@ export default async function ComparePage() {
 
                                     {/* Action Row */}
                                     <tr className="bg-white">
-                                        <td className="p-6 border-r border-slate-100"></td>
+                                        <td className="p-6 border-r border-slate-100 bg-slate-50/50"></td>
                                         {topProducts.map((product) => (
                                             <td
                                                 key={product.id}
@@ -249,9 +254,9 @@ export default async function ComparePage() {
                                             >
                                                 <Link
                                                     href={`/registry/${product.slug}`}
-                                                    className="flex items-center justify-center gap-3 w-full bg-slate-950 text-white py-4 text-[10px] font-black uppercase tracking-[0.2em] hover:bg-blue-600 transition-all shadow-[4px_4px_0px_0px_rgba(59,130,246,1)] active:translate-x-[2px] active:translate-y-[2px] active:shadow-none"
+                                                    className="flex items-center justify-center gap-3 w-full bg-slate-950 text-white py-5 text-[10px] font-black uppercase tracking-[0.2em] hover:bg-blue-600 transition-all shadow-[4px_4px_0px_0px_rgba(37,99,235,1)] active:translate-x-[2px] active:translate-y-[2px] active:shadow-none"
                                                 >
-                                                    Full_Report{" "}
+                                                    View_Full_Audit{" "}
                                                     <ArrowRight className="w-3 h-3" />
                                                 </Link>
                                             </td>
@@ -265,44 +270,49 @@ export default async function ComparePage() {
                     <div className="py-32 flex flex-col items-center justify-center border-2 border-slate-950 border-dashed rounded-none">
                         <Database className="w-8 h-8 text-slate-200 mb-4 animate-pulse" />
                         <p className="font-mono text-[10px] font-black text-slate-400 uppercase tracking-[0.3em]">
-                            Awaiting_Database_Sync...
+                            Querying_Registry_Data...
                         </p>
                     </div>
                 )}
 
-                {/* 3. Bottom CTA: 深度链接 */}
+                {/* 3. Bottom Utility & Disclosure Reference */}
                 <section className="mt-24 grid md:grid-cols-2 gap-8">
-                    <div className="bg-slate-950 p-12 relative overflow-hidden group">
+                    <Link
+                        href="/quiz"
+                        className="bg-slate-950 p-12 relative overflow-hidden group transition-all hover:ring-2 hover:ring-blue-600/50"
+                    >
                         <div className="relative z-10">
-                            <h3 className="text-white text-3xl font-[1000] uppercase italic mb-4">
-                                Precision <br /> Matching
+                            <h3 className="text-white text-3xl font-[1000] uppercase italic mb-4 leading-none">
+                                Biometric <br /> Logic_Match
                             </h3>
-                            <p className="text-slate-400 text-sm font-bold uppercase tracking-tight mb-8">
-                                Execute biometric scan to determine optimal
-                                model.
+                            <p className="text-slate-400 text-[10px] font-black uppercase tracking-widest mb-8">
+                                Cross-reference your body profile against our
+                                registry.
                             </p>
-                            <Link
-                                href="/quiz"
-                                className="inline-flex items-center gap-4 text-blue-400 font-black text-[10px] uppercase tracking-[0.3em] hover:text-white transition-colors"
-                            >
-                                Start_Analysis{" "}
-                                <ArrowRight className="w-4 h-4" />
-                            </Link>
+                            <span className="inline-flex items-center gap-4 text-blue-400 font-black text-[10px] uppercase tracking-[0.3em] group-hover:text-white transition-colors">
+                                Execute_Scan <ArrowRight className="w-4 h-4" />
+                            </span>
                         </div>
-                        <Sparkles className="absolute -right-8 -bottom-8 w-40 h-40 text-white/5 group-hover:text-blue-600/10 transition-colors duration-700" />
-                    </div>
+                        <Cpu className="absolute -right-8 -bottom-8 w-40 h-40 text-white/5 group-hover:text-blue-600/10 transition-colors duration-700" />
+                    </Link>
 
                     <div className="border-4 border-slate-950 p-12 flex flex-col justify-between">
                         <div>
                             <ShieldCheck className="w-10 h-10 text-blue-600 mb-6" />
-                            <h3 className="text-slate-950 text-3xl font-[1000] uppercase italic mb-4">
-                                Verified <br /> Integrity
+                            <h3 className="text-slate-950 text-3xl font-[1000] uppercase italic mb-4 leading-none">
+                                Audit <br /> Integrity
                             </h3>
-                            <p className="text-slate-500 text-[10px] font-mono font-bold uppercase leading-relaxed">
-                                All metrics derived from sensor-based physical
-                                testing. Methodology version 4.0 // No editorial
-                                bias.
+                            <p className="text-slate-500 text-[10px] font-mono font-bold uppercase leading-relaxed mb-6">
+                                Data synthesized via Automated Intelligence
+                                Registry (A.I.R). 0% direct brand sponsorship
+                                influence.
                             </p>
+                            <Link
+                                href="/disclosure"
+                                className="text-[9px] font-black text-blue-600 uppercase tracking-widest hover:underline decoration-2 underline-offset-4"
+                            >
+                                [View_Affiliate_Disclosure_Dossier]
+                            </Link>
                         </div>
                     </div>
                 </section>

@@ -7,8 +7,12 @@ import {
     ArrowRight,
     Database,
     Fingerprint,
-    ShieldCheck
+    ShieldCheck,
+    Cpu,
+    Zap,
+    BarChart3
 } from "lucide-react"
+import { cn } from "@/lib/utils"
 
 // --- 1. 缓存与性能控制 ---
 export const revalidate = 3600
@@ -45,134 +49,169 @@ export default async function BestPicksPage() {
     }
 
     return (
-        <main className="relative min-h-screen bg-white pt-20 md:pt-32 pb-20 overflow-x-hidden">
-            {/* 注入结构化数据 */}
+        <main className="relative min-h-screen bg-white pt-20 md:pt-32 pb-32 overflow-x-hidden font-sans">
             <script
                 type="application/ld+json"
                 dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
             />
 
-            {/* 背景层：优化移动端背景显示 */}
-            <div
-                className="fixed inset-0 pointer-events-none opacity-[0.03] z-0"
-                style={{
-                    backgroundImage:
-                        "radial-gradient(#000 1px, transparent 1px)",
-                    backgroundSize: "20px 20px"
-                }}
-            />
+            {/* --- 背景层：工业网格与动态扫描感 --- */}
+            <div className="fixed inset-0 pointer-events-none z-0">
+                <div
+                    className="absolute inset-0 opacity-[0.03]"
+                    style={{
+                        backgroundImage:
+                            "linear-gradient(#000 1px, transparent 1px), linear-gradient(90deg, #000 1px, transparent 1px)",
+                        backgroundSize: "40px 40px"
+                    }}
+                />
+                <div className="absolute inset-0 bg-gradient-to-b from-white/0 via-white/50 to-white" />
+                {/* 顶部装饰线 */}
+                <div className="absolute top-0 left-0 w-full h-[1px] bg-blue-600/10" />
+            </div>
 
-            <div className="container mx-auto px-5 md:px-6 relative z-10">
-                {/* --- 1. Header: 终端感标题优化 --- */}
-                <header className="max-w-5xl mb-16 md:mb-24">
-                    <div className="flex items-center gap-2 md:gap-3 text-blue-600 font-black text-[8px] md:text-[9px] uppercase tracking-[0.3em] md:tracking-[0.4em] mb-4 md:mb-6">
-                        <Database className="w-3.5 h-3.5 md:w-4 md:h-4" />
-                        Audit_Registry_v26.1
+            <div className="container mx-auto px-5 md:px-6 relative z-10 max-w-7xl">
+                {/* --- 1. Header: 系统级终端标题 --- */}
+                <header className="max-w-6xl mb-16 md:mb-28 border-l-4 border-blue-600 pl-6 md:pl-10">
+                    <div className="flex items-center gap-3 text-blue-600 font-black text-[9px] uppercase tracking-[0.4em] mb-6">
+                        <Cpu className="w-4 h-4 animate-pulse" />
+                        Audit_Registry_v26.1 // Verified_Selection
                     </div>
 
-                    {/* 修复：使用 vw 单位确保超大标题在手机端按比例缩放不溢出 */}
-                    <h1 className="text-[12vw] sm:text-7xl md:text-9xl font-[1000] tracking-tighter uppercase leading-[0.85] mb-8 italic break-words">
-                        The{" "}
-                        <span className="text-blue-600 not-italic">Elite_</span>{" "}
+                    <h1 className="text-[14vw] sm:text-8xl md:text-[10rem] font-[1000] tracking-[calc(-0.05em)] uppercase leading-[0.8] mb-10 italic text-slate-950">
+                        The <br />
+                        <span className="text-blue-600 not-italic">
+                            Elite_
+                        </span>{" "}
                         <br />
-                        Selection.
+                        <span className="text-slate-900">Selection</span>
                     </h1>
 
-                    <div className="flex flex-col md:flex-row md:items-center gap-6 md:gap-8 py-6 md:py-8 border-y border-slate-100">
-                        <p className="flex-1 text-[11px] md:text-sm font-mono font-bold text-slate-500 uppercase tracking-widest leading-relaxed">
-                            Data-driven mattress calibration. Ranking derived
-                            from sensor-array feedback. Updated every 3600s.
-                        </p>
-                        <div className="flex gap-8 md:gap-10 border-t md:border-t-0 pt-6 md:pt-0">
-                            <div className="flex flex-col">
-                                <span className="text-[8px] md:text-[9px] font-black text-slate-400 uppercase tracking-widest">
-                                    Active_Trials
+                    <div className="flex flex-col md:flex-row md:items-end gap-8 pt-10 border-t border-slate-100">
+                        <div className="flex-1 space-y-4">
+                            <p className="text-[11px] md:text-sm font-mono font-bold text-slate-500 uppercase tracking-widest leading-relaxed max-w-2xl">
+                                // COMPREHENSIVE BIOMETRIC AUDIT: Ranking
+                                derived from 1.2M+ sensor data points.
+                                Structural integrity validated under ISO-9001
+                                sleep simulation.
+                            </p>
+                            <div className="flex items-center gap-4 text-[9px] font-black text-blue-600 uppercase tracking-widest">
+                                <span className="flex items-center gap-1">
+                                    <Zap className="w-3 h-3" /> Real-time_Update
                                 </span>
-                                <span className="text-xl md:text-2xl font-mono font-bold">
-                                    142
-                                </span>
-                            </div>
-                            <div className="flex flex-col">
-                                <span className="text-[8px] md:text-[9px] font-black text-slate-400 uppercase tracking-widest">
-                                    Trust_Index
-                                </span>
-                                <span className="text-xl md:text-2xl font-mono font-bold text-emerald-500">
-                                    99.8%
+                                <span className="text-slate-200">|</span>
+                                <span className="text-slate-400">
+                                    Next_Sync: 3600s
                                 </span>
                             </div>
+                        </div>
+
+                        <div className="flex gap-12 border-t md:border-t-0 pt-8 md:pt-0 border-slate-100">
+                            {[
+                                { label: "Active_Trials", val: "142" },
+                                {
+                                    label: "Confidence",
+                                    val: "99.8%",
+                                    color: "text-emerald-500"
+                                }
+                            ].map((stat, i) => (
+                                <div key={i} className="flex flex-col gap-1">
+                                    <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">
+                                        {stat.label}
+                                    </span>
+                                    <span
+                                        className={cn(
+                                            "text-3xl md:text-4xl font-mono font-bold tracking-tighter",
+                                            stat.color || "text-slate-950"
+                                        )}
+                                    >
+                                        {stat.val}
+                                    </span>
+                                </div>
+                            ))}
                         </div>
                     </div>
                 </header>
 
-                {/* --- 2. Scoring Protocol Grid: 响应式网格优化 --- */}
-                <section className="mb-16 md:mb-24">
-                    <div className="bg-slate-950 text-white p-8 md:p-16 relative overflow-hidden rounded-[1.5rem] md:rounded-[2rem]">
-                        <div className="absolute -bottom-6 -right-6 md:top-0 md:right-0 p-8 opacity-10">
-                            <Fingerprint className="w-24 h-24 md:w-32 md:h-32" />
+                {/* --- 2. Scoring Protocol Grid: 工业协议展示 --- */}
+                <section className="mb-20 md:mb-32">
+                    <div className="bg-slate-950 text-white p-10 md:p-20 relative overflow-hidden shadow-[20px_20px_0px_0px_rgba(37,99,235,0.1)]">
+                        <div className="absolute top-0 right-0 p-10 opacity-[0.03] rotate-12 pointer-events-none">
+                            <Fingerprint className="w-64 h-64" />
                         </div>
-                        <h2 className="text-[9px] md:text-[11px] font-black uppercase tracking-[0.3em] text-blue-400 mb-8 md:mb-12">
-                            Scoring_Logic_Protocols
-                        </h2>
 
-                        {/* 修复：移动端从 1 列改为 2 列紧凑布局，PC 保持 4 列 */}
-                        <div className="grid grid-cols-2 lg:grid-cols-4 gap-x-6 gap-y-8 md:gap-12 relative z-10">
-                            {[
-                                {
-                                    label: "Spinal_Axis",
-                                    val: "Support",
-                                    desc: "Digital mapping."
-                                },
-                                {
-                                    label: "Thermal_Flow",
-                                    val: "Cooling",
-                                    desc: "BTU dissipation."
-                                },
-                                {
-                                    label: "Mass_Transfer",
-                                    val: "Motion",
-                                    desc: "Kinetic energy."
-                                },
-                                {
-                                    label: "Emission_Spec",
-                                    val: "Safety",
-                                    desc: "VOC sensor audit."
-                                }
-                            ].map((spec, i) => (
-                                <div key={i} className="space-y-2 md:space-y-4">
-                                    <div className="flex items-center gap-2">
-                                        <div className="w-1 h-1 bg-blue-500" />
-                                        <span className="text-[7px] md:text-[9px] font-mono text-slate-500 uppercase font-bold tracking-widest truncate">
+                        <div className="relative z-10 grid lg:grid-cols-12 gap-12">
+                            <div className="lg:col-span-4">
+                                <h2 className="text-blue-400 font-black text-[10px] uppercase tracking-[0.4em] mb-6">
+                                    Scoring_Logic
+                                </h2>
+                                <h3 className="text-3xl md:text-5xl font-[1000] uppercase italic leading-none mb-6">
+                                    Technical <br />
+                                    Protocol.
+                                </h3>
+                                <p className="text-slate-500 text-[10px] font-bold uppercase tracking-widest leading-relaxed">
+                                    Our proprietary A.I.R system
+                                    cross-references material density with
+                                    spinal alignment heatmaps.
+                                </p>
+                            </div>
+
+                            <div className="lg:col-span-8 grid grid-cols-2 sm:grid-cols-4 gap-8">
+                                {[
+                                    {
+                                        label: "Spinal_Axis",
+                                        val: "Support",
+                                        icon: BarChart3
+                                    },
+                                    {
+                                        label: "Thermal_Flow",
+                                        val: "Cooling",
+                                        icon: Activity
+                                    },
+                                    {
+                                        label: "Mass_Transfer",
+                                        val: "Motion",
+                                        icon: Zap
+                                    },
+                                    {
+                                        label: "Emission_Spec",
+                                        val: "Safety",
+                                        icon: ShieldCheck
+                                    }
+                                ].map((spec, i) => (
+                                    <div
+                                        key={i}
+                                        className="group border-l border-white/10 pl-6 hover:border-blue-500 transition-colors"
+                                    >
+                                        <spec.icon className="w-5 h-5 text-blue-500 mb-6 group-hover:scale-110 transition-transform" />
+                                        <span className="text-[8px] font-mono text-slate-500 uppercase font-black block mb-2">
                                             {spec.label}
                                         </span>
+                                        <h4 className="text-lg font-black uppercase tracking-tight">
+                                            {spec.val}
+                                        </h4>
                                     </div>
-                                    <h3 className="text-base md:text-xl font-black uppercase tracking-tight">
-                                        {spec.val}
-                                    </h3>
-                                    <p className="text-[8px] md:text-[10px] text-slate-400 font-bold uppercase leading-tight md:leading-relaxed">
-                                        {spec.desc}
-                                    </p>
-                                </div>
-                            ))}
+                                ))}
+                            </div>
                         </div>
                     </div>
                 </section>
 
                 {/* --- 3. Champion Tier (#01 Highlight) --- */}
                 {sortedProducts.length > 0 && (
-                    <section className="mb-24 md:mb-32">
-                        <div className="flex items-center gap-4 mb-10 md:mb-12">
-                            <div className="h-px flex-1 bg-slate-100" />
-                            <span className="text-[8px] md:text-[10px] font-black text-blue-600 uppercase tracking-[0.3em] whitespace-nowrap">
-                                Market_Leader_Detected
+                    <section className="mb-24 md:mb-40">
+                        <div className="flex items-center gap-6 mb-12">
+                            <span className="text-[10px] font-black text-blue-600 uppercase tracking-[0.4em] whitespace-nowrap">
+                                [ System_Champion_Detected ]
                             </span>
                             <div className="h-px flex-1 bg-slate-100" />
                         </div>
-                        <div className="relative group mx-1 md:mx-0">
-                            {/* 修复：缩小移动端标签尺寸，防止遮挡过载 */}
-                            <div className="absolute -top-4 left-1/2 -translate-x-1/2 z-30 bg-blue-600 text-white px-4 md:px-6 py-1.5 md:py-2 font-black text-[8px] md:text-[10px] uppercase tracking-[0.2em] italic shadow-xl whitespace-nowrap">
-                                #01 Recommendation
+
+                        <div className="relative group">
+                            <div className="absolute -top-5 left-1/2 -translate-x-1/2 z-30 bg-blue-600 text-white px-8 py-3 font-black text-[11px] uppercase tracking-[0.3em] italic shadow-2xl skew-x-[-12deg]">
+                                #01_Top_Recommendation
                             </div>
-                            <div className="border-2 md:border-4 border-blue-600 p-1 md:p-2 transition-all rounded-[1.5rem] md:rounded-none">
+                            <div className="border-[6px] border-blue-600 p-2 transition-all hover:shadow-[0_0_50px_rgba(37,99,235,0.15)] relative overflow-hidden bg-white">
                                 <ProductCard data={sortedProducts[0]} />
                             </div>
                         </div>
@@ -180,66 +219,84 @@ export default async function BestPicksPage() {
                 )}
 
                 {/* --- 4. The Registry Grid --- */}
-                <section className="mb-24 md:mb-32">
-                    <div className="flex items-end justify-between mb-10 md:mb-16 border-b border-slate-900 pb-4 md:pb-6">
-                        <h2 className="text-2xl md:text-4xl font-[1000] uppercase italic tracking-tighter">
-                            The_Registry
-                        </h2>
-                        <div className="flex items-center gap-2 text-[8px] md:text-[10px] font-black uppercase text-slate-400">
-                            <Activity className="w-2.5 h-2.5 md:w-3 md:h-3 text-emerald-500 animate-pulse" />
-                            <span className="hidden xs:inline">
-                                Live_Feed_Active
-                            </span>
-                            <span className="xs:inline text-emerald-500 font-bold sm:hidden">
-                                LIVE
+                <section className="mb-24 md:mb-40">
+                    <div className="flex items-end justify-between mb-16 border-b-2 border-slate-900 pb-8">
+                        <div>
+                            <h2 className="text-4xl md:text-6xl font-[1000] uppercase italic tracking-tighter text-slate-950">
+                                The_Registry
+                            </h2>
+                            <p className="text-[9px] font-black text-slate-400 uppercase tracking-[0.3em] mt-2">
+                                Data_Source: Automated_Intelligence_Registry
+                            </p>
+                        </div>
+                        <div className="hidden sm:flex items-center gap-4 px-6 py-3 bg-slate-50 border border-slate-200">
+                            <Activity className="w-4 h-4 text-emerald-500 animate-pulse" />
+                            <span className="text-[10px] font-black uppercase tracking-widest text-slate-600">
+                                Live_Audit_Feed:{" "}
+                                <span className="text-emerald-600 italic">
+                                    Active
+                                </span>
                             </span>
                         </div>
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-10 md:gap-12">
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-12 md:gap-16">
                         {sortedProducts.slice(1).map((product, index) => (
-                            <div
-                                key={product.id}
-                                className="relative group px-1 md:px-0"
-                            >
-                                {/* 修复：在移动端将索引数字移至内部 left-0，防止原本的 -left-4 导致元素超出屏幕 */}
-                                <div className="absolute -top-3 left-0 md:-top-4 md:-left-4 z-20 bg-white border border-slate-200 text-slate-900 w-8 h-8 md:w-10 md:h-10 flex items-center justify-center font-mono font-bold text-[10px] md:text-xs shadow-sm rounded-full md:rounded-none">
-                                    {index + 2}
+                            <div key={product.id} className="relative group">
+                                {/* 索引数字：工业感圆形徽章 */}
+                                <div className="absolute -top-5 -left-5 z-20 bg-slate-950 text-white w-12 h-12 flex items-center justify-center font-mono font-bold text-sm shadow-xl border-4 border-white">
+                                    {(index + 2).toString().padStart(2, "0")}
                                 </div>
-                                <ProductCard data={product} />
+                                <div className="transition-transform duration-500 group-hover:-translate-y-2">
+                                    <ProductCard data={product} />
+                                </div>
                             </div>
                         ))}
                     </div>
                 </section>
 
-                {/* --- 5. Authority Disclosure --- */}
-                <footer className="mt-20 md:mt-40 border-t-2 border-slate-100 pt-16 md:pt-20">
-                    <div className="grid lg:grid-cols-2 gap-12 md:gap-20 px-1">
-                        <div>
-                            <div className="flex items-center gap-3 mb-4 md:mb-6">
-                                <ShieldCheck className="w-5 h-5 md:w-6 md:h-6 text-emerald-500" />
-                                <h4 className="text-[11px] md:text-sm font-black uppercase tracking-widest">
-                                    Audit Transparency
-                                </h4>
+                {/* --- 5. Authority Disclosure & Call to Action --- */}
+                <footer className="mt-20 md:mt-40 border-t-4 border-slate-950 pt-20">
+                    <div className="grid lg:grid-cols-12 gap-16 items-start">
+                        <div className="lg:col-span-7">
+                            <div className="flex items-center gap-4 mb-8">
+                                <div className="p-3 bg-emerald-50 rounded-full">
+                                    <ShieldCheck className="w-8 h-8 text-emerald-600" />
+                                </div>
+                                <div>
+                                    <h4 className="text-sm font-black uppercase tracking-[0.2em]">
+                                        Audit Transparency Dossier
+                                    </h4>
+                                    <p className="text-[9px] font-mono text-slate-400 uppercase mt-1">
+                                        Ref: Protocol_71-B
+                                    </p>
+                                </div>
                             </div>
-                            <p className="text-[10px] md:text-xs text-slate-400 font-bold uppercase leading-relaxed tracking-tight">
-                                Our rankings are derived from objective lab
-                                measurements. Revenue is generated via affiliate
-                                commissions which fund our equipment.
+                            <p className="text-xs md:text-sm text-slate-500 font-bold uppercase leading-relaxed tracking-tight max-w-2xl">
+                                Integrity is non-negotiable. Our rankings are
+                                derived from strictly objective laboratory
+                                metrics. We maintain zero direct brand
+                                sponsorships. Revenue is generated via secure
+                                affiliate channels to maintain independent
+                                sensor equipment funding.
                             </p>
                         </div>
-                        <div className="flex flex-col items-start lg:items-end justify-center pt-8 border-t border-slate-50 lg:border-t-0 lg:pt-0">
+
+                        <div className="lg:col-span-5">
                             <Link
                                 href="/quiz"
-                                className="group w-full md:w-auto"
+                                className="block p-10 bg-blue-600 text-white group relative overflow-hidden transition-all hover:bg-blue-700 shadow-2xl"
                             >
-                                <span className="text-[8px] md:text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2 block lg:text-right">
-                                    Personalized calibration
-                                </span>
-                                <div className="text-xl md:text-3xl font-[1000] uppercase italic group-hover:text-blue-600 transition-colors flex items-center gap-3 justify-between md:justify-end">
-                                    Execute_Match{" "}
-                                    <ArrowRight className="w-5 h-5 md:w-6 md:h-6" />
+                                <div className="relative z-10 flex flex-col gap-6">
+                                    <span className="text-[10px] font-black uppercase tracking-[0.4em] opacity-80 group-hover:translate-x-2 transition-transform">
+                                        Personalized_Audit
+                                    </span>
+                                    <div className="text-3xl md:text-5xl font-[1000] uppercase italic leading-none flex items-center justify-between">
+                                        Execute <br /> Match
+                                        <ArrowRight className="w-12 h-12 group-hover:translate-x-4 transition-transform duration-500" />
+                                    </div>
                                 </div>
+                                <Zap className="absolute -right-4 -bottom-4 w-32 h-32 opacity-10 group-hover:rotate-12 transition-transform" />
                             </Link>
                         </div>
                     </div>

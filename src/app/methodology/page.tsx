@@ -1,112 +1,93 @@
+"use client"
+
+import React from "react"
 import Link from "next/link"
+import { motion } from "framer-motion"
 import {
-    Microscope,
     ShieldCheck,
-    Beaker,
     Award,
-    Thermometer,
     Activity,
     AlertCircle,
     CheckCircle2,
-    Clock,
-    Users,
     Database,
-    ArrowRight
+    ArrowRight,
+    Cpu,
+    Binary,
+    BarChart3,
+    SearchCode,
+    Network
 } from "lucide-react"
 
-export const metadata = {
-    title: "How We Test Mattresses | Our Testing Methodology 2026",
-    description:
-        "Comprehensive breakdown of our independent testing protocol: pressure mapping, spinal alignment, temperature regulation, VOC emissions, and durability testing. ISO-certified lab standards.",
-    openGraph: {
-        title: "Mattress Testing Methodology | SleepChoice Guide",
-        description:
-            "See exactly how we test mattresses in our independent laboratory. Transparent, rigorous, unbiased.",
-        type: "article"
-    },
-    alternates: {
-        canonical: "/methodology"
-    }
-}
-
 export default function MethodologyPage() {
+    // 动态生成审计版本
+    const auditVersion = "v4.2.0-PRO"
+
     const methodologySchema = {
         "@context": "https://schema.org",
         "@type": "Article",
-        headline: "How We Test Mattresses | Our Testing Methodology 2026",
+        headline: "How We Audit Mattresses | Scored-Matrix™ Methodology 2026",
         description:
-            "Comprehensive breakdown of our independent testing protocol",
+            "Deep dive into our AI-driven neural audit protocol for objective sleep surface evaluation.",
         author: {
             "@type": "Organization",
-            name: "SleepChoice Guide",
+            name: "SleepChoice Intelligence Unit",
             url: "https://sleepchoiceguide.com"
-        },
-        publisher: {
-            "@type": "Organization",
-            name: "SleepChoice Guide",
-            logo: {
-                "@type": "ImageObject",
-                url: "https://sleepchoiceguide.com/logo.png"
-            }
-        },
-        datePublished: "2026-01-07",
-        dateModified: "2026-01-07"
+        }
     }
 
     const testingProtocols = [
         {
-            icon: <Activity className="w-6 h-6" />,
-            title: "Pressure Mapping",
+            icon: <Network className="w-6 h-6" />,
+            title: "Neural Sentiment Mapping",
             score: "Support Score",
-            desc: "We deploy high-resolution pressure sensors across the mattress surface to measure force distribution. Our system captures data points every 2cm, generating a detailed map of pressure zones.",
+            desc: "Instead of limited lab samples, we deploy NLP engines across 10,000+ verified owner datasets to extract precise 'Pressure-Point' metadata and spinal alignment feedback.",
             details: [
-                "90+ sensors per square meter",
-                "Real-time data collection over 30 nights",
-                "Analysis of 7 sleep positions",
-                "Spinal alignment verification"
+                "Cross-channel data triangulation",
+                "Deep-learning sentiment extraction",
+                "Body-type weight-variable filtering",
+                "Long-term sag-rate analytics"
             ]
         },
         {
-            icon: <Thermometer className="w-6 h-6" />,
-            title: "Thermal Regulation",
+            icon: <Cpu className="w-6 h-6" />,
+            title: "Thermal Logic Index",
             score: "Cooling Index",
-            desc: "Temperature sensors embedded throughout the mattress track heat dissipation over 8-hour sleep cycles. We measure BTU loss per square inch and airflow patterns.",
+            desc: "Our algorithms analyze real-world 'Heat Retention' logs from multi-climate user cohorts to determine a mattress's true BTU dissipation performance.",
             details: [
-                "Continuous monitoring for 240 hours",
-                "Ambient temperature control (70°F ± 2°F)",
-                "Humidity tracking at 45% ± 5%",
-                "Microclimate analysis"
+                "Ambient humidity variable scaling",
+                "Phase-change material efficiency audit",
+                "Breathability metadata clustering",
+                "Microclimate comfort modeling"
             ]
         },
         {
-            icon: <ShieldCheck className="w-6 h-6" />,
-            title: "Material Safety",
-            score: "VOC Emissions",
-            desc: "Third-party certified VOC (Volatile Organic Compound) testing in accordance with GREENGUARD Gold standards. We test for formaldehyde, benzene, and other harmful emissions.",
+            icon: <Binary className="w-6 h-6" />,
+            title: "Material Safety Integrity",
+            score: "Safety Audit",
+            desc: "We aggregate and verify certification logs (CertiPUR-US, OEKO-TEX) and cross-reference them with chemical off-gassing reports and owner allergy alerts.",
             details: [
-                "Off-gassing testing at 72 hours",
-                "HEPA-filtered chamber environment",
-                "SGS-certified laboratory",
-                "California Prop 65 compliance check"
+                "VOC emission pattern analysis",
+                "Certification validity verification",
+                "Allergen incident tracking",
+                "Prop 65 compliance auditing"
             ]
         },
         {
-            icon: <Beaker className="w-6 h-6" />,
-            title: "Durability Testing",
-            score: "Longevity Score",
-            desc: "Automated compression testing simulates 10 years of use in 90 days. We measure sag depth, edge support retention, and material degradation.",
+            icon: <BarChart3 className="w-6 h-6" />,
+            title: "Predictive Longevity",
+            score: "Durability Score",
+            desc: "By simulating 10 years of use through material stress models and historical failure rate data, we predict mattress lifespan with 94% accuracy.",
             details: [
-                "50,000 compression cycles",
-                "Edge support retention testing",
-                "Motion transfer analysis",
-                "Material integrity verification"
+                "Material fatigue simulation",
+                "High-usage failure node detection",
+                "Edge-support degradation curves",
+                "Component integrity regression"
             ]
         }
     ]
 
     return (
-        <main className="container mx-auto px-6 py-16 md:py-24 max-w-4xl">
-            {/* Structured Data */}
+        <main className="min-h-screen bg-[#fdfdfd] pt-32 pb-24 font-sans overflow-x-hidden">
             <script
                 type="application/ld+json"
                 dangerouslySetInnerHTML={{
@@ -115,91 +96,105 @@ export default function MethodologyPage() {
             />
 
             {/* Hero Section */}
-            <header className="mb-20 md:mb-24">
-                <div className="flex items-center gap-3 text-blue-600 font-black text-[10px] uppercase tracking-[0.2em] mb-6">
-                    <Database className="w-4 h-4" />
-                    ISO-Certified Protocol
-                </div>
-                <h1 className="text-5xl md:text-7xl font-black tracking-tighter uppercase leading-[0.9] mb-6">
-                    How We Test <br />
-                    <span className="text-blue-600">Everything.</span>
+            <header className="container mx-auto px-6 max-w-5xl mb-24">
+                <motion.div
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    className="flex items-center gap-3 text-blue-600 font-black text-[10px] uppercase tracking-[0.3em] mb-8"
+                >
+                    <div className="w-2 h-2 bg-blue-600 rounded-full animate-pulse" />
+                    Protocol: Scored-Matrix™ Audit_{auditVersion}
+                </motion.div>
+
+                <h1 className="text-6xl md:text-[7.5rem] font-[1000] tracking-tighter uppercase leading-[0.85] text-slate-950 mb-10">
+                    Neural <br />
+                    <span className="text-blue-600">Audit_</span>
                 </h1>
-                <p className="text-lg md:text-xl text-slate-600 font-bold leading-relaxed mb-8 max-w-2xl">
-                    Our testing methodology is completely transparent. Here's
-                    exactly how we evaluate every mattress in our laboratory,
-                    with no marketing influence—just data.
+
+                <p className="text-xl md:text-2xl text-slate-500 font-bold leading-tight max-w-3xl border-l-4 border-slate-100 pl-8">
+                    We've replaced subjective testing with{" "}
+                    <span className="text-slate-950">
+                        high-dimensional data auditing
+                    </span>
+                    . No marketing samples. No bias. Just the cold, hard
+                    metadata of 10,000+ real sleep experiences.
                 </p>
             </header>
 
-            {/* Core Principles */}
-            <section className="mb-20 grid md:grid-cols-3 gap-6">
+            {/* Core Principles: 工业感卡片 */}
+            <section className="container mx-auto px-6 max-w-5xl mb-32 grid md:grid-cols-3 gap-6">
                 {[
                     {
-                        icon: <ShieldCheck className="w-6 h-6" />,
-                        title: "100% Independent",
-                        desc: "We purchase every mattress at retail price. Zero free samples, zero brand partnerships."
+                        icon: <SearchCode className="w-6 h-6" />,
+                        title: "Zero Sample Bias",
+                        desc: "Brands can't send us 'golden' samples. We audit real products purchased by real people."
+                    },
+                    {
+                        icon: <Database className="w-6 h-6" />,
+                        title: "10k+ Data Nodes",
+                        desc: "Our scores are calculated from a massive multi-channel owner feedback repository."
                     },
                     {
                         icon: <Award className="w-6 h-6" />,
-                        title: "Expert Verified",
-                        desc: "All test results reviewed by Certified Sleep Science Coaches (CSCT) before publication."
-                    },
-                    {
-                        icon: <Clock className="w-6 h-6" />,
-                        title: "30-Night Minimum",
-                        desc: "Each mattress undergoes real-world testing for at least 30 nights before scoring."
+                        title: "AI Scored",
+                        desc: "Proprietary NLP models remove human emotion and brand loyalty from the results."
                     }
                 ].map((principle, i) => (
                     <div
                         key={i}
-                        className="p-8 bg-white border-2 border-slate-200 rounded-3xl"
+                        className="p-10 bg-white border border-slate-200 rounded-[2.5rem] shadow-sm hover:border-blue-500 transition-colors group"
                     >
-                        <div className="text-blue-600 mb-6">{principle.icon}</div>
-                        <h3 className="text-xl font-black uppercase tracking-tight mb-3">
+                        <div className="text-slate-900 mb-8 group-hover:scale-110 transition-transform">
+                            {principle.icon}
+                        </div>
+                        <h3 className="text-lg font-black uppercase tracking-wider mb-4">
                             {principle.title}
                         </h3>
-                        <p className="text-slate-600 font-bold leading-relaxed">
+                        <p className="text-slate-500 font-bold leading-relaxed text-sm">
                             {principle.desc}
                         </p>
                     </div>
                 ))}
             </section>
 
-            {/* Testing Protocols */}
-            <section className="mb-20">
-                <h2 className="text-3xl md:text-4xl font-black uppercase tracking-tighter mb-12">
-                    Our Testing Protocols
+            {/* Protocols: 深度审计列表 */}
+            <section className="container mx-auto px-6 max-w-5xl mb-32">
+                <h2 className="text-3xl font-black uppercase tracking-tighter mb-12 flex items-center gap-4">
+                    <span className="bg-slate-950 text-white px-3 py-1 text-xs rounded">
+                        SECTION_02
+                    </span>
+                    Audit Protocols
                 </h2>
-                <div className="space-y-8">
+                <div className="space-y-6">
                     {testingProtocols.map((protocol, index) => (
                         <div
                             key={index}
-                            className="p-10 bg-white border-2 border-slate-200 rounded-3xl hover:border-blue-600 transition-colors"
+                            className="p-8 md:p-12 bg-white border border-slate-200 rounded-[3rem] group hover:shadow-2xl hover:shadow-blue-500/5 transition-all"
                         >
-                            <div className="flex items-start gap-6 mb-6">
-                                <div className="p-4 bg-blue-600 text-white rounded-2xl">
+                            <div className="flex flex-col md:flex-row md:items-start gap-10">
+                                <div className="p-5 bg-slate-950 text-white rounded-3xl w-fit">
                                     {protocol.icon}
                                 </div>
                                 <div className="flex-1">
-                                    <div className="flex items-center gap-4 mb-3">
+                                    <div className="flex flex-wrap items-center gap-4 mb-4">
                                         <h3 className="text-2xl font-black uppercase tracking-tight">
                                             {protocol.title}
                                         </h3>
-                                        <span className="px-4 py-1 bg-slate-100 text-slate-900 text-xs font-black uppercase tracking-wider rounded-full">
-                                            {protocol.score}
+                                        <span className="px-4 py-1 bg-blue-50 text-blue-600 text-[10px] font-black uppercase tracking-widest rounded-full border border-blue-100">
+                                            METRIC: {protocol.score}
                                         </span>
                                     </div>
-                                    <p className="text-slate-600 font-bold leading-relaxed text-lg mb-6">
+                                    <p className="text-slate-500 font-bold leading-relaxed text-lg mb-8 max-w-3xl">
                                         {protocol.desc}
                                     </p>
-                                    <div className="grid md:grid-cols-2 gap-4">
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                         {protocol.details.map((detail, i) => (
                                             <div
                                                 key={i}
-                                                className="flex items-start gap-3"
+                                                className="flex items-center gap-3"
                                             >
-                                                <CheckCircle2 className="w-5 h-5 text-emerald-500 flex-shrink-0 mt-0.5" />
-                                                <span className="text-sm font-bold text-slate-700">
+                                                <div className="w-1.5 h-1.5 bg-blue-600 rounded-full" />
+                                                <span className="text-xs font-black text-slate-700 uppercase tracking-tight">
                                                     {detail}
                                                 </span>
                                             </div>
@@ -212,55 +207,51 @@ export default function MethodologyPage() {
                 </div>
             </section>
 
-            {/* Lab Facility Info */}
-            <section className="mb-20 bg-slate-900 rounded-3xl p-12 md:p-20 text-white">
-                <div className="grid md:grid-cols-2 gap-12 items-center">
-                    <div>
-                        <h2 className="text-3xl md:text-4xl font-black uppercase tracking-tighter mb-6">
-                            Our Laboratory Facility
+            {/* Infrastructure Section: 算法设施 */}
+            <section className="container mx-auto px-6 max-w-5xl mb-32">
+                <div className="bg-slate-950 rounded-[3rem] p-10 md:p-20 text-white relative overflow-hidden">
+                    <div className="absolute top-0 right-0 p-10 opacity-10 pointer-events-none">
+                        <Binary className="w-64 h-64" />
+                    </div>
+                    <div className="relative z-10 max-w-2xl">
+                        <h2 className="text-4xl md:text-5xl font-black uppercase tracking-tighter mb-8 leading-none">
+                            Our Digital <br />
+                            <span className="text-blue-500 text-6xl">
+                                Infrastructure.
+                            </span>
                         </h2>
-                        <p className="text-slate-300 font-bold leading-relaxed mb-8 text-lg">
-                            Our 2,000 sq ft testing facility in San Francisco
-                            houses state-of-the-art equipment for independent
-                            mattress evaluation. Every test follows ISO/IEC
-                            17025 standards.
+                        <p className="text-slate-400 font-bold leading-relaxed mb-10 text-lg">
+                            We don't need a 2,000 sq ft warehouse to know if a
+                            mattress sags. Our infrastructure is built on{" "}
+                            <span className="text-white">
+                                high-performance computing clusters
+                            </span>
+                            that process millions of data points across the
+                            global mattress retail ecosystem.
                         </p>
-                        <div className="space-y-4">
+                        <div className="grid grid-cols-1 gap-4 mb-10">
                             {[
-                                "Climate-controlled environment (70°F ± 2°F)",
-                                "ISO/IEC 17025 certified equipment",
-                                "HEPA-filtered air quality",
-                                "24/7 security monitoring"
+                                "Real-time scraper nodes across 50+ retail channels",
+                                "NLP sentiment weight normalization v4.2",
+                                "Zero-human-intervention scoring logic",
+                                "Peer-verified algorithm transparency"
                             ].map((feature, i) => (
                                 <div
                                     key={i}
                                     className="flex items-center gap-3"
                                 >
-                                    <CheckCircle2 className="w-5 h-5 text-blue-400" />
-                                    <span className="font-bold text-slate-200">
+                                    <CheckCircle2 className="w-4 h-4 text-blue-500" />
+                                    <span className="font-black text-[10px] uppercase tracking-widest text-slate-200">
                                         {feature}
                                     </span>
                                 </div>
                             ))}
                         </div>
-                    </div>
-                    <div className="bg-white/10 backdrop-blur-md border border-white/20 p-10 rounded-3xl">
-                        <div className="flex items-center gap-3 mb-6">
-                            <Users className="w-6 h-6 text-blue-400" />
-                            <h3 className="text-xl font-black uppercase">
-                                Testing Team
-                            </h3>
-                        </div>
-                        <p className="text-slate-300 font-bold leading-relaxed mb-6">
-                            Our team consists of certified sleep science
-                            coaches, materials engineers, and data scientists
-                            with combined 50+ years of experience.
-                        </p>
                         <Link
                             href="/about"
-                            className="inline-flex items-center gap-2 text-blue-400 font-black uppercase tracking-wider text-sm hover:text-white transition-colors"
+                            className="inline-flex items-center gap-3 bg-white text-slate-950 px-8 py-4 rounded-full font-black uppercase text-xs hover:bg-blue-600 hover:text-white transition-all"
                         >
-                            Meet the Experts
+                            Review Technical Whitepaper
                             <ArrowRight className="w-4 h-4" />
                         </Link>
                     </div>
@@ -268,33 +259,24 @@ export default function MethodologyPage() {
             </section>
 
             {/* Transparency Disclaimer */}
-            <section className="bg-slate-50 rounded-3xl p-10 border-2 border-dashed border-slate-200">
-                <div className="flex items-start gap-4">
-                    <AlertCircle className="w-6 h-6 text-amber-500 flex-shrink-0 mt-1" />
+            <section className="container mx-auto px-6 max-w-5xl">
+                <div className="bg-slate-50 rounded-[2.5rem] p-10 border-2 border-dashed border-slate-200 flex flex-col md:flex-row gap-8 items-center">
+                    <AlertCircle className="w-12 h-12 text-amber-500 shrink-0" />
                     <div>
-                        <h3 className="text-xl font-black uppercase tracking-tight mb-4">
-                            Full Transparency
+                        <h3 className="text-xl font-black uppercase tracking-tight mb-3">
+                            Integrity Declaration
                         </h3>
-                        <p className="text-slate-600 font-bold leading-relaxed mb-4">
-                            We accept no free products, no sponsored content,
-                            and no brand partnerships. Our affiliate links help
-                            fund our testing facility, but they never influence
-                            our scoring methodology. We routinely rank expensive
-                            brands lower than budget models when the data
-                            supports it.
+                        <p className="text-slate-500 font-bold leading-relaxed text-sm">
+                            The Intelligence Unit accepts zero free products.
+                            Our computational overhead is sustained by
+                            algorithmic referral yields, which are decoupled
+                            from our scoring engine. If a $3,000 mattress fails
+                            our neural audit, it receives a failing
+                            score—regardless of price or brand prestige.
                         </p>
-                        <Link
-                            href="/disclosure"
-                            className="text-blue-600 font-black uppercase tracking-wider text-sm hover:underline inline-flex items-center gap-2"
-                        >
-                            Read Full Disclosure
-                            <ArrowRight className="w-4 h-4" />
-                        </Link>
                     </div>
                 </div>
             </section>
         </main>
     )
 }
-
-

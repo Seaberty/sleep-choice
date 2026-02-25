@@ -1,7 +1,7 @@
 import { supabase } from "@/lib/supabase"
 import { notFound } from "next/navigation"
+import { Metadata } from "next"
 import AuditRadarChart from "@/components/AuditRadarChart"
-import Image from "next/image"
 import {
     ShieldCheck,
     ExternalLink,
@@ -37,6 +37,11 @@ interface Product {
     slug: string
     brand: string
     model: string
+    // --- 新增 SEO 字段 ---
+    seo_title?: string // 对应 SEO 标题
+    seo_description?: string // 对应 SEO 描述
+    seo_keywords?: string // 对应 SEO 关键词
+    // -------------------
     audit_scores: AuditScores | string
     technical_specs: Record<string, string> | string
     audit_data: { specs_matrix: Record<string, string> } | string
@@ -64,9 +69,54 @@ const safeParse = <T,>(data: any, fallback: T): T => {
     return data || fallback
 }
 
+// --- SEO 注入逻辑 ---
+export async function generateMetadata({
+    params
+}: {
+    params: Promise<{ slug: string }>
+}): Promise<Metadata> {
+    const { slug } = await params
+
+    // 建议 select 包含所有可能的 SEO 字段，即便目前它们可能为空
+    const { data: product } = await supabase
+        .from("audit_products")
+        .select(
+            "brand, model, seo_title, seo_description, seo_keywords, summary_log, audit_note"
+        )
+        .eq("slug", slug)
+        .single()
+
+    if (!product) return { title: "Product Not Found" }
+
+    // 优先使用专用 SEO 标题，否则使用标准审计格式
+    const title =
+        product.seo_title ||
+        `${product.brand} ${product.model} Forensic Audit & Analysis`
+
+    // 优化描述逻辑：优先 SEO 描述 -> 优先审计总结 -> 最后才是带时间戳的日志截取
+    const description =
+        product.seo_description ||
+        product.audit_note ||
+        product.summary_log?.replace(/\[T-.*?\]\s+/g, "").slice(0, 160) || // 移除时间戳提升可读性
+        "Professional forensic material analysis and sleep performance audit."
+
+    return {
+        title: title,
+        description: description,
+        keywords:
+            product.seo_keywords ||
+            `${product.brand}, ${product.model}, mattress audit, lab test`,
+        openGraph: {
+            title: title,
+            description: description,
+            type: "website"
+        }
+    }
+}
+
 // --- 子组件：物理层级解剖 ---
 const LayerStack = ({ specs }: { specs: any }) => {
-    // 建议将来将此数据存入数据库，目前保持为 UI 展示
+    // 保持原始数据结构不变
     const layers = [
         {
             name: "Euro Top Layer",
@@ -111,9 +161,10 @@ const LayerStack = ({ specs }: { specs: any }) => {
                             className={`${layer.color} border border-slate-950/20 absolute w-full transition-all duration-500 hover:translate-x-4 cursor-crosshair group/layer shadow-sm`}
                             style={{
                                 height: layer.height,
-                                bottom: `${layers.slice(0, idx).reduce((acc, l) => acc + parseInt(l.height), 0)}%`,
-                                transform: `translateZ(${idx * 20}px)`,
-                                zIndex: idx
+                                // 修正底部对齐逻辑，使其与列表顺序对应
+                                bottom: `${layers.slice(idx + 1).reduce((acc, l) => acc + parseInt(l.height), 0)}%`,
+                                transform: `translateZ(${(layers.length - idx) * 20}px)`,
+                                zIndex: layers.length - idx
                             }}
                         >
                             <div className="absolute inset-0 opacity-0 group-hover/layer:opacity-100 bg-blue-500/10 flex items-center justify-center">
@@ -124,9 +175,9 @@ const LayerStack = ({ specs }: { specs: any }) => {
                         </div>
                     ))}
                 </div>
-                {/* 详情列表 */}
+                {/* 详情列表 - 取消 reverse 以匹配 3D 物理层级 */}
                 <div className="flex-1 w-full space-y-3">
-                    {[...layers].reverse().map((layer, idx) => (
+                    {layers.map((layer, idx) => (
                         <div
                             key={idx}
                             className="flex items-center gap-4 group"
@@ -183,6 +234,16 @@ export default async function ProductAuditPage({
     const offers = safeParse<Offer[]>(product.offers, [])
     const specsMatrix = auditData?.specs_matrix || {}
 
+    // 推荐的逻辑处理
+    const seoData = {
+        title: product.seo_title || `${product.brand} ${product.model} Audit`,
+        // 修复点：如果 seo_description 为空，不要直接显示长日志，显示一个简短版本
+        description:
+            product.seo_description ||
+            "No custom index summary provided. Using system default audit log excerpt.",
+        keywords: product.seo_keywords || "General, Audit, Hardware"
+    }
+
     // --- 计算低价索引 ---
     const minPriceIndex =
         offers.length > 0
@@ -206,8 +267,6 @@ export default async function ProductAuditPage({
 
     return (
         <main className="min-h-screen bg-white text-slate-900 pb-20 pt-32 md:pt-44 font-sans selection:bg-blue-600 selection:text-white">
-            {/*  */}
-
             <script
                 type="application/ld+json"
                 dangerouslySetInnerHTML={{
@@ -283,7 +342,6 @@ export default async function ProductAuditPage({
                 </header>
 
                 <div className="grid lg:grid-cols-12 gap-16 items-start">
-                    
                     <div className="lg:col-span-8 space-y-20">
                         {/* 1. Main Image - 优化响应式与优先级 */}
                         <section className="relative group bg-slate-50 border border-slate-200 overflow-hidden">
@@ -339,39 +397,44 @@ export default async function ProductAuditPage({
                         <LayerStack specs={technicalSpecs} />
 
                         {/* 4. Pros & Cons */}
-                        <section className="grid md:grid-cols-2 gap-px bg-slate-200 border border-slate-200 font-mono">
+                        <section className="grid md:grid-cols-2 gap-px bg-slate-200 border border-slate-200 font-mono shadow-sm">
+                            {/* Performance_Gains (PROS) */}
                             <div className="bg-white p-8 space-y-6">
                                 <h4 className="flex items-center gap-2 text-[10px] font-black uppercase text-emerald-600 tracking-[0.2em]">
-                                    <Plus className="w-3 h-3" />{" "}
+                                    <Plus className="w-3 h-3 shrink-0" />{" "}
                                     Performance_Gains
                                 </h4>
                                 <ul className="space-y-4">
                                     {product.pros?.map((pro, i) => (
                                         <li
                                             key={i}
-                                            className="flex items-start gap-3 group"
+                                            /* 修复点：使用 grid 锁定第一列宽度，防止文字挤压图标 */
+                                            className="grid grid-cols-[12px_1fr] gap-3 items-start group"
                                         >
-                                            <ChevronRight className="w-3 h-3 mt-0.5 text-slate-300 group-hover:text-emerald-500 transition-colors" />
-                                            <span className="text-[11px] font-bold text-slate-700 leading-tight uppercase">
+                                            <ChevronRight className="w-3 h-3 mt-1 text-slate-300 group-hover:text-emerald-500 shrink-0 transition-colors" />
+                                            <span className="text-[11px] font-bold text-slate-700 leading-tight uppercase break-words">
                                                 {pro}
                                             </span>
                                         </li>
                                     ))}
                                 </ul>
                             </div>
+
+                            {/* System_Constraints (CONS) */}
                             <div className="bg-white p-8 space-y-6">
                                 <h4 className="flex items-center gap-2 text-[10px] font-black uppercase text-rose-500 tracking-[0.2em]">
-                                    <Minus className="w-3 h-3" />{" "}
+                                    <Minus className="w-3 h-3 shrink-0" />{" "}
                                     System_Constraints
                                 </h4>
                                 <ul className="space-y-4">
                                     {product.cons?.map((con, i) => (
                                         <li
                                             key={i}
-                                            className="flex items-start gap-3 group"
+                                            /* 修复点：使用 grid 锁定第一列宽度，防止文字挤压图标 */
+                                            className="grid grid-cols-[12px_1fr] gap-3 items-start group"
                                         >
-                                            <AlertCircle className="w-3 h-3 mt-0.5 text-slate-300 group-hover:text-rose-500 transition-colors" />
-                                            <span className="text-[11px] font-bold text-slate-400 leading-tight uppercase">
+                                            <AlertCircle className="w-3 h-3 mt-1 text-slate-300 group-hover:text-rose-500 shrink-0 transition-colors" />
+                                            <span className="text-[11px] font-bold text-slate-400 leading-tight uppercase break-words">
                                                 {con}
                                             </span>
                                         </li>
@@ -391,43 +454,73 @@ export default async function ProductAuditPage({
                                 <div className="flex-1 h-px bg-slate-100" />
                             </div>
 
-                            {/* 规格评估矩阵 */}
-                            <div className="grid md:grid-cols-2 gap-x-12 gap-y-8 text-[11px] leading-relaxed text-slate-600">
-                                {specsMatrix &&
-                                    Object.entries(specsMatrix).map(
-                                        ([key, text]) => {
-                                            // 安全处理：确保 text 是字符串，防止嵌套对象导致 React 崩溃
-                                            const displayText =
-                                                typeof text === "object"
-                                                    ? JSON.stringify(text)
-                                                    : String(text)
-
-                                            return (
-                                                <div
-                                                    key={key}
-                                                    className="space-y-3 group"
-                                                >
-                                                    {/* 顶部标签：强化 HASH 和评估索引感 */}
-                                                    <div className="flex items-center gap-2">
-                                                        <span className="text-blue-600 font-black uppercase tracking-[0.2em] text-[9px] block group-hover:translate-x-1 transition-transform">
-                                                            [
-                                                            {key.replace(
-                                                                /_/g,
-                                                                " "
-                                                            )}
-                                                            _INDEX]
-                                                        </span>
-                                                        <div className="h-[1px] flex-1 bg-slate-100 group-hover:bg-blue-100 transition-colors" />
-                                                    </div>
-
-                                                    {/* 正文：采用更硬核的边框样式 */}
-                                                    <p className="border-l-2 border-slate-200 pl-4 font-medium uppercase leading-[1.7] group-hover:border-blue-500 transition-colors text-slate-500">
-                                                        {displayText}
-                                                    </p>
-                                                </div>
+                            {/* 规格评估矩阵：增加高亮逻辑 */}
+                            <div className="grid md:grid-cols-2 gap-x-12 gap-y-10">
+                                {" "}
+                                {/* 增加行间距 y-10 */}
+                                {Object.entries(specsMatrix).map(
+                                    ([key, text]) => {
+                                        const isCore =
+                                            /support|alignment|pressure/i.test(
+                                                key
                                             )
-                                        }
-                                    )}
+                                        return (
+                                            <div
+                                                key={key}
+                                                className={`space-y-3 group transition-all duration-300 ${
+                                                    isCore
+                                                        ? "opacity-100"
+                                                        : "opacity-70 hover:opacity-100"
+                                                }`}
+                                            >
+                                                {/* 1. 标题层级：优化为 10px，增加间距 */}
+                                                <div className="flex items-center gap-3">
+                                                    <span
+                                                        className={`font-black uppercase tracking-[0.25em] text-[10px] whitespace-nowrap ${
+                                                            isCore
+                                                                ? "text-blue-600"
+                                                                : "text-slate-400"
+                                                        }`}
+                                                    >
+                                                        [
+                                                        {key.replace(/_/g, " ")}
+                                                        ]
+                                                    </span>
+                                                    <div
+                                                        className={`h-[1px] flex-1 ${
+                                                            isCore
+                                                                ? "bg-blue-600/20"
+                                                                : "bg-slate-100"
+                                                        }`}
+                                                    />
+                                                </div>
+
+                                                {/* 2. 正文层级：优化为 12px (text-xs)，提升易读性 */}
+                                                <p
+                                                    className={`
+                        border-l-2 pl-4 text-[12px] leading-[1.8] uppercase font-medium transition-all
+                        ${
+                            isCore
+                                ? "border-blue-500 text-slate-900 font-bold"
+                                : "border-slate-200 text-slate-500"
+                        }
+                    `}
+                                                >
+                                                    {String(text)}
+                                                </p>
+
+                                                {/* 3. 视觉点缀：为核心指标增加一个极小的刻度感 */}
+                                                {isCore && (
+                                                    <div className="flex gap-1 pl-4 opacity-30">
+                                                        <div className="w-4 h-0.5 bg-blue-600" />
+                                                        <div className="w-1 h-0.5 bg-blue-600" />
+                                                        <div className="w-1 h-0.5 bg-blue-600" />
+                                                    </div>
+                                                )}
+                                            </div>
+                                        )
+                                    }
+                                )}
                             </div>
 
                             {/* 最终审计结论印章 */}
@@ -538,22 +631,98 @@ export default async function ProductAuditPage({
                                 <Box className="w-4 h-4" />{" "}
                                 Technical_Dataset_Raw
                             </h4>
-                            <div className="grid md:grid-cols-2 gap-x-16">
+
+                            <div className="grid md:grid-cols-2 gap-x-12 gap-y-2">
+                                {" "}
+                                {/* 增加列间距，减少行间距 */}
                                 {Object.entries(technicalSpecs).map(
                                     ([key, value]) => (
                                         <div
                                             key={key}
-                                            className="flex justify-between border-b border-slate-50 py-3 items-center hover:bg-slate-50 transition-colors px-2"
+                                            className="group flex flex-col border-b border-slate-50 py-4 hover:bg-slate-50 transition-colors px-4"
                                         >
-                                            <span className="text-slate-400 uppercase tracking-tighter font-medium">
+                                            {/* Key: 放在上方，且缩小不占位 */}
+                                            <span className="text-slate-300 uppercase tracking-widest font-bold mb-1 group-hover:text-blue-500 transition-colors">
                                                 {key}
                                             </span>
-                                            <span className="text-slate-950 font-black">
+
+                                            {/* Value: 允许自动换行，且字号稍微调大一点保证易读 */}
+                                            <span className="text-slate-900 font-black leading-relaxed break-words text-[11px]">
                                                 {value as string}
                                             </span>
                                         </div>
                                     )
                                 )}
+                            </div>
+                        </section>
+
+                        <section className="mt-12 pt-8 border-t border-slate-100 font-mono">
+                            <div className="flex items-center gap-2 mb-6 opacity-40">
+                                <Fingerprint className="w-4 h-4" />
+                                <span className="text-[10px] font-black uppercase tracking-[0.3em]">
+                                    Metadata_Registry
+                                </span>
+                            </div>
+
+                            <div className="grid gap-6">
+                                {/* 1. SEO Title: 核心索引标题 */}
+                                <div className="flex flex-col gap-1 border-l-2 border-blue-500 pl-4 py-1">
+                                    <span className="text-[9px] font-bold text-blue-600/50 uppercase">
+                                        [SEO_Header_Tag]
+                                    </span>
+                                    <p className="text-[11px] font-black text-slate-900 leading-tight">
+                                        {seoData.title}
+                                    </p>
+                                </div>
+
+                                {/* 2. SEO Keywords: 补充关键词矩阵 */}
+                                <div className="flex flex-col gap-1 border-l-2 border-slate-200 pl-4 py-1">
+                                    <span className="text-[9px] font-bold text-slate-300 uppercase">
+                                        [Target_Keywords]
+                                    </span>
+                                    <div className="flex flex-wrap gap-2 mt-1">
+                                        {seoData.keywords
+                                            .split(",")
+                                            .map((tag, i) => (
+                                                <span
+                                                    key={i}
+                                                    className="text-[9px] bg-slate-100 px-1.5 py-0.5 text-slate-500 rounded-sm border border-slate-200/50"
+                                                >
+                                                    {tag.trim()}
+                                                </span>
+                                            ))}
+                                    </div>
+                                </div>
+
+                                {/* 3. SEO Description: 索引摘要 */}
+                                <div className="flex flex-col gap-1 border-l-2 border-slate-200 pl-4 py-1">
+                                    <span className="text-[9px] font-bold text-slate-300 uppercase">
+                                        [Index_Summary_Excerpt]
+                                    </span>
+                                    <p className="text-[11px] font-medium text-slate-500 leading-relaxed italic break-words">
+                                        {seoData.description}
+                                    </p>
+                                </div>
+
+                                {/* 4. Crawler Control: 增加系统感细节 */}
+                                <div className="flex items-center gap-6 mt-2 pt-4 border-t border-slate-50">
+                                    <div className="flex items-center gap-2">
+                                        <span className="text-[8px] font-bold text-slate-300 uppercase">
+                                            Robots:
+                                        </span>
+                                        <span className="text-[8px] font-black text-green-600/70 bg-green-50 px-1">
+                                            INDEX, FOLLOW
+                                        </span>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                        <span className="text-[8px] font-bold text-slate-300 uppercase">
+                                            Canonical:
+                                        </span>
+                                        <span className="text-[8px] font-medium text-slate-400 truncate max-w-[200px]">
+                                            /{product.slug}
+                                        </span>
+                                    </div>
+                                </div>
                             </div>
                         </section>
 

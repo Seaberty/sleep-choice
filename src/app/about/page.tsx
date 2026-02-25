@@ -11,17 +11,19 @@ import {
     FileText,
     MapPin,
     Cpu,
-    Microscope,
-    Radar
+    Radar,
+    Network,
+    Database,
+    Fingerprint,
+    Activity
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 export default function AboutPage() {
     return (
-        <main className="min-h-screen bg-[#FAFAFA] pb-24 pt-20 selection:bg-blue-600 selection:text-white">
+        <main className="min-h-screen bg-[#FAFAFA] pb-24 pt-20 selection:bg-blue-600 selection:text-white font-sans">
             {/* 1. Intelligence Hero Section */}
             <section className="relative overflow-hidden border-b border-slate-200 bg-white py-24 md:py-32">
-                {/* 增加情报单位背景网格 */}
                 <div className="absolute inset-0 bg-[linear-gradient(to_right,#8080800a_1px,transparent_1px),linear-gradient(to_bottom,#8080800a_1px,transparent_1px)] [background-size:30px_30px]" />
                 <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_-20%,#3b82f615,transparent_50%)]" />
 
@@ -36,7 +38,7 @@ export default function AboutPage() {
                                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
                                 <span className="relative inline-flex rounded-full h-2 w-2 bg-blue-500"></span>
                             </span>
-                            INTEL_NODE: STATION_01
+                            INTEL_NODE: CENTRAL_STATION
                         </motion.div>
 
                         <motion.h1
@@ -46,7 +48,7 @@ export default function AboutPage() {
                             className="mb-8 text-6xl font-[1000] leading-[0.85] tracking-[-0.06em] text-slate-950 md:text-[10rem] uppercase"
                         >
                             Deciphering <br />
-                            <span className="text-blue-600">Sleep.</span>
+                            <span className="text-blue-600">Sleep_Data.</span>
                         </motion.h1>
 
                         <motion.div
@@ -64,8 +66,8 @@ export default function AboutPage() {
                                 <span className="text-slate-950 not-italic uppercase tracking-tighter">
                                     signal
                                 </span>
-                                . Using biometric sensors and spinal alignment
-                                arrays, we treat every mattress as a technical
+                                . Using NLP neural mapping and sentiment data
+                                clusters, we treat every mattress as a digital
                                 asset to be audited."
                             </p>
                         </motion.div>
@@ -73,13 +75,13 @@ export default function AboutPage() {
                 </div>
             </section>
 
-            {/* 2. Laboratory Framework (Industrial Cards) */}
+            {/* 2. Intelligence Framework (Industrial Cards) */}
             <section className="container mx-auto px-6 py-24">
                 <div className="mb-20 flex flex-col items-end justify-between gap-6 border-b-4 border-slate-950 pb-12 md:flex-row">
                     <div className="max-w-xl">
                         <div className="flex items-center gap-2 text-blue-600 mb-3 font-black text-[10px] uppercase tracking-[0.3em]">
                             <Binary className="w-4 h-4" />
-                            Metric_Verification_System
+                            Scored-Matrix™_Audit_System
                         </div>
                         <h2 className="text-5xl font-[1000] uppercase tracking-tighter text-slate-950 md:text-6xl">
                             Core Protocols
@@ -88,13 +90,13 @@ export default function AboutPage() {
                     <div className="flex gap-2">
                         {[
                             {
-                                label: "Data_Points",
-                                val: "850K+",
+                                label: "Verified_Nodes",
+                                val: "1.2M+",
                                 color: "text-slate-950"
                             },
                             {
-                                label: "Lab_Hours",
-                                val: "14,200",
+                                label: "Audit_Cycles",
+                                val: "24/7",
                                 color: "text-blue-600"
                             }
                         ].map((s, i) => (
@@ -121,24 +123,24 @@ export default function AboutPage() {
                 <div className="grid gap-8 md:grid-cols-3">
                     {[
                         {
-                            icon: <Radar className="h-6 w-6" />,
-                            title: "Physical Metrology",
-                            tag: "SENSORY_UNIT",
-                            desc: "Based in our 2,000 sq ft facility, we track heat dissipation via infrared thermography and motion isolation with high-resolution accelerometers.",
+                            icon: <Network className="h-6 w-6" />,
+                            title: "Neural Mapping",
+                            tag: "DATA_EXTRACTION",
+                            desc: "Our NLP engine parses 10,000+ verified owner feedback nodes to isolate authentic pressure-relief metadata across all body types.",
                             color: "bg-blue-600"
                         },
                         {
                             icon: <ShieldCheck className="h-6 w-6" />,
-                            title: "Zero Bias Audit",
-                            tag: "LEGAL_CLEARANCE",
-                            desc: "We accept no review units. Every specimen is acquired via retail channels to ensure the integrity of the testing batch.",
+                            title: "Independent Audit",
+                            tag: "ZERO_SPONSORSHIP",
+                            desc: "We process anonymized retail data only. Zero free samples, zero brand interference. Our scores are mathematically objective.",
                             color: "bg-slate-900"
                         },
                         {
                             icon: <Cpu className="h-6 w-6" />,
-                            title: "Expert Synthesis",
-                            tag: "HUMAN_LOGIC",
-                            desc: "Data is cross-referenced by CSCT coaches to ensure sensory output aligns with human physiological requirements.",
+                            title: "Algorithm Synthesis",
+                            tag: "NLP_WEIGHTING",
+                            desc: "Raw data is filtered through our Scored-Matrix™ to ensure outlier bias is removed and true long-term durability is revealed.",
                             color: "bg-blue-600"
                         }
                     ].map((item, i) => (
@@ -173,7 +175,7 @@ export default function AboutPage() {
 
             {/* 3. The Black Box (Intelligence Dossier) */}
             <section className="container mx-auto px-6">
-                <div className="relative overflow-hidden bg-slate-950 px-8 py-20 text-white md:px-20 border-y-8 border-blue-600">
+                <div className="relative overflow-hidden bg-slate-950 px-8 py-20 text-white md:px-20 border-y-8 border-blue-600 rounded-[3rem]">
                     <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')] opacity-10 pointer-events-none" />
 
                     <div className="relative z-10 grid gap-16 lg:grid-cols-2 items-center">
@@ -181,38 +183,38 @@ export default function AboutPage() {
                             <div className="mb-6 flex items-center gap-3 font-mono text-blue-500">
                                 <Terminal className="h-5 w-5" />
                                 <span className="text-xs font-black uppercase tracking-[0.4em]">
-                                    DECRYPTION_LOG_V3
+                                    PROTOCOL_V4.2_STABLE
                                 </span>
                             </div>
                             <h2 className="mb-10 text-5xl font-[1000] leading-[0.9] tracking-tighter md:text-7xl uppercase">
-                                No-B.S. <br />
+                                Real-World <br />
                                 <span className="text-blue-500">Evidence_</span>
                             </h2>
                             <div className="space-y-2">
                                 {[
                                     {
-                                        t: "30-Night Compression Stress",
-                                        c: "STRESS_X"
+                                        t: "Owner Sentiment Triangulation",
+                                        c: "DATA_X"
                                     },
                                     {
-                                        t: "Spinal Alignment Mapping",
-                                        c: "BIO_MAP"
+                                        t: "Long-term Durability Regression",
+                                        c: "LIFE_MAP"
                                     },
                                     {
-                                        t: "Motion Isolation Metrics",
-                                        c: "ISO_MET"
+                                        t: "Neural Heatmap Analysis",
+                                        c: "SENT_MET"
                                     },
                                     {
-                                        t: "Third-party VOC Scan",
-                                        c: "CHEM_SCAN"
+                                        t: "Certification Integrity Scan",
+                                        c: "CERT_SCAN"
                                     }
                                 ].map((item, i) => (
                                     <div
                                         key={i}
-                                        className="flex items-center justify-between border border-white/10 bg-white/5 p-4 hover:bg-blue-600/20 transition-all"
+                                        className="flex items-center justify-between border border-white/10 bg-white/5 p-4 hover:bg-blue-600/20 transition-all rounded-xl"
                                     >
                                         <div className="flex items-center gap-4">
-                                            <CheckCircle2 className="h-4 w-4 text-blue-500" />
+                                            <Activity className="h-4 w-4 text-blue-500" />
                                             <span className="text-sm font-black uppercase tracking-widest">
                                                 {item.t}
                                             </span>
@@ -225,28 +227,30 @@ export default function AboutPage() {
                             </div>
                         </div>
 
-                        <div className="relative p-1 bg-white/10">
-                            <div className="relative border border-white/20 bg-slate-900 p-10 backdrop-blur-xl">
+                        <div className="relative p-1 bg-white/10 rounded-[2.5rem]">
+                            <div className="relative border border-white/20 bg-slate-900 p-10 backdrop-blur-xl rounded-[2.5rem]">
                                 <div className="absolute top-0 right-0 p-4 opacity-10">
-                                    <Microscope size={80} />
+                                    <Database size={80} />
                                 </div>
-                                <FileText className="mb-6 h-10 w-10 text-blue-500" />
+                                <Fingerprint className="mb-6 h-10 w-10 text-blue-500" />
                                 <h4 className="mb-4 text-2xl font-black uppercase tracking-tighter">
-                                    Affiliate Disclosure
+                                    Affiliate Transparency
                                 </h4>
                                 <p className="mb-8 text-sm font-bold leading-relaxed text-slate-400 italic">
-                                    "To maintain this laboratory node, we earn
-                                    commissions on qualifying purchases.
+                                    "To sustain this computational audit node,
+                                    we earn commissions on qualifying purchases.
                                     <span className="text-white not-italic underline decoration-blue-600 decoration-2 underline-offset-4">
                                         {" "}
-                                        This ensures zero brand interference.
+                                        This decouples our scoring from brand
+                                        influence.
                                     </span>{" "}
-                                    We rank budget models over luxury brands if
-                                    the sensors prove superior performance."
+                                    Our algorithms routinely rank budget models
+                                    over legacy brands based on objective data
+                                    clusters."
                                 </p>
                                 <div className="flex items-center gap-2 text-[10px] font-black tracking-widest text-blue-500 uppercase">
                                     <ShieldCheck className="w-4 h-4" />
-                                    Verified Neutral Source
+                                    Verified Neutral Intelligence
                                 </div>
                             </div>
                         </div>
@@ -257,10 +261,10 @@ export default function AboutPage() {
             {/* 4. Global HQ Section */}
             <section className="container mx-auto px-6 py-32 text-center">
                 <div className="mx-auto max-w-2xl">
-                    <div className="mb-8 inline-flex items-center gap-4 px-6 py-2 border border-slate-200 rounded-none bg-white shadow-sm">
+                    <div className="mb-8 inline-flex items-center gap-4 px-6 py-2 border border-slate-200 rounded-full bg-white shadow-sm">
                         <MapPin className="h-4 w-4 text-blue-600" />
                         <span className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-400">
-                            Global Research Node / 2026
+                            Digital Intelligence Node / 2026
                         </span>
                     </div>
                     <h3 className="mb-6 text-4xl font-[1000] uppercase tracking-tighter text-slate-950">
@@ -268,8 +272,8 @@ export default function AboutPage() {
                         <span className="text-blue-600 italic">Intel_Unit</span>
                     </h3>
                     <p className="text-sm font-bold leading-relaxed text-slate-500 uppercase tracking-widest max-w-lg mx-auto">
-                        Consolidating physiological data from high-sensitivity
-                        nodes to provide the industry's most granular index.
+                        Aggregating multi-source owner metadata to provide the
+                        world's most granular objective mattress index.
                     </p>
                 </div>
             </section>

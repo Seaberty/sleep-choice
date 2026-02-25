@@ -1,10 +1,18 @@
 "use client"
 
 import React, { useState, useEffect } from "react"
-import { ArrowRight, Terminal, Loader2, Database, Binary } from "lucide-react"
+import { useRouter } from "next/navigation" // 导入路由钩子
+import {
+    ArrowRight,
+    Terminal,
+    Loader2,
+    Database,
+    Binary,
+    Cpu,
+    Activity
+} from "lucide-react"
 import { motion } from "framer-motion"
 
-// 模拟的情报感骨架屏：当数据加载时显示
 function LabDataSkeleton() {
     return (
         <div className="space-y-4 py-4 animate-in fade-in duration-500">
@@ -19,150 +27,163 @@ function LabDataSkeleton() {
             ))}
             <div className="flex items-center gap-2 mt-4 text-[8px] md:text-[9px] font-mono text-blue-500 italic">
                 <Loader2 className="w-3 h-3 animate-spin" />
-                CONNECTING_TO_STATION_01...
+                UPLINKING_TO_STATION_01...
             </div>
         </div>
     )
 }
 
 export default function LabPage() {
+    const router = useRouter() // 初始化路由
     const [currentTime, setCurrentTime] = useState("")
     const [isSystemReady, setIsSystemReady] = useState(false)
 
     useEffect(() => {
-        const readyTimer = setTimeout(() => setIsSystemReady(true), 100)
-        const timer = setInterval(() => {
+        const readyTimer = setTimeout(() => setIsSystemReady(true), 1200)
+
+        // 核心：每秒更新本地时区时间
+        const updateTime = () => {
+            const now = new Date()
             setCurrentTime(
-                new Date().toLocaleTimeString("en-US", { hour12: false })
+                now.toLocaleTimeString([], {
+                    hour: "2-digit",
+                    minute: "2-digit",
+                    second: "2-digit",
+                    hour12: false
+                })
             )
-        }, 1000)
+        }
+
+        updateTime()
+        const timer = setInterval(updateTime, 1000)
+
         return () => {
             clearTimeout(readyTimer)
             clearInterval(timer)
         }
     }, [])
 
+    // 处理跳转函数
+    const handleNavigate = () => {
+        router.push("/registry") // 这里填写你想跳转的路径，比如 /archive 或 /compare
+    }
+
     return (
         <main className="relative min-h-screen bg-[#F8FAFC] text-slate-900 font-sans selection:bg-blue-600 selection:text-white antialiased overflow-x-hidden">
-            {/* 背景层纹理 */}
-            <div
-                className="fixed inset-0 pointer-events-none z-0"
-                style={{ willChange: "opacity" }}
-            >
+            <div className="fixed inset-0 pointer-events-none z-0">
                 <div
                     className="absolute inset-0 opacity-[0.03]"
                     style={{
                         backgroundImage: `linear-gradient(#000 1px, transparent 1px), linear-gradient(90deg, #000 1px, transparent 1px)`,
-                        backgroundSize:
-                            "clamp(20px, 5vw, 40px) clamp(20px, 5vw, 40px)"
+                        backgroundSize: "40px 40px"
                     }}
                 />
+                <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-b from-transparent via-white/50 to-white" />
             </div>
 
-            <div className="relative z-10 pt-20 md:pt-32 pb-16">
+            <div className="relative z-10 pt-24 md:pt-32 pb-16">
                 <div className="container mx-auto px-5 md:px-6 max-w-7xl">
-                    {/* 1. Status Bar: 优化移动端溢出 */}
-                    <div className="flex items-center gap-x-4 md:gap-x-6 overflow-x-auto no-scrollbar py-4 border-b border-slate-200/60 whitespace-nowrap">
+                    {/* Status Bar */}
+                    <div className="flex items-center gap-x-6 overflow-x-auto no-scrollbar py-4 border-b border-slate-200/60 whitespace-nowrap">
                         <div className="flex items-center gap-2 text-blue-600 font-black text-[9px] md:text-[10px] uppercase tracking-[0.2em] shrink-0">
-                            <div className="relative flex h-2 w-2">
-                                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
-                                <span className="relative inline-flex rounded-full h-2 w-2 bg-blue-600"></span>
-                            </div>
-                            <span>Node: Online</span>
+                            <Activity className="w-3 h-3 animate-pulse" />
+                            <span>System: Operational</span>
                         </div>
                         <div className="flex items-center gap-2 text-slate-400 font-black text-[9px] md:text-[10px] uppercase tracking-[0.2em] shrink-0">
-                            <Binary className="w-3 h-3 md:w-3.5 md:h-3.5" />
-                            <span>AES_256</span>
+                            <Cpu className="w-3 h-3" />
+                            <span>Nodes: 1,420 Active</span>
                         </div>
-                        <div className="ml-auto flex items-center gap-3 font-mono text-[10px] md:text-[11px] text-blue-600 font-bold tabular-nums shrink-0">
-                            [{currentTime || "00:00:00"}]
+                        {/* 增加 suppressHydrationWarning 防止 SSR 报错 */}
+                        <div
+                            suppressHydrationWarning
+                            className="ml-auto flex items-center gap-3 font-mono text-[10px] md:text-[11px] text-blue-600 font-bold tabular-nums shrink-0 bg-blue-50 px-3 py-1 rounded"
+                        >
+                            [{currentTime || "SYNCING..."}]
                         </div>
                     </div>
 
-                    {/* 2. Hero Section Layout */}
-                    <div className="grid lg:grid-cols-12 gap-y-12 lg:gap-12 py-12 md:py-28 items-start lg:items-center">
+                    <div className="grid lg:grid-cols-12 gap-y-12 lg:gap-16 py-12 md:py-28 items-start">
                         <div className="lg:col-span-7">
                             <motion.div
                                 initial={{ opacity: 0, x: -10 }}
                                 animate={{ opacity: 1, x: 0 }}
-                                className="inline-flex items-center gap-2 md:gap-3 mb-6 md:mb-8 px-3 py-1.5 md:px-4 md:py-2 bg-slate-950 text-white rounded-none text-[8px] md:text-[9px] font-black uppercase tracking-[0.3em] shadow-[3px_3px_0px_0px_rgba(59,130,246,1)]"
+                                className="inline-flex items-center gap-2 mb-8 px-4 py-2 bg-slate-950 text-white rounded-none text-[9px] font-black uppercase tracking-[0.3em] shadow-[4px_4px_0px_0px_rgba(59,130,246,1)]"
                             >
-                                <Terminal className="w-3 h-3 md:w-4 md:h-4 text-blue-400" />
-                                EXEC_PROTOCOL // MATERIAL
+                                <Terminal className="w-4 h-4 text-blue-400" />
+                                EXEC_PROTOCOL // NEURAL_AUDIT
                             </motion.div>
 
-                            {/* 修复：使用 clamp 限制字体大小，防止移动端标题过大 */}
-                            <h1 className="text-[clamp(2.5rem,12vw,6.5rem)] font-[1000] tracking-tighter uppercase mb-8 md:mb-10 leading-[0.85] italic break-words">
-                                Decrypting <br />
-                                <span className="text-blue-600 not-italic whitespace-nowrap md:whitespace-normal">
-                                    Comfort_
+                            <h1 className="text-[clamp(2.5rem,12vw,6.5rem)] font-[1000] tracking-tighter uppercase mb-10 leading-[0.85] italic">
+                                Deciphering <br />
+                                <span className="text-blue-600 not-italic">
+                                    Quality_
                                 </span>
                             </h1>
 
-                            <div className="max-w-xl border-l-4 border-blue-600 pl-5 md:pl-8">
-                                <p className="text-base md:text-xl text-slate-500 font-bold leading-relaxed italic">
-                                    "Marketing is an opinion.{" "}
-                                    <br className="md:hidden" />
-                                    <span className="text-slate-950 not-italic">
-                                        Data is a verdict.
+                            <div className="max-w-xl border-l-4 border-blue-600 pl-6 md:pl-8">
+                                <p className="text-lg md:text-xl text-slate-500 font-bold leading-relaxed italic">
+                                    "Marketing claims are noise.{" "}
+                                    <span className="text-slate-950 not-italic uppercase tracking-tighter">
+                                        Data is the signal.
                                     </span>{" "}
                                     <br />
-                                    Our lab audits physical molecular
-                                    integrity."
+                                    Our audit engine decodes owner metadata to
+                                    expose the truth behind the label."
                                 </p>
                             </div>
                         </div>
 
-                        {/* 3. Data Terminal: 终端容器适配 */}
-                        <div className="lg:col-span-5 relative">
-                            <div className="p-6 md:p-12 border border-slate-200 rounded-none bg-white shadow-2xl shadow-blue-900/5 relative overflow-hidden">
-                                <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-600 via-indigo-500 to-slate-900" />
+                        {/* Terminal Interface */}
+                        <div className="lg:col-span-5">
+                            <div className="p-8 md:p-12 border-2 border-slate-950 rounded-none bg-white shadow-[12px_12px_0px_0px_rgba(2,6,23,0.05)] relative overflow-hidden">
+                                <div className="absolute top-0 left-0 w-full h-1.5 bg-blue-600" />
 
-                                <div className="flex justify-between items-center mb-8 md:mb-10">
-                                    <div className="flex items-center gap-2 md:gap-3 text-slate-900 font-black text-[9px] md:text-[11px] uppercase tracking-widest">
+                                <div className="flex justify-between items-center mb-10">
+                                    <div className="flex items-center gap-3 text-slate-900 font-black text-[10px] md:text-[11px] uppercase tracking-widest">
                                         <Database className="w-4 h-4 text-blue-600" />
-                                        Registry_Logs
+                                        Audit_Registry_v4
                                     </div>
-                                    <span className="animate-pulse px-2 py-0.5 bg-blue-50 text-blue-600 text-[7px] md:text-[8px] font-black uppercase">
-                                        Live
-                                    </span>
+                                    <div className="flex gap-1.5">
+                                        <div className="w-1.5 h-1.5 rounded-full bg-slate-200" />
+                                        <div className="w-1.5 h-1.5 rounded-full bg-blue-600 animate-pulse" />
+                                    </div>
                                 </div>
 
-                                <div className="min-h-[140px] md:min-h-[160px]">
+                                <div className="min-h-[160px]">
                                     {!isSystemReady ? (
                                         <LabDataSkeleton />
                                     ) : (
                                         <motion.div
-                                            initial={{ opacity: 0 }}
-                                            animate={{ opacity: 1 }}
-                                            className="space-y-5 md:space-y-6 font-mono"
+                                            initial={{ opacity: 0, y: 10 }}
+                                            animate={{ opacity: 1, y: 0 }}
+                                            className="space-y-6 font-mono"
                                         >
                                             {[
                                                 {
-                                                    label: "Active_Audits",
-                                                    val: "12_Models",
-                                                    color: "text-slate-900"
+                                                    label: "Neural_Scan_Volume",
+                                                    val: "10.2K / HR",
+                                                    color: "text-slate-950"
                                                 },
                                                 {
-                                                    label: "Lab_Efficiency",
-                                                    val: "99.8%",
+                                                    label: "Accuracy_Rating",
+                                                    val: "99.28%",
                                                     color: "text-emerald-600"
                                                 },
                                                 {
-                                                    label: "Sensor_Array",
-                                                    val: "V4_Tactile_X",
+                                                    label: "Audit_Model",
+                                                    val: "Scored-Matrix™",
                                                     color: "text-blue-600"
                                                 }
                                             ].map((stat, i) => (
                                                 <div
                                                     key={i}
-                                                    className="flex justify-between items-end border-b border-slate-100 pb-3 hover:border-blue-200 transition-colors"
+                                                    className="flex justify-between items-end border-b border-slate-100 pb-3 group"
                                                 >
-                                                    <span className="text-[8px] md:text-[9px] font-black text-slate-400 uppercase">
+                                                    <span className="text-[9px] font-black text-slate-400 uppercase tracking-tighter group-hover:text-blue-600 transition-colors">
                                                         {stat.label}
                                                     </span>
                                                     <span
-                                                        className={`text-[11px] md:text-[13px] font-bold uppercase tracking-tight ${stat.color}`}
+                                                        className={`text-xs md:text-sm font-black uppercase tracking-tight ${stat.color}`}
                                                     >
                                                         {stat.val}
                                                     </span>
@@ -172,10 +193,23 @@ export default function LabPage() {
                                     )}
                                 </div>
 
-                                <button className="w-full mt-8 md:mt-10 group bg-slate-950 text-white py-4 md:py-5 rounded-none text-[9px] md:text-[10px] font-black uppercase tracking-[0.25em] flex items-center justify-center gap-3 hover:bg-blue-600 transition-all active:scale-[0.98]">
-                                    Enter Archive
+                                {/* 修复点击：通过 handleNavigate 函数跳转 */}
+                                <button
+                                    onClick={handleNavigate}
+                                    className="w-full mt-10 group bg-slate-950 text-white py-5 rounded-none text-[10px] font-black uppercase tracking-[0.3em] flex items-center justify-center gap-3 hover:bg-blue-600 transition-all active:translate-y-1"
+                                >
+                                    View Audit Archive
                                     <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
                                 </button>
+                            </div>
+
+                            <div className="mt-6 flex items-start gap-3 px-4 py-3 bg-blue-50/50 border border-blue-100/50">
+                                <Binary className="w-4 h-4 text-blue-400 shrink-0 mt-0.5" />
+                                <p className="text-[8px] md:text-[9px] font-bold text-blue-900/60 leading-tight uppercase tracking-tight">
+                                    Encryption active: All audit logs are
+                                    cryptographically verified to prevent brand
+                                    tampering.
+                                </p>
                             </div>
                         </div>
                     </div>

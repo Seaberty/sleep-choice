@@ -9,39 +9,36 @@ import {
     ShieldCheck,
     ArrowUpRight,
     QrCode,
-    Lock
+    Lock,
+    AlertCircle,
+    RefreshCw
 } from "lucide-react"
 
-/**
- * 1. 顶级 SEO Metadata
- * 确保 Google 抓取时将其识别为“独立的第三方审计档案库”
- */
 export const metadata: Metadata = {
     title: "Official Registry Archive | SleepChoice Guide Laboratory",
     description:
-        "Independent laboratory-verified database of mattress performance. Real-time spinal support and pressure relief metrics indexed for 2026.",
-    openGraph: {
-        title: "SleepChoice Guide | The Dossier Archive",
-        description: "Live-monitored mattress audit registry.",
-        type: "website"
-    }
+        "Independent laboratory-verified database of mattress performance indexed for 2026."
 }
 
-// 强制实时获取数据库最新抓取的数据，确保“白帽”实时性
 export const dynamic = "force-dynamic"
-export const revalidate = 0
 
-export default async function RegistryPage() {
-    // 获取所有审计产品
-    const { data: products, error } = await supabase
-        .from("audit_products")
-        .select("*")
-        .order("updated_at", { ascending: false })
+interface Props {
+    searchParams: { q?: string; sort?: string }
+}
 
-    /**
-     * 2. 生成 Google 结构化数据 (JSON-LD)
-     * 让搜索结果直接显示评分星级，大幅提高点击率 (CTR)
-     */
+export default async function RegistryPage({ searchParams }: Props) {
+    const query = searchParams.q || ""
+
+    let dbQuery = supabase.from("audit_products").select("*")
+
+    if (query) {
+        dbQuery = dbQuery.or(`model.ilike.%${query}%,brand.ilike.%${query}%`)
+    }
+
+    const { data: products, error } = await dbQuery.order("updated_at", {
+        ascending: false
+    })
+
     const jsonLd = {
         "@context": "https://schema.org",
         "@type": "ItemList",
@@ -56,34 +53,35 @@ export default async function RegistryPage() {
                 aggregateRating: {
                     "@type": "AggregateRating",
                     ratingValue: p.audit_scores?.overall || 0,
-                    bestRating: "10",
-                    worstRating: "1",
-                    ratingCount: "1"
+                    bestRating: "10"
                 }
             }
         }))
     }
 
     return (
-        <main className="min-h-screen bg-white pt-32 pb-20 overflow-hidden">
-            {/* 注入结构化数据脚本 */}
+        <main className="min-h-screen bg-white pt-32 pb-20 overflow-hidden font-sans selection:bg-blue-600 selection:text-white">
             <script
                 type="application/ld+json"
                 dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
             />
 
-            {/* 实验室防伪底纹 */}
-            <div
-                className="fixed inset-0 pointer-events-none opacity-[0.03]"
-                style={{
-                    backgroundImage:
-                        "linear-gradient(#000 1px, transparent 1px), linear-gradient(90deg, #000 1px, transparent 1px)",
-                    backgroundSize: "32px 32px"
-                }}
-            />
+            {/* 背景美化：使用标准 Tailwind 动画代替 styled-jsx */}
+            <div className="fixed inset-0 pointer-events-none z-0">
+                <div
+                    className="absolute inset-0 opacity-[0.03]"
+                    style={{
+                        backgroundImage:
+                            "linear-gradient(#000 1px, transparent 1px), linear-gradient(90deg, #000 1px, transparent 1px)",
+                        backgroundSize: "32px 32px"
+                    }}
+                />
+                {/* 扫描线动画：改用 CSS 变量和 Tailwind 实现 */}
+                <div className="absolute top-0 left-0 w-full h-[2px] bg-blue-600/20 animate-[scan_8s_linear_infinite]" />
+            </div>
 
             <div className="container mx-auto px-6 relative z-10">
-                {/* --- 页面头部 --- */}
+                {/* --- Header --- */}
                 <header className="max-w-5xl mb-16 border-l-8 border-blue-600 pl-8">
                     <div className="flex items-center gap-3 text-blue-600 font-black text-[10px] uppercase tracking-[0.4em] mb-4">
                         <Lock className="w-3 h-3" />
@@ -103,34 +101,41 @@ export default async function RegistryPage() {
                             <Activity className="w-3.5 h-3.5 text-blue-600" />
                             Live_Indexed: {products?.length || 0} Entities
                         </div>
-                        <div className="flex items-center gap-2 text-[10px] font-mono font-bold text-slate-400 uppercase tracking-widest">
-                            <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" />
-                            Integrity: SSL_Encrypted_Audit
+                        <div className="flex items-center gap-2 text-[10px] font-mono font-bold text-slate-400 uppercase tracking-widest tabular-nums">
+                            <RefreshCw className="w-3.5 h-3.5 text-emerald-500 animate-[spin_10s_linear_infinite]" />
+                            Cycle: 180m_Refresh
                         </div>
                     </div>
                 </header>
 
-                {/* --- 工具栏 --- */}
-                <div className="flex flex-wrap justify-between items-center gap-4 mb-8">
-                    <div className="flex items-center gap-4 bg-slate-50 border border-slate-200 px-5 py-3 w-full md:w-auto">
-                        <Search className="w-4 h-4 text-slate-400" />
-                        <input
-                            type="text"
-                            placeholder="SEARCH_REGISTRY_DATABASE..."
-                            className="bg-transparent border-none outline-none text-[10px] font-mono font-bold text-slate-900 w-64 uppercase tracking-widest placeholder:text-slate-300"
-                        />
-                    </div>
-                    <button className="flex items-center gap-2 px-5 py-3 border-2 border-slate-950 hover:bg-slate-950 hover:text-white transition-all cursor-pointer">
-                        <Filter className="w-3.5 h-3.5" />
-                        <span className="text-[10px] font-black uppercase tracking-widest">
-                            Filter_Protocol
-                        </span>
-                    </button>
+                {/* --- Search Bar --- */}
+                <div className="mb-8">
+                    <form
+                        action="/registry"
+                        method="GET"
+                        className="flex flex-wrap justify-between items-center gap-4"
+                    >
+                        <div className="flex items-center gap-4 bg-slate-50 border-2 border-slate-100 focus-within:border-blue-600 transition-all px-5 py-3 w-full md:w-auto group">
+                            <Search className="w-4 h-4 text-slate-400 group-focus-within:text-blue-600" />
+                            <input
+                                type="text"
+                                name="q"
+                                defaultValue={query}
+                                placeholder="SEARCH_BY_MODEL_OR_BRAND..."
+                                className="bg-transparent border-none outline-none text-[10px] font-mono font-bold text-slate-900 w-64 uppercase tracking-widest placeholder:text-slate-300"
+                            />
+                        </div>
+                        <button
+                            type="submit"
+                            className="bg-slate-950 text-white px-8 py-3 text-[10px] font-black uppercase tracking-widest hover:bg-blue-600 transition-colors"
+                        >
+                            Execute_Query
+                        </button>
+                    </form>
                 </div>
 
-                {/* --- 档案数据网格 --- */}
-                <div className="border-[4px] border-slate-950 shadow-[20px_20px_0px_0px_rgba(241,245,249,1)]">
-                    {/* 表头 */}
+                {/* --- Grid --- */}
+                <div className="border-[4px] border-slate-950 shadow-[20px_20px_0px_0px_rgba(241,245,249,1)] bg-white overflow-hidden">
                     <div className="hidden md:grid grid-cols-12 bg-slate-950 text-white p-5 font-black text-[10px] uppercase tracking-[0.3em]">
                         <div className="col-span-5 pl-4">
                             Subject_Identifier
@@ -139,110 +144,99 @@ export default async function RegistryPage() {
                             Score_Index
                         </div>
                         <div className="col-span-3 text-center">
-                            Audit_Timestamp
+                            Sync_Timestamp
                         </div>
-                        <div className="col-span-2 text-right pr-4">Access</div>
+                        <div className="col-span-2 text-right pr-4">
+                            Report_Link
+                        </div>
                     </div>
 
-                    {/* 数据流 */}
-                    <div className="divide-y divide-slate-200 bg-white">
-                        {!products || products.length === 0 ? (
+                    <div className="divide-y divide-slate-100 bg-white">
+                        {error ? (
+                            <div className="p-24 text-center">
+                                <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
+                                <span className="text-[10px] font-mono text-red-500 uppercase tracking-widest font-bold">
+                                    Database_Error: [503_CONNECTION_TIMEOUT]
+                                </span>
+                            </div>
+                        ) : !products || products.length === 0 ? (
                             <div className="p-32 text-center">
-                                <span className="inline-block animate-pulse text-[10px] font-mono text-slate-300 uppercase tracking-[0.5em]">
-                                    [ Scanning_Satellite_Nodes... ]
+                                <span className="animate-pulse text-[10px] font-mono text-slate-300 uppercase tracking-[0.5em]">
+                                    [ No_Matches_Found ]
                                 </span>
                             </div>
                         ) : (
-                            products.map((p) => {
-                                const score = p.audit_scores?.overall || "0.0"
-                                return (
-                                    <Link
-                                        key={p.id}
-                                        href={`/registry/${p.slug}`}
-                                        className="grid grid-cols-1 md:grid-cols-12 items-center p-8 md:p-10 hover:bg-blue-50 transition-all group relative"
-                                    >
-                                        {/* 品牌型号 */}
-                                        <div className="col-span-5 mb-6 md:mb-0">
-                                            <div className="flex items-center gap-6">
-                                                <QrCode className="hidden md:block w-10 h-10 text-slate-100 group-hover:text-blue-200 transition-colors" />
-                                                <div>
-                                                    <span className="text-[9px] font-black text-blue-600 uppercase tracking-[0.3em] mb-2 block">
-                                                        {p.brand}
-                                                    </span>
-                                                    <h3 className="text-2xl md:text-3xl font-[1000] uppercase tracking-tighter text-slate-950 group-hover:italic transition-all leading-none">
-                                                        {p.model}
-                                                    </h3>
-                                                </div>
+                            products.map((p) => (
+                                <Link
+                                    key={p.id}
+                                    href={`/registry/${p.slug}`}
+                                    className="grid grid-cols-1 md:grid-cols-12 items-center p-8 md:p-10 hover:bg-slate-50 transition-all group border-l-0 hover:border-l-[12px] border-blue-600"
+                                >
+                                    <div className="col-span-5 mb-6 md:mb-0">
+                                        <div className="flex items-center gap-6">
+                                            <div className="hidden md:flex w-12 h-12 items-center justify-center bg-slate-50 border border-slate-100 text-slate-200 group-hover:text-blue-600 transition-all">
+                                                <QrCode className="w-6 h-6" />
+                                            </div>
+                                            <div>
+                                                <span className="text-[9px] font-black text-blue-600 uppercase tracking-[0.3em] mb-2 block">
+                                                    {p.brand}
+                                                </span>
+                                                <h3 className="text-2xl md:text-4xl font-[1000] uppercase tracking-tighter text-slate-950 leading-none">
+                                                    {p.model}
+                                                </h3>
                                             </div>
                                         </div>
+                                    </div>
 
-                                        {/* 核心分数 */}
-                                        <div className="col-span-2 text-center mb-6 md:mb-0">
-                                            <div className="md:hidden text-[9px] font-black text-slate-400 uppercase mb-2">
-                                                Audit_Score
-                                            </div>
-                                            <span className="text-4xl font-mono font-bold italic tracking-tighter text-slate-950 bg-slate-50 border border-slate-100 px-4 py-2 group-hover:bg-blue-600 group-hover:text-white group-hover:border-blue-600 transition-all">
-                                                {score}
+                                    <div className="col-span-2 text-center mb-6 md:mb-0">
+                                        <div className="relative inline-block">
+                                            <span className="text-4xl md:text-5xl font-mono font-bold italic tracking-tighter text-slate-950 group-hover:text-blue-600 transition-colors">
+                                                {p.audit_scores?.overall?.toFixed(
+                                                    1
+                                                ) || "0.0"}
                                             </span>
                                         </div>
+                                    </div>
 
-                                        {/* 时间戳 */}
-                                        <div className="col-span-3 text-center mb-8 md:mb-0">
-                                            <div className="md:hidden text-[9px] font-black text-slate-400 uppercase mb-2">
-                                                Sync_Time
-                                            </div>
-                                            <span className="text-[11px] font-mono font-bold text-slate-400 group-hover:text-slate-950 uppercase transition-colors">
-                                                {new Date(
-                                                    p.updated_at
-                                                ).toLocaleString("en-US", {
-                                                    month: "short",
-                                                    day: "2-digit",
-                                                    year: "numeric"
-                                                })}
-                                            </span>
-                                        </div>
+                                    <div className="col-span-3 text-center mb-8 md:mb-0 tabular-nums font-mono text-[11px] font-bold text-slate-400 group-hover:text-slate-950 uppercase transition-colors">
+                                        {new Date(
+                                            p.updated_at
+                                        ).toLocaleDateString("en-US", {
+                                            month: "short",
+                                            day: "2-digit",
+                                            year: "numeric"
+                                        })}
+                                    </div>
 
-                                        {/* 入口 */}
-                                        <div className="col-span-2 text-right">
-                                            <div className="inline-flex items-center gap-3 text-[11px] font-black uppercase tracking-widest text-slate-950 border-b-4 border-slate-950 pb-1 group-hover:text-blue-600 group-hover:border-blue-600 transition-all">
-                                                View_Report
-                                                <ArrowUpRight className="w-4 h-4" />
-                                            </div>
-                                        </div>
-
-                                        {/* 视觉装饰线 */}
-                                        <div className="absolute right-0 top-0 h-full w-0 bg-blue-600 group-hover:w-1.5 transition-all duration-300" />
-                                    </Link>
-                                )
-                            })
+                                    <div className="col-span-2 text-right">
+                                        <span className="inline-flex items-center gap-3 text-[11px] font-black uppercase tracking-[0.2em] text-slate-950 border-b-4 border-slate-950 pb-1 group-hover:text-blue-600 group-hover:border-blue-600 transition-all">
+                                            Open_Log{" "}
+                                            <ArrowUpRight className="w-4 h-4" />
+                                        </span>
+                                    </div>
+                                </Link>
+                            ))
                         )}
                     </div>
                 </div>
 
-                {/* --- 权威背书区 --- */}
+                {/* --- Footer --- */}
                 <footer className="mt-24 border-t-8 border-slate-950 pt-12 flex flex-col md:flex-row justify-between items-start gap-12">
                     <div className="max-w-xl">
                         <div className="flex items-center gap-3 mb-6">
                             <ShieldCheck className="w-6 h-6 text-blue-600" />
                             <h4 className="text-[12px] font-black text-slate-950 uppercase tracking-[0.4em]">
-                                Integrity_Audit_Protocol_v26
+                                Integrity_Audit_Protocol_v26.4
                             </h4>
                         </div>
                         <p className="text-[11px] font-bold text-slate-400 uppercase leading-relaxed tracking-tight">
-                            The SleepChoice Guide Registry functions as a
-                            decentralized indexing node for biometric sleep
-                            surface performance. Our crawler recalibrates
-                            pricing and material integrity every 180 minutes.
-                            Independent laboratory testing ensures bias-free
-                            reporting.
+                            Independent performance auditing. Parity sync:
+                            2026_02_25.
                         </p>
                     </div>
-                    <div className="bg-slate-950 text-white p-6 font-mono text-[10px] font-bold leading-relaxed tracking-widest uppercase">
+                    <div className="bg-slate-950 text-white p-8 font-mono text-[10px] font-bold leading-loose tracking-widest uppercase">
                         System_Status: Operational
-                        <br />
-                        Data_Stream: Stable
-                        <br />
-                        Node_Location: Global_Edge
+                        <br /> Auditing_Active: True
                     </div>
                 </footer>
             </div>
