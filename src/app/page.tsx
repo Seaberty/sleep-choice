@@ -23,6 +23,7 @@ export const revalidate = 0
 
 export default async function HomePage() {
     const productList = await getAutomatedRegistry()
+    // console.log(productList)
 
     return (
         <div className="bg-white">

@@ -11,6 +11,12 @@ const nextConfig = {
         remotePatterns: [
             {
                 protocol: "https",
+                hostname: "maijccoaphzuqpebhfil.supabase.co", // 替换为你自己的 Supabase 项目 ID
+                port: "",
+                pathname: "/storage/v1/object/public/**"
+            },
+            {
+                protocol: "https",
                 hostname: "saatva.imgix.net",
                 pathname: "**" // 允许该域名下的所有路径
             }

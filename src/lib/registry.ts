@@ -14,7 +14,7 @@ const REGISTRY_PATH = path.join(process.cwd(), "data/registry.json")
  * 优化后的自动化注册表获取逻辑
  * 策略：DB 提供实时审计分值和状态，Local JSON 提供运营文案、SEO 和人工校准
  */
-export const getAutomatedRegistry = cache(async (): Promise<ProductData[]> => {
+export const getAutomatedRegistry = cache(async (limit: number = 12): Promise<ProductData[]> => {
     try {
         const [dbResult, localRegistry] = await Promise.all([
             Promise.race([
@@ -31,7 +31,7 @@ export const getAutomatedRegistry = cache(async (): Promise<ProductData[]> => {
                     .eq("product_offers.is_primary", true)
                     .eq("product_offers.status", "active")
                     .order("audit_scores->>overall", { ascending: false })
-                    .limit(12),
+                    .limit(limit),
                 new Promise((_, reject) =>
                     setTimeout(
                         () => reject(new Error("Supabase Timeout")),
@@ -97,6 +97,14 @@ export const getAutomatedRegistry = cache(async (): Promise<ProductData[]> => {
                 slug,
                 brand: item.brand || localMeta.brand,
                 name: item.model || localMeta.name,
+                image_url:
+                    item.image_url ||
+                    localMeta.image_url ||
+                    item.original_image_url ||
+                    "/placeholder-product.png",
+                original_image_url:
+                    item.original_image_url || localMeta.original_image_url,
+
                 // 覆盖关键数据
                 price: defaultOffer.price,
                 rating: scores.overall,

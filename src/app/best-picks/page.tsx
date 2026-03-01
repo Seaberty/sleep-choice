@@ -27,7 +27,7 @@ export const metadata: Metadata = {
 }
 
 export default async function BestPicksPage() {
-    const products = await getAutomatedRegistry()
+    const products = await getAutomatedRegistry(50)
     const sortedProducts = [...products].sort((a, b) => b.rating - a.rating)
 
     const jsonLd = {

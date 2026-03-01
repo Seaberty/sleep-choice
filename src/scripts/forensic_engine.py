@@ -41,8 +41,19 @@ class ForensicAuditEngine:
     def __init__(self, brand, model):
         self.brand = brand
         self.model = model
-        self.slug = f"{brand}-{model}".lower().replace(" ", "-")
-        self.brand_slug = brand.lower().replace(" ", "-")
+        # 1. 预处理：将 & 转化为 and，处理空格
+        # 2. 正则过滤：只保留字母、数字、连字符
+        def slugify(text):
+            text = text.lower().replace("&", "and")
+            # 将所有非字母数字的字符替换为连字符
+            text = re.sub(r'[^a-z0-9]+', '-', text)
+            # 去掉首尾多余的连字符
+            return text.strip('-')
+
+        self.brand_slug = slugify(brand)
+        # 组合后的 slug 也要跑一遍 slugify 确保 model 里的特殊字符被清洗
+        self.slug = slugify(f"{brand}-{model}")
+        
         self.supabase: Client = create_client(os.getenv("SUPABASE_URL"), os.getenv("SUPABASE_KEY"))
         self.ai_client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
         self.intel = IntelligenceProvider(os.getenv("SERPER_API_KEY"))

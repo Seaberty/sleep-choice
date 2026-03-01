@@ -21,7 +21,7 @@ export function ProductCard({
 }: {
     data: ProductData
     className?: string
-}) {
+    }) {
     const [isMounted, setIsMounted] = useState(false)
     const [imageError, setImageError] = useState(false)
 
@@ -90,9 +90,14 @@ export function ProductCard({
             >
                 {data.image_url && !imageError ? (
                     <Image
-                        src={data.image_url || "/placeholder-product.png"} // 顺便给 src 也加个兜底
-                        alt={data.name || "Product Image"} // 👈 修复：确保这里永远是 string
-                        className="w-full h-full object-contain p-8 transition-transform duration-1000 ease-out group-hover:scale-110"
+                        // 关键点 1: 对 URL 进行编码，处理 & 等特殊字符
+                        src={data.image_url || "/placeholder-product.png"}
+                        alt={data.name || "Product Image"}
+                        // 关键点 2: 使用 fill 模式填充父容器
+                        fill
+                        // 关键点 3: 设置 sizes 优化性能并防止警告
+                        sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                        className="object-contain p-8 transition-transform duration-1000 ease-out group-hover:scale-110"
                         onError={() => setImageError(true)}
                     />
                 ) : (
