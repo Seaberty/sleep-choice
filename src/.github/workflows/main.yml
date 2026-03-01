@@ -25,18 +25,19 @@ jobs:
               env:
                   GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
 
-            - name: Commit and Push (Silent)
-              # 这一步只负责同步数据，即使 Push 失败或被 Vercel 拦截也不影响后续打包
+            - name: Sync Data to GitHub
+              # 私有仓库环境下，这一步可能会因为身份问题在 Vercel 侧显示 Canceled
+              # 但没关系，它能把数据存进 GitHub 仓库就行
               run: |
                   git config --local user.email "41898282+github-actions[bot]@users.noreply.github.com"
                   git config --local user.name "github-actions[bot]"
                   git add data/registry.json
-                  git commit -m "System: Auto-update pricing data" || exit 0
+                  git commit -m "System: Sync latest data" || exit 0
                   git push
 
-            - name: Force Trigger Vercel Build
-              # 关键修复：通过 Deploy Hook 强制部署。这种方式不看 Commit 是否 Verified。
-              # 哪怕 GitHub Actions 没推送新代码，Vercel 也会重新打包。
+            - name: Force Vercel Build Entire Project
+              # 这是核心：通过 Deploy Hook 触发部署
+              # 这种方式会强制 Vercel 以“项目所有者”身份重新拉取代码并打包
               run: |
-                  echo "Sending Force-Build Signal to Vercel..."
+                  echo "Triggering complete project rebuild..."
                   curl -X POST "${{ secrets.VERCEL_DEPLOY_HOOK_URL }}"
