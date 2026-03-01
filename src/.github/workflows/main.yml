@@ -25,22 +25,18 @@ jobs:
               env:
                   GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
 
-            - name: Commit and Push (If Data Changed)
-              # 这一步负责更新数据仓库。如果没变化，它会静默跳过，不影响后续部署。
+            - name: Commit and Push (Silent)
+              # 这一步只负责同步数据，即使 Push 失败或被 Vercel 拦截也不影响后续打包
               run: |
                   git config --local user.email "41898282+github-actions[bot]@users.noreply.github.com"
                   git config --local user.name "github-actions[bot]"
                   git add data/registry.json
-                  if git commit -m "System: Auto-update pricing and biometric logs"; then
-                    git push
-                    echo "Data updated and pushed to GitHub."
-                  else
-                    echo "No changes in data. Skipping push."
-                  fi
+                  git commit -m "System: Auto-update pricing data" || exit 0
+                  git push
 
-            - name: Force Trigger Vercel Deploy
-              # 核心修复：无论上面的 Git Push 是否执行，这一步都会强制 Vercel 重新打包部署
-              # 这样就解决了“数据没变就不部署”和“unverified commit”的问题
+            - name: Force Trigger Vercel Build
+              # 关键修复：通过 Deploy Hook 强制部署。这种方式不看 Commit 是否 Verified。
+              # 哪怕 GitHub Actions 没推送新代码，Vercel 也会重新打包。
               run: |
-                  echo "Sending deployment signal to Vercel..."
+                  echo "Sending Force-Build Signal to Vercel..."
                   curl -X POST "${{ secrets.VERCEL_DEPLOY_HOOK_URL }}"
