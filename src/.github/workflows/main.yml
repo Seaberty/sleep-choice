@@ -27,11 +27,12 @@ jobs:
 
             - name: Commit and Push if Registry Changed
               run: |
-                  git config --local user.email "audit-bot@sleepchoiceguide.com"
-                  git config --local user.name "Audit Bot"
-                  git add data/registry.json
-                  git commit -m "System: Auto-update pricing and biometric logs" || exit 0
-                  git push
+                 # 使用 GitHub Actions 官方机器人账号
+                    git config --local user.email "41898282+github-actions[bot]@users.noreply.github.com"
+                    git config --local user.name "github-actions[bot]"
+                    git add data/registry.json
+                    git commit -m "System: Auto-update pricing and biometric logs" || exit 0
+                    git push
 
             - name: Trigger Vercel Deploy # 如果你使用 Vercel，它会自动检测 Git push 并重新构建
               run: echo "Deploying updated audit data..."
