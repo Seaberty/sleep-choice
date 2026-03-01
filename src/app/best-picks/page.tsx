@@ -208,11 +208,55 @@ export default async function BestPicksPage() {
                         </div>
 
                         <div className="relative group">
-                            <div className="absolute -top-5 left-1/2 -translate-x-1/2 z-30 bg-blue-600 text-white px-8 py-3 font-black text-[11px] uppercase tracking-[0.3em] italic shadow-2xl skew-x-[-12deg]">
+                            {/* 这里的标签稍微偏移以增加工业设计感 */}
+                            <div className="absolute -top-5 left-10 z-30 bg-blue-600 text-white px-8 py-3 font-black text-[11px] uppercase tracking-[0.3em] italic shadow-2xl skew-x-[-12deg]">
                                 #01_Top_Recommendation
                             </div>
-                            <div className="border-[6px] border-blue-600 p-2 transition-all hover:shadow-[0_0_50px_rgba(37,99,235,0.15)] relative overflow-hidden bg-white">
-                                <ProductCard data={sortedProducts[0]} />
+
+                            <div className="border-[6px] border-blue-600 transition-all hover:shadow-[0_0_50px_rgba(37,99,235,0.15)] bg-white overflow-hidden">
+                                <div className="grid lg:grid-cols-12 items-stretch">
+                                    {/* 左侧：独立快照区域 (占据 5/12) */}
+                                    <div className="lg:col-span-5 bg-slate-50 relative overflow-hidden border-b lg:border-b-0 lg:border-r border-slate-100 flex items-center justify-center p-12">
+                                        {/* 装饰性背景 */}
+                                        <div className="absolute inset-0 opacity-[0.03] pointer-events-none font-mono text-[10px] p-4 leading-none break-all">
+                                            {Array.from({ length: 10 }).map(
+                                                (_, i) => (
+                                                    <p key={i} className="mb-1">
+                                                        SCAN_DATA_LOG_{i}:{" "}
+                                                        {Math.random()
+                                                            .toString(16)
+                                                            .slice(2, 15)}
+                                                    </p>
+                                                )
+                                            )}
+                                        </div>
+
+                                        <div className="relative z-10 w-full h-full flex flex-col items-center justify-center">
+                                            <img
+                                                src={
+                                                    sortedProducts[0].image_url
+                                                }
+                                                alt={sortedProducts[0].name}
+                                                className="w-full h-auto max-h-[320px] object-contain mix-blend-multiply group-hover:scale-110 transition-transform duration-1000"
+                                            />
+                                            {/* 工业比例尺装饰 */}
+                                            <div className="absolute bottom-0 left-0 right-0 flex justify-between items-end opacity-20 group-hover:opacity-40 transition-opacity">
+                                                <div className="h-6 w-[1px] bg-slate-950" />
+                                                <div className="h-[1px] flex-1 bg-slate-950 mx-2 mb-1" />
+                                                <div className="h-6 w-[1px] bg-slate-950" />
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* 右侧：直接引入 ProductCard (占据 7/12) */}
+                                    {/* 关键：使用 className 强制覆盖组件内部的特定高度或边距 */}
+                                    <div className="lg:col-span-7 [&_.aspect-video]:hidden [&_.p-7]:p-10 [&_h3]:text-4xl [&_h3]:md:text-5xl [&_.rounded-\[2rem\]]:rounded-none [&_.border]:border-0">
+                                        <ProductCard
+                                            data={sortedProducts[0]}
+                                            className="h-full !border-0 !shadow-none !translate-y-0"
+                                        />
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </section>

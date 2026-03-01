@@ -210,13 +210,36 @@ export default async function ProductAuditPage({
 
     const { data: rawProduct, error } = await supabase
         .from("audit_products")
-        .select("*")
+        .select(
+            `
+        *,
+        product_offers (
+            site_name,
+            price,
+            offer_url,
+            is_primary,
+            status
+        )
+    `
+        )
         .eq("slug", slug)
         .single()
 
     if (error || !rawProduct) notFound()
 
     const product = rawProduct as Product
+
+    // 1. 获取数据库原始联表数据
+    const dbOffers = (rawProduct as any).product_offers || []
+    // 2. 转换为页面使用的 Offer 格式，并按价格排序
+    const offers: Offer[] = dbOffers
+        .filter((o: any) => o.status === "active") // 只显示激活状态的
+        .map((o: any) => ({
+            merchant: o.site_name,
+            price: o.price,
+            link: o.offer_url // 👈 这里成功获取到了跳转 URL
+        }))
+        .sort((a: any, b: any) => Number(a.price) - Number(b.price)) // 价格从低到高排序
 
     // --- 数据解析 ---
     const scores = safeParse<AuditScores>(product.audit_scores, {
@@ -231,7 +254,6 @@ export default async function ProductAuditPage({
         {}
     )
     const auditData = safeParse<any>(product.audit_data, {})
-    const offers = safeParse<Offer[]>(product.offers, [])
     const specsMatrix = auditData?.specs_matrix || {}
 
     // 推荐的逻辑处理

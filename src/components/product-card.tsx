@@ -161,7 +161,7 @@ export function ProductCard({
                             key={i}
                             className="flex items-center gap-2.5 group/line"
                         >
-                            <ShieldCheck className="w-3.5 h-3.5 text-emerald-500 transition-transform group-hover/line:scale-110" />
+                            <ShieldCheck className="w-3.5 h-3.5 text-emerald-500 shrink-0 transition-transform group-hover/line:scale-110" />
                             <span className="text-[11px] font-[800] text-slate-700 uppercase tracking-tight transition-colors group-hover:text-slate-900">
                                 {pro}
                             </span>

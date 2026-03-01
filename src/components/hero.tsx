@@ -1,38 +1,120 @@
-"use client";
-import { motion } from "framer-motion";
+"use client"
+import { motion } from "framer-motion"
+import Link from "next/link"
+import { ChevronRight, Microscope, ShieldCheck } from "lucide-react"
 
 export function Hero() {
-  return (
-    <section className="bg-slate-50 py-20 px-4 text-center lg:text-left lg:py-32">
-      <div className="container mx-auto grid lg:grid-cols-2 gap-12 items-center">
-        <motion.div 
-          initial={{ opacity: 0, x: -20 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ duration: 0.5 }}
-        >
-          <h1 className="text-5xl font-extrabold tracking-tight text-slate-900 lg:text-7xl mb-6">
-            Find Your <span className="text-blue-600">Perfect Night</span>
-          </h1>
-          <p className="text-xl text-slate-600 mb-8 leading-relaxed">
-            Data-backed reviews and personalized recommendations. We test the latest sleep tech so you don't have to.
-          </p>
-          <div className="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start">
-            <button className="bg-blue-600 text-white px-8 py-4 rounded-full font-bold hover:bg-blue-700 transition-all">
-              Start Sleep Quiz
-            </button>
-            <button className="bg-white border border-slate-200 px-8 py-4 rounded-full font-bold hover:bg-slate-50">
-              Browse All Reviews
-            </button>
-          </div>
-        </motion.div>
-        
-        {/* Placeholder for AI Visualization or Product Shot */}
-        <div className="hidden lg:block relative h-[400px] bg-slate-200 rounded-3xl overflow-hidden shadow-inner">
-           <div className="absolute inset-0 flex items-center justify-center text-slate-400">
-             [Dynamic Product Visualization]
-           </div>
-        </div>
-      </div>
-    </section>
-  );
+    // 更新为 Saatva Classic 的 Slug
+    const featuredProductSlug = "saatva-classic"
+
+    return (
+        <section className="bg-slate-50 py-20 px-4 text-center lg:text-left lg:py-32 overflow-hidden">
+            <div className="container mx-auto grid lg:grid-cols-2 gap-12 items-center">
+                <motion.div
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ duration: 0.5 }}
+                >
+                    {/* 顶部标签 */}
+                    <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-100 border border-blue-200 mb-6">
+                        <Microscope className="w-3.5 h-3.5 text-blue-600" />
+                        <span className="text-[10px] font-bold uppercase tracking-widest text-blue-600">
+                            Lab_Verified_Analysis
+                        </span>
+                    </div>
+
+                    <h1 className="text-5xl font-extrabold tracking-tight text-slate-900 lg:text-7xl mb-6 leading-[1.1]">
+                        Find Your{" "}
+                        <span className="text-blue-600">Perfect Night.</span>
+                    </h1>
+                    <p className="text-xl text-slate-600 mb-8 leading-relaxed max-w-xl">
+                        Deconstructing sleep technology through forensic
+                        material analysis. We test the data so you don't have
+                        to.
+                    </p>
+
+                    <div className="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start">
+                        <Link href="/quiz">
+                            <button className="w-full sm:w-auto bg-blue-600 text-white px-8 py-4 rounded-full font-bold hover:bg-blue-700 transition-all flex items-center justify-center gap-2 group">
+                                Start Sleep Quiz
+                                <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                            </button>
+                        </Link>
+
+                        <Link href="/registry">
+                            <button className="w-full sm:w-auto bg-white border border-slate-200 px-8 py-4 rounded-full font-bold hover:bg-slate-50 transition-all text-slate-700">
+                                Browse All Audits
+                            </button>
+                        </Link>
+                    </div>
+                </motion.div>
+
+                {/* --- 右侧：Saatva Classic 视觉分析 --- */}
+                <motion.div
+                    className="hidden lg:block relative group"
+                    initial={{ opacity: 0, x: 20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ duration: 0.5, delay: 0.2 }}
+                >
+                    <div className="absolute -inset-4 bg-[radial-gradient(#e2e8f0_1px,transparent_1px)] [background-size:16px_16px] opacity-50" />
+
+                    <Link
+                        href={`/registry/${featuredProductSlug}`}
+                        className="block relative h-[520px] w-full bg-white border border-slate-200 rounded-3xl overflow-hidden shadow-2xl transition-all hover:shadow-blue-500/10 hover:border-blue-200"
+                    >
+                        {/* 扫描线动画 */}
+                        <div className="absolute top-0 left-0 w-full h-1 bg-blue-500/40 shadow-[0_0_20px_rgba(37,99,235,0.8)] animate-scan z-20 pointer-events-none" />
+
+                        {/* Saatva Classic 解构图 */}
+                        <div className="relative w-full h-full p-6 flex items-center justify-center">
+                            <img
+                                src="https://saatva.cdn.prismic.io/saatva/b7b96633-802c-4903-8889-72433e5066a3_classic-construction-desktop.png"
+                                alt="Saatva Classic Construction Deconstruction"
+                                className="w-[90%] h-auto object-contain transition-transform duration-1000 ease-in-out group-hover:scale-110"
+                            />
+                            {/* 工业感坐标点装饰 */}
+                            <div className="absolute top-1/4 left-1/4 w-2 h-2 bg-blue-600 rounded-full animate-ping opacity-75" />
+                            <div className="absolute bottom-1/3 right-1/4 w-2 h-2 bg-blue-600 rounded-full animate-ping opacity-75 [animation-delay:1s]" />
+                        </div>
+
+                        {/* 浮动审计标签 */}
+                        <div className="absolute bottom-8 right-8 bg-slate-900 text-white p-5 rounded-2xl shadow-2xl flex items-center gap-4 transform transition-transform group-hover:-translate-y-2 group-hover:bg-slate-800">
+                            <div className="w-12 h-12 rounded-full bg-blue-600 flex items-center justify-center shrink-0 shadow-inner">
+                                <ShieldCheck className="w-7 h-7" />
+                            </div>
+                            <div>
+                                <div className="text-[10px] text-blue-400 font-black uppercase tracking-widest mb-0.5">
+                                    Final_Score
+                                </div>
+                                <div className="text-2xl font-black italic tracking-tight">
+                                    8.5 / 10
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* 悬停时的“查看详情”提示 */}
+                        <div className="absolute inset-0 bg-blue-600/0 group-hover:bg-blue-600/[0.03] transition-colors flex items-center justify-center">
+                            <div className="opacity-0 group-hover:opacity-100 transition-all translate-y-4 group-hover:translate-y-0 bg-white border-2 border-slate-900 px-6 py-3 rounded-full text-xs font-black uppercase tracking-widest text-slate-900 shadow-xl">
+                                Execute_Full_Dossier
+                            </div>
+                        </div>
+                    </Link>
+                </motion.div>
+            </div>
+
+            <style jsx>{`
+                @keyframes scan {
+                    0% {
+                        top: 0%;
+                    }
+                    100% {
+                        top: 100%;
+                    }
+                }
+                .animate-scan {
+                    animation: scan 3s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+                }
+            `}</style>
+        </section>
+    )
 }
