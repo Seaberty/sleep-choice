@@ -147,6 +147,7 @@ export default async function JournalEntry({
                                     </span>
                                 </div>
                             </div>
+
                             <h3 className="text-2xl font-black uppercase italic tracking-tight text-slate-950 mb-8 border-b-2 border-slate-100 pb-4">
                                 Executive_Summary
                             </h3>
