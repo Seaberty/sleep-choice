@@ -1,6 +1,7 @@
 import { supabase } from "@/lib/supabase"
 import { notFound } from "next/navigation"
 import { Metadata } from "next"
+import Image from "next/image"
 import AuditRadarChart from "@/components/AuditRadarChart"
 import {
     ShieldCheck,
@@ -370,11 +371,19 @@ export default async function ProductAuditPage({
                             <div className="absolute inset-0 bg-[linear-gradient(to_bottom,transparent_49%,rgba(37,99,235,0.05)_50%,transparent_51%)] bg-[length:100%_4px] animate-pulse z-20 pointer-events-none opacity-50" />
                             <div className="relative aspect-video flex items-center justify-center p-12">
                                 {product.image_url ? (
-                                    <img
-                                        src={product.image_url}
-                                        alt={product.model}
-                                        className="w-full h-full object-contain mix-blend-multiply contrast-110 saturate-50 group-hover:scale-105 transition-transform duration-1000"
-                                    />
+                                    <div className="relative w-full h-full overflow-hidden">
+                                        <Image
+                                            src={product.image_url}
+                                            alt={
+                                                product.model || "Product Image"
+                                            }
+                                            fill // 使用 fill 填充容器
+                                            sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                                            className="object-contain mix-blend-multiply contrast-110 saturate-50 group-hover:scale-105 transition-transform duration-1000"
+                                            // 如果你想彻底消除某些缓存造成的闪烁，可以加这个：
+                                            priority={true}
+                                        />
+                                    </div>
                                 ) : (
                                     <div className="w-full h-48 bg-slate-100 flex items-center justify-center">
                                         <span className="text-[10px] font-mono text-slate-400 uppercase">

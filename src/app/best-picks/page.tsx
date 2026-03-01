@@ -1,5 +1,6 @@
 import { Metadata } from "next"
 import Link from "next/link"
+import Image from "next/image"
 import { getAutomatedRegistry } from "@/lib/registry"
 import { ProductCard } from "@/components/product-card"
 import {
@@ -90,7 +91,7 @@ export default async function BestPicksPage() {
                     <div className="flex flex-col md:flex-row md:items-end gap-8 pt-10 border-t border-slate-100">
                         <div className="flex-1 space-y-4">
                             <p className="text-[11px] md:text-sm font-mono font-bold text-slate-500 uppercase tracking-widest leading-relaxed max-w-2xl">
-                                // COMPREHENSIVE BIOMETRIC AUDIT: Ranking
+                                {"// "}COMPREHENSIVE BIOMETRIC AUDIT: Ranking
                                 derived from 1.2M+ sensor data points.
                                 Structural integrity validated under ISO-9001
                                 sleep simulation.
@@ -232,13 +233,24 @@ export default async function BestPicksPage() {
                                         </div>
 
                                         <div className="relative z-10 w-full h-full flex flex-col items-center justify-center">
-                                            <img
-                                                src={
-                                                    sortedProducts[0].image_url
-                                                }
-                                                alt={sortedProducts[0].name}
-                                                className="w-full h-auto max-h-[320px] object-contain mix-blend-multiply group-hover:scale-110 transition-transform duration-1000"
-                                            />
+                                            <div className="relative w-full h-[320px] overflow-hidden">
+                                                {sortedProducts[0]
+                                                    ?.image_url && (
+                                                    <Image
+                                                        src={
+                                                            sortedProducts[0]
+                                                                .image_url
+                                                        }
+                                                        alt={
+                                                            sortedProducts[0]
+                                                                .name ||
+                                                            "Product Image"
+                                                        }
+                                                        fill
+                                                        className="object-contain"
+                                                    />
+                                                )}
+                                            </div>
                                             {/* 工业比例尺装饰 */}
                                             <div className="absolute bottom-0 left-0 right-0 flex justify-between items-end opacity-20 group-hover:opacity-40 transition-opacity">
                                                 <div className="h-6 w-[1px] bg-slate-950" />

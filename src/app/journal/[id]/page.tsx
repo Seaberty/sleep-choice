@@ -7,28 +7,43 @@ import {
     Fingerprint,
     BarChart3,
     Dna,
+    ArrowRight,
     ShieldAlert,
     Printer
 } from "lucide-react"
 
-// 动态生成元数据
-export async function generateMetadata({ params }: { params: { id: string } }) {
+// 定义 Params 类型为 Promise (兼容 Next.js 15)
+type Props = {
+    params: Promise<{ id: string }>
+}
+
+/**
+ * 辅助函数：根据 ID (或 slug) 获取产品
+ */
+async function getProductEntry(id: string) {
     const registryData = await getAutomatedRegistry()
-    const product = registryData[params.id]
+    // 因为 getAutomatedRegistry 返回数组，需使用 find
+    // 优先匹配 slug，如果不匹配再匹配 id
+    return registryData.find(item => item.slug === id || item.id === id)
+}
+
+// 异步生成元数据
+export async function generateMetadata({ params }: Props) {
+    const { id } = await params
+    const product = await getProductEntry(id)
+
     if (!product) return { title: "Entry Not Found" }
+
     return {
-        title: `Observation_${params.id} | ${product.brand} ${product.name}`,
+        title: `Observation_${id} | ${product.brand} ${product.name}`,
         description: `Detailed laboratory observation logs for ${product.brand} mattress system.`
     }
 }
 
-export default async function JournalEntry({
-    params
-}: {
-    params: { id: string }
-}) {
-    const registryData = await getAutomatedRegistry()
-    const p = registryData[params.id]
+// 异步组件处理
+export default async function JournalEntry({ params }: Props) {
+    const { id } = await params
+    const p = await getProductEntry(id)
 
     if (!p) notFound()
 
@@ -57,7 +72,7 @@ export default async function JournalEntry({
 
             <div className="container mx-auto px-6 max-w-7xl">
                 <div className="grid lg:grid-cols-12 gap-16">
-                    {/* --- 左侧：核心读数 (Lab Sidebar) --- */}
+                    {/* --- 左侧：核心读数 --- */}
                     <aside className="lg:col-span-4 space-y-12">
                         <div className="sticky top-40">
                             <div className="border-l-4 border-blue-600 pl-6 mb-12">
@@ -82,7 +97,8 @@ export default async function JournalEntry({
                                         Performance_Index
                                     </div>
                                     <div className="text-6xl font-mono font-bold italic tracking-tighter">
-                                        {p.score || "8.5"}
+                                        {/* 注意：此处使用 p.rating，因为 lib 中赋值给了 rating */}
+                                        {p.rating || "8.5"}
                                         <span className="text-xl not-italic text-slate-500">
                                             /10
                                         </span>
@@ -93,11 +109,11 @@ export default async function JournalEntry({
                                     {[
                                         {
                                             label: "Spinal_Neutrality",
-                                            val: "High_Res"
+                                            val: p.audit_scores?.support ? "High_Res" : "Verified"
                                         },
                                         {
                                             label: "Thermal_Dissipation",
-                                            val: "Optimal"
+                                            val: p.audit_scores?.cooling ? "Optimal" : "Standard"
                                         },
                                         {
                                             label: "Kinetic_Isolation",
@@ -119,19 +135,16 @@ export default async function JournalEntry({
                                 </div>
                             </div>
 
-                            {/* 防伪标识 */}
                             <div className="mt-8 p-6 border-2 border-slate-100 flex items-start gap-4">
                                 <Fingerprint className="w-8 h-8 text-slate-200 shrink-0" />
                                 <p className="text-[9px] font-bold text-slate-400 leading-relaxed uppercase">
                                     This log is cryptographically signed.
-                                    Biometric data has been anonymized according
-                                    to Lab_Protocol_v4.
                                 </p>
                             </div>
                         </div>
                     </aside>
 
-                    {/* --- 右侧：日志正文 (Observation Content) --- */}
+                    {/* --- 右侧：日志正文 --- */}
                     <article className="lg:col-span-8">
                         <div className="prose prose-slate max-w-none">
                             <div className="flex items-center gap-4 mb-12">
@@ -147,7 +160,7 @@ export default async function JournalEntry({
                                     </span>
                                 </div>
                             </div>
-                            
+
                             <h3 className="text-2xl font-black uppercase italic tracking-tight text-slate-950 mb-8 border-b-2 border-slate-100 pb-4">
                                 Executive_Summary
                             </h3>
@@ -157,13 +170,8 @@ export default async function JournalEntry({
                                 cycle indicate that the{" "}
                                 <strong>
                                     {p.brand} {p.name}
-                                </strong>
-                                maintains significant structural integrity under
-                                high-frequency kinetic stress. The adaptive foam
-                                layers demonstrate a responsive
-                                &quot;memory-lag&quot; of precisely 1.4 seconds,
-                                which correlates with optimal spinal
-                                decompression metrics.
+                                </strong>{" "}
+                                maintains significant structural integrity.
                             </p>
 
                             <div className="my-16 p-10 bg-blue-50/50 border-l-4 border-blue-600">
@@ -172,48 +180,28 @@ export default async function JournalEntry({
                                     Critical_Finding
                                 </div>
                                 <p className="text-blue-900 font-bold leading-relaxed italic uppercase tracking-tight">
-                                    &quot;The transition layer between the core
-                                    support and comfort zones exhibited zero
-                                    micro-collapsing during deep-sleep REM
-                                    cycles, ensuring consistent neutrality for
-                                    back-sleepers in the 70kg-95kg
-                                    demographic.&quot;
+                                    &quot;Zero micro-collapsing during
+                                    deep-sleep REM cycles.&quot;
                                 </p>
                             </div>
-
-                            <h3 className="text-2xl font-black uppercase italic tracking-tight text-slate-950 mb-8">
-                                Detailed_Metrics
-                            </h3>
-                            <p className="text-slate-600 leading-relaxed mb-6">
-                                Kinetic energy dispersal tests (using 15kg
-                                load-drops) resulted in a dampening coefficient
-                                of 0.88. This suggests that partner disturbance
-                                is effectively nullified within a 12-inch radius
-                                of the primary compression point.
-                            </p>
-
-                            {/* 此处可根据数据动态生成更多段落 */}
-                            <div className="grid grid-cols-2 gap-8 my-12 font-mono">
-                                <div className="p-6 border border-slate-100">
-                                    <span className="block text-[10px] text-slate-400 mb-2 uppercase">
-                                        Heat_Map_Index
-                                    </span>
-                                    <span className="text-xl font-black text-slate-900 tracking-tighter uppercase">
-                                        Alpha_Optimal
-                                    </span>
+                            
+                            {/* 这里你可以添加循环来渲染 p.pros */}
+                            {p.pros && p.pros.length > 0 && (
+                                <div className="mt-8">
+                                     <h4 className="text-sm font-black uppercase mb-4 text-slate-400">Diagnostic_Pros</h4>
+                                     <ul className="list-none space-y-2">
+                                        {p.pros.map((pro, idx) => (
+                                            <li key={idx} className="text-sm font-bold text-slate-700 flex items-center gap-2">
+                                                <span className="w-1.5 h-1.5 bg-blue-600 rounded-full" />
+                                                {pro}
+                                            </li>
+                                        ))}
+                                     </ul>
                                 </div>
-                                <div className="p-6 border border-slate-100">
-                                    <span className="block text-[10px] text-slate-400 mb-2 uppercase">
-                                        Edge_Support_Psi
-                                    </span>
-                                    <span className="text-xl font-black text-slate-900 tracking-tighter uppercase">
-                                        4.2_Consistent
-                                    </span>
-                                </div>
-                            </div>
+                            )}
                         </div>
 
-                        {/* 底部：结论导向 */}
+                        {/* 底部导航 */}
                         <div className="mt-20 pt-10 border-t-2 border-slate-950 flex justify-between items-end">
                             <div>
                                 <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.4em] block mb-4">
@@ -234,21 +222,4 @@ export default async function JournalEntry({
         </main>
     )
 }
-
-function ArrowRight(props: any) {
-    return (
-        <svg
-            fill="none"
-            viewBox="0 0 24 24"
-            strokeWidth={3}
-            stroke="currentColor"
-            {...props}
-        >
-            <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3"
-            />
-        </svg>
-    )
-}
+ 

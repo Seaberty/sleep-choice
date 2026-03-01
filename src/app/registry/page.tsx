@@ -23,11 +23,13 @@ export const metadata: Metadata = {
 export const dynamic = "force-dynamic"
 
 interface Props {
-    searchParams: { q?: string; sort?: string }
+    searchParams: Promise<{ q?: string; sort?: string }>
 }
 
 export default async function RegistryPage({ searchParams }: Props) {
-    const query = searchParams.q || ""
+    // 关键点：异步解构
+    const { q } = await searchParams; 
+    const query = q || ""
 
     let dbQuery = supabase.from("audit_products").select("*")
 

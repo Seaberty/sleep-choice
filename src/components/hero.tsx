@@ -1,11 +1,12 @@
 "use client"
 import { motion } from "framer-motion"
 import Link from "next/link"
+import Image from "next/image"
 import { ChevronRight, Microscope, ShieldCheck } from "lucide-react"
 
 export function Hero() {
     // 更新为 Saatva Classic 的 Slug
-    const featuredProductSlug = "saatva-classic"
+    const featuredProductSlug = "saatva-hd"
 
     return (
         <section className="bg-slate-50 py-20 px-4 text-center lg:text-left lg:py-32 overflow-hidden">
@@ -67,12 +68,16 @@ export function Hero() {
 
                         {/* Saatva Classic 解构图 */}
                         <div className="relative w-full h-full p-6 flex items-center justify-center">
-                            <img
-                                src="https://saatva.cdn.prismic.io/saatva/b7b96633-802c-4903-8889-72433e5066a3_classic-construction-desktop.png"
+                            <Image
+                                src="https://saatva.imgix.net/products/saatva-hd/room-angle/saatva-hd-room-angle-16-9.jpg?w=1200&fit=crop&auto=format"
                                 alt="Saatva Classic Construction Deconstruction"
-                                className="w-[90%] h-auto object-contain transition-transform duration-1000 ease-in-out group-hover:scale-110"
+                                fill // 填充父容器
+                                sizes="(max-width: 768px) 100vw, 80vw" // 优化加载尺寸
+                                priority // 因为是 Hero 区域图片，建议加上 priority 提升 LCP 加载速度
+                                className="object-contain p-6 transition-transform duration-1000 ease-in-out group-hover:scale-110"
                             />
-                            {/* 工业感坐标点装饰 */}
+
+                            {/* 工业感坐标点装饰 - 保持不变 */}
                             <div className="absolute top-1/4 left-1/4 w-2 h-2 bg-blue-600 rounded-full animate-ping opacity-75" />
                             <div className="absolute bottom-1/3 right-1/4 w-2 h-2 bg-blue-600 rounded-full animate-ping opacity-75 [animation-delay:1s]" />
                         </div>
@@ -87,7 +92,7 @@ export function Hero() {
                                     Final_Score
                                 </div>
                                 <div className="text-2xl font-black italic tracking-tight">
-                                    8.5 / 10
+                                    9.2 / 10
                                 </div>
                             </div>
                         </div>

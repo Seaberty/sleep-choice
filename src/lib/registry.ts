@@ -35,7 +35,7 @@ export const getAutomatedRegistry = cache(async (): Promise<ProductData[]> => {
                 new Promise((_, reject) =>
                     setTimeout(
                         () => reject(new Error("Supabase Timeout")),
-                        5000
+                        15000
                     )
                 )
             ]) as Promise<{ data: any[] | null; error: any }>,

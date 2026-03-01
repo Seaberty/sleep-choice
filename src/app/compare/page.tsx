@@ -4,9 +4,7 @@ import {
     TrendingUp,
     CheckCircle2,
     ArrowRight,
-    Sparkles,
     Database,
-    Binary,
     ShieldCheck,
     Cpu,
     Fingerprint,
@@ -20,25 +18,36 @@ export const metadata = {
         "Algorithmic mattress comparison based on 1.2M+ consumer data points and material simulations."
 }
 
+// 建议每小时重新验证数据
 export const revalidate = 3600
 
 export default async function ComparePage() {
-    const products = await getAutomatedRegistry()
-    const topProducts = products.slice(0, 3)
+    // 获取数据，提供空数组作为保底
+    const products = (await getAutomatedRegistry()) || []
+    // 过滤掉无效数据并取前三
+    const topProducts = products.filter(Boolean).slice(0, 3)
 
+    // 安全获取对比项的最佳值
     const getBestValue = (key: string) => {
+        if (topProducts.length === 0) return 0
         const values = topProducts.map((p) => {
-            if (key === "price") return p.offers[0]?.price || 9999
-            return (p.metrics as any)[key] || 0
+            if (!p) return 0
+            if (key === "price") return p.offers?.[0]?.price || 9999
+            // 尝试从不同的可能字段读取数值
+            return (
+                (p.audit_scores as any)?.[key] ??
+                (p.metrics as any)?.[key] ??
+                (p as any)[key] ??
+                0
+            )
         })
         return key === "price" ? Math.min(...values) : Math.max(...values)
     }
 
     return (
         <main className="relative min-h-screen bg-white pt-24 pb-20 overflow-hidden font-sans">
-            {/* --- 工业级审计背景 (纯 Tailwind 实现，无 styled-jsx) --- */}
+            {/* --- 工业级审计背景 --- */}
             <div className="fixed inset-0 pointer-events-none z-0">
-                {/* 网格底纹 */}
                 <div
                     className="absolute inset-0 opacity-[0.03]"
                     style={{
@@ -46,12 +55,11 @@ export default async function ComparePage() {
                         backgroundSize: "50px 50px"
                     }}
                 />
-                {/* 扫描线动画：使用 Tailwind 动画类控制 */}
                 <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-transparent via-blue-500/40 to-transparent animate-[bounce_4s_infinite] opacity-20" />
             </div>
 
             <div className="container mx-auto px-6 relative z-10 max-w-7xl">
-                {/* 1. Header: 审计终端感 */}
+                {/* 1. Header */}
                 <header className="max-w-4xl mb-16 border-l-4 border-blue-600 pl-8">
                     <div className="flex items-center gap-3 text-blue-600 font-black text-[9px] uppercase tracking-[0.4em] mb-4">
                         <Cpu className="w-4 h-4" />
@@ -96,23 +104,27 @@ export default async function ComparePage() {
                                                     <div className="flex items-center justify-between">
                                                         <span className="text-[10px] font-mono text-slate-500 font-bold uppercase">
                                                             ID:{" "}
-                                                            {product.id.substring(
+                                                            {product.id?.substring(
                                                                 0,
                                                                 8
-                                                            )}
+                                                            ) || "UNKNOWN"}
                                                         </span>
-                                                        {product.rating > 9 && (
-                                                            <div className="flex items-center gap-1 text-emerald-400 text-[8px] font-black uppercase">
-                                                                <CheckCircle2 className="w-2.5 h-2.5" />{" "}
-                                                                High_Confidence
-                                                            </div>
-                                                        )}
+                                                        {product?.rating &&
+                                                            product.rating >
+                                                                9 && (
+                                                                <div className="flex items-center gap-1 text-emerald-400 text-[8px] font-black uppercase">
+                                                                    <CheckCircle2 className="w-2.5 h-2.5" />{" "}
+                                                                    High_Confidence
+                                                                </div>
+                                                            )}
                                                     </div>
                                                     <h3 className="text-2xl font-[1000] tracking-tighter uppercase leading-none">
                                                         {product.brand}
                                                     </h3>
                                                     <div className="mt-2 inline-flex items-center px-2 py-0.5 bg-blue-600 text-white text-[10px] font-black uppercase w-fit">
-                                                        Score: {product.rating}
+                                                        Score:{" "}
+                                                        {product.rating ||
+                                                            "N/A"}
                                                     </div>
                                                 </div>
                                             </th>
@@ -161,21 +173,35 @@ export default async function ComparePage() {
                                             >
                                                 <td className="p-6 border-r border-slate-100">
                                                     <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 group-hover/row:text-blue-600 transition-colors">
-                                                        // {row.label}
+                                                        {"// "}
+                                                        {row.label}
                                                     </span>
                                                 </td>
                                                 {topProducts.map((product) => {
+                                                    // 深度防御取值逻辑
                                                     const val =
                                                         row.key === "price"
-                                                            ? product.offers[0]
+                                                            ? product
+                                                                  .offers?.[0]
                                                                   ?.price
-                                                            : row.metricKey
-                                                              ? (
-                                                                    product.metrics as any
-                                                                )[row.metricKey]
-                                                              : product.rating
+                                                            : (
+                                                                  product.audit_scores as any
+                                                              )?.[
+                                                                  row.metricKey ||
+                                                                      row.key
+                                                              ] ||
+                                                              (
+                                                                  product.metrics as any
+                                                              )?.[
+                                                                  row.metricKey ||
+                                                                      row.key
+                                                              ] ||
+                                                              0
+
                                                     const isBest =
+                                                        val !== 0 &&
                                                         val === bestVal
+
                                                     return (
                                                         <td
                                                             key={product.id}
@@ -196,10 +222,13 @@ export default async function ComparePage() {
                                                                 >
                                                                     {row.key ===
                                                                     "price"
-                                                                        ? `$${val?.toLocaleString()}`
-                                                                        : val?.toFixed(
-                                                                              1
-                                                                          )}
+                                                                        ? `$${(val || 0).toLocaleString()}`
+                                                                        : typeof val ===
+                                                                            "number"
+                                                                          ? val.toFixed(
+                                                                                1
+                                                                            )
+                                                                          : "0.0"}
                                                                 </span>
                                                                 {isBest && (
                                                                     <div className="flex items-center gap-1 text-[8px] font-black uppercase text-blue-500">
@@ -219,7 +248,7 @@ export default async function ComparePage() {
                                     <tr className="border-b border-slate-100">
                                         <td className="p-6 border-r border-slate-100">
                                             <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">
-                                                // Key_Insights
+                                                {"// "}Key_Insights
                                             </span>
                                         </td>
                                         {topProducts.map((product) => (
@@ -228,8 +257,8 @@ export default async function ComparePage() {
                                                 className="p-8 border-r border-slate-100"
                                             >
                                                 <ul className="space-y-3">
-                                                    {product.pros
-                                                        ?.slice(0, 2)
+                                                    {(product.pros || [])
+                                                        .slice(0, 2)
                                                         .map((pro, i) => (
                                                             <li
                                                                 key={i}
@@ -270,12 +299,12 @@ export default async function ComparePage() {
                     <div className="py-32 flex flex-col items-center justify-center border-2 border-slate-950 border-dashed rounded-none">
                         <Database className="w-8 h-8 text-slate-200 mb-4 animate-pulse" />
                         <p className="font-mono text-[10px] font-black text-slate-400 uppercase tracking-[0.3em]">
-                            Querying_Registry_Data...
+                            Registry_Data_Insufficient_For_Comparison
                         </p>
                     </div>
                 )}
 
-                {/* 3. Bottom Utility & Disclosure Reference */}
+                {/* 3. Bottom Utility */}
                 <section className="mt-24 grid md:grid-cols-2 gap-8">
                     <Link
                         href="/quiz"
