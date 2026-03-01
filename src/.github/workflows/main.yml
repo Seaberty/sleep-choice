@@ -25,19 +25,13 @@ jobs:
               env:
                   GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
 
-            - name: Sync Data to GitHub
-              # 私有仓库环境下，这一步可能会因为身份问题在 Vercel 侧显示 Canceled
-              # 但没关系，它能把数据存进 GitHub 仓库就行
+            - name: Commit and Push if Registry Changed
               run: |
-                  git config --local user.email "41898282+github-actions[bot]@users.noreply.github.com"
-                  git config --local user.name "github-actions[bot]"
+                  git config --local user.email "audit-bot@sleepchoiceguide.com"
+                  git config --local user.name "Audit Bot"
                   git add data/registry.json
-                  git commit -m "System: Sync latest data" || exit 0
+                  git commit -m "System: Auto-update pricing and biometric logs" || exit 0
                   git push
 
-            - name: Force Vercel Build Entire Project
-              # 这是核心：通过 Deploy Hook 触发部署
-              # 这种方式会强制 Vercel 以“项目所有者”身份重新拉取代码并打包
-              run: |
-                  echo "Triggering complete project rebuild..."
-                  curl -X POST "${{ secrets.VERCEL_DEPLOY_HOOK_URL }}"
+            - name: Trigger Vercel Deploy # 如果你使用 Vercel，它会自动检测 Git push 并重新构建
+              run: echo "Deploying updated audit data..."
