@@ -150,7 +150,6 @@ export default async function JournalEntry({
                             <h3 className="text-2xl font-black uppercase italic tracking-tight text-slate-950 mb-8 border-b-2 border-slate-100 pb-4">
                                 Executive_Summary
                             </h3>
-
                             <p className="text-lg text-slate-600 leading-relaxed font-medium mb-10">
                                 Observations conducted over a 30-day biological
                                 cycle indicate that the{" "}
