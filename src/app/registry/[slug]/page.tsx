@@ -70,6 +70,34 @@ const safeParse = <T,>(data: any, fallback: T): T => {
     return data || fallback
 }
 
+// --- Monetization helpers ---
+const APPROVED_BRANDS = new Set(["FluffCo", "Sleep & Beyond"])
+
+function getAffiliateLink(
+    brand: string,
+    slug: string,
+    offers: Offer[] = []
+): { href: string; restricted: boolean } {
+    // If brand is approved, prefer first active offer link
+    if (APPROVED_BRANDS.has(brand)) {
+        const first = offers[0]
+        return { href: first?.link || `/registry/${slug}`, restricted: false }
+    }
+
+    // For unapproved brands, redirect to match engine (quiz)
+    return {
+        href: `/quiz?brand=${encodeURIComponent(brand)}&slug=${encodeURIComponent(slug)}`,
+        restricted: true
+    }
+}
+
+function sampleRealtimePriceDrop(): string | null {
+    // Randomly generate a small set of urgency offers for approved partners
+    const chance = Math.random()
+    if (chance < 0.25) return `SAVE_${Math.floor(10 + Math.random() * 30)}%`
+    return null
+}
+
 // --- SEO 注入逻辑 ---
 export async function generateMetadata({
     params
@@ -837,24 +865,62 @@ export default async function ProductAuditPage({
                                     {offers.length > 0 ? (
                                         offers.map((offer, idx) => {
                                             const isBest = idx === minPriceIndex
+                                            const affiliate = getAffiliateLink(
+                                                product.brand,
+                                                product.slug,
+                                                offers
+                                            )
+                                            const isNotApproved =
+                                                affiliate.restricted
                                             return (
                                                 <a
                                                     key={idx}
-                                                    href={offer.link || "#"}
-                                                    target="_blank"
-                                                    rel="nofollow noopener noreferrer"
+                                                    href={affiliate.href}
+                                                    target={
+                                                        isNotApproved
+                                                            ? "_self"
+                                                            : "_blank"
+                                                    }
+                                                    rel={
+                                                        isNotApproved
+                                                            ? undefined
+                                                            : "nofollow noopener noreferrer"
+                                                    }
                                                     className={`flex items-center justify-between w-full p-4 transition-all duration-300 group border-2 
-                                                    ${isBest ? "border-blue-600 bg-blue-50/30" : "border-slate-950 hover:bg-slate-950"}`}
+                                                    ${
+                                                        isNotApproved
+                                                            ? "border-slate-300 bg-slate-50/70 hover:bg-slate-100"
+                                                            : isBest
+                                                              ? "border-blue-600 bg-blue-50/30"
+                                                              : "border-slate-950 hover:bg-slate-950"
+                                                    }`}
                                                 >
                                                     <div className="flex flex-col items-start leading-none">
+                                                        <div className="flex items-center gap-2 mb-1">
+                                                            <span
+                                                                className={`text-[8px] font-black uppercase tracking-widest ${
+                                                                    isBest
+                                                                        ? "text-blue-600"
+                                                                        : "text-slate-400 group-hover:text-slate-500"
+                                                                }`}
+                                                            >
+                                                                {offer.merchant ||
+                                                                    "External_Source"}
+                                                            </span>
+                                                            {isNotApproved && (
+                                                                <span className="text-[7px] text-slate-500 font-mono bg-slate-200 px-1 py-0.5 border border-slate-300 uppercase tracking-tighter">
+                                                                    [pending]
+                                                                </span>
+                                                            )}
+                                                        </div>
                                                         <span
-                                                            className={`text-[8px] font-black uppercase tracking-widest mb-1 ${isBest ? "text-blue-600" : "text-slate-400 group-hover:text-slate-500"}`}
-                                                        >
-                                                            {offer.merchant ||
-                                                                "External_Source"}
-                                                        </span>
-                                                        <span
-                                                            className={`text-lg font-[1000] tracking-tighter ${isBest ? "text-slate-950" : "text-slate-950 group-hover:text-white"}`}
+                                                            className={`text-lg font-[1000] tracking-tighter ${
+                                                                isBest
+                                                                    ? "text-slate-950"
+                                                                    : isNotApproved
+                                                                      ? "text-slate-600"
+                                                                      : "text-slate-950 group-hover:text-white"
+                                                            }`}
                                                         >
                                                             ${offer.price}
                                                         </span>
@@ -866,7 +932,13 @@ export default async function ProductAuditPage({
                                                             </span>
                                                         )}
                                                         <ExternalLink
-                                                            className={`w-5 h-5 ${isBest ? "text-blue-600" : "group-hover:text-white"}`}
+                                                            className={`w-5 h-5 ${
+                                                                isBest
+                                                                    ? "text-blue-600"
+                                                                    : isNotApproved
+                                                                      ? "text-slate-400"
+                                                                      : "group-hover:text-white"
+                                                            }`}
                                                         />
                                                     </div>
                                                 </a>

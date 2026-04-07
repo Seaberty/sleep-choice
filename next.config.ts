@@ -19,6 +19,11 @@ const nextConfig = {
                 protocol: "https",
                 hostname: "saatva.imgix.net",
                 pathname: "**" // 允许该域名下的所有路径
+            },
+            {
+                protocol: "https",
+                hostname: "images.unsplash.com",
+                pathname: "**" // 允许该域名下的所有路径
             }
         ]
     },
