@@ -78,13 +78,23 @@ function getAffiliateLink(
     slug: string,
     offers: Offer[] = []
 ): { href: string; restricted: boolean } {
-    // If brand is approved, prefer first active offer link
+    // 1. 如果品牌已获批准，优先使用推广链接
     if (APPROVED_BRANDS.has(brand)) {
         const first = offers[0]
         return { href: first?.link || `/registry/${slug}`, restricted: false }
     }
 
-    // For unapproved brands, redirect to match engine (quiz)
+    // 2. 对于像 Saatva 这样处于 [PENDING] 状态的品牌：
+    // 不要重定向到 /quiz，而是直接输出原始官网链接。
+    // 这样部署在 layout.tsx 中的 Skimlinks JS 才能识别并进行自动转链。
+    if (offers.length > 0 && offers[0].link) {
+        return { 
+            href: offers[0].link, // 指向 image_6d0976.png 中提到的官网商品页
+            restricted: false 
+        }
+    }
+
+    // 3. 只有在没有任何链接数据时，才回退到 Quiz
     return {
         href: `/quiz?brand=${encodeURIComponent(brand)}&slug=${encodeURIComponent(slug)}`,
         restricted: true
