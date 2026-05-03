@@ -3,6 +3,7 @@ import { SiteHeader } from "@/components/site-header"
 import { SiteFooter } from "@/components/site-footer"
 import { cn } from "@/lib/utils"
 import { SpeedInsights } from "@vercel/speed-insights/next"
+import Script from "next/script"
 import "./globals.css"
 
 // 主字体：用于大规模文本阅读
@@ -87,6 +88,13 @@ export default function RootLayout({
                 {/* 4. 辅助视觉：防止移动端弹性滚动导致的背景留白 */}
                 <div className="fixed inset-0 -z-50 bg-[#fdfdfd]" />
                 <SpeedInsights />
+
+                {/* 5. Skimlinks 脚本：使用 Next.js 标准加载方式 */}
+                <Script
+                    id="skimlinks-js"
+                    strategy="afterInteractive"
+                    src="https://s.skimresources.com/js/302440X1790440.skimlinks.js"
+                />
             </body>
         </html>
     )
