@@ -57,13 +57,20 @@ class BatchScanner:
         # 1. 如果不是强制更新，先检查数据库
         if not self.force_update:
             try:
-                res = self.supabase.table("audit_products").select("last_audited_at").eq("slug", slug).execute()
+                res = self.supabase.table("audit_products").select("last_audited_at, price, image_url").eq("slug", slug).execute()
                 if res.data and len(res.data) > 0:
-                    last_audit = res.data[0].get('last_audited_at')
-                    print(f"⏩ 跳过: {task['model']} 已于 {last_audit} 完成审计。")
-                    return
+                    existing = res.data[0]
+                    price = existing.get('price')
+                    image = existing.get('image_url')
+
+                    # 判断逻辑：如果价格为 0 或没有图片，则不跳过，重新执行抓取
+                    if price and price > 0 and image and image != "":
+                        print(f"⏩ 跳过: {task['model']} 已有完整数据。")
+                        return
+                    else:
+                        print(f"🔄 补全: {task['model']} 数据不全（价格: {price}, 图片: {image}），正在重新抓取...")
             except Exception as e:
-                print(f"⚠️ 数据库查询异常 (将继续尝试采集): {e}")
+                print(f"⚠️ 数据库读取受阻: {e}")
 
         # 2. 执行逻辑
         print(f"\n[任务指派] 目标型号: {self.brand} {task['model']}")

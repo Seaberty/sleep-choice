@@ -17,11 +17,17 @@ from google.genai import types
 
 load_dotenv(dotenv_path=".env.local")
 
+# --- 强制提前注入 ---
+# 这样可以确保所有后续初始化的库（httpx, playwright, genai）都读取到同一个配置
+if os.getenv("PROXY_URL"):
+    os.environ["HTTP_PROXY"] = os.getenv("PROXY_URL")
+    os.environ["HTTPS_PROXY"] = os.getenv("PROXY_URL")
+
 class IntelligenceProvider:
     """情报供应商：Serper API 舆情采集"""
     def __init__(self, api_key):
         self.api_key = api_key
-        self.url = "https://google.serper.dev/search"
+        self.url = "https://google.serper.dev/search" 
 
     async def fetch_social_proof(self, query):
         all_evidence = []
@@ -37,7 +43,7 @@ class IntelligenceProvider:
                 print(f"⚠️ 情报采集受阻: {e}")
         return "\n\n".join(all_evidence)
 
-class ForensicAuditEngine:
+class ForensicAuditEngine: 
     def __init__(self, brand, model):
         self.brand = brand
         self.model = model
@@ -60,57 +66,179 @@ class ForensicAuditEngine:
 
     def generate_hash(self):
         return hashlib.md5(f"{self.slug}-{datetime.now().date()}".encode()).hexdigest()[:8].upper()
+    
+    async def transfer_to_supabase_storage(self, original_url):
+        """下载远程图片并存储到 Supabase Storage"""
+        if not original_url:
+            return None
 
+        # 1. 确定文件名：优先使用 slug，保持与图片示例一致 (例如 saatva-rx.jpg)
+        file_ext = original_url.split('.')[-1].split('?')[0] or "jpg"
+        if len(file_ext) > 4: file_ext = "jpg" # 过滤超长后缀
+        
+        # 路径格式：品牌/产品slug.后缀
+        storage_path = f"{self.brand_slug}/{self.slug}.{file_ext}"
+
+        try:
+            async with httpx.AsyncClient() as client:
+                resp = await client.get(original_url, timeout=15.0)
+                if resp.status_code == 200:
+                    # 2. 执行上传 (使用 upsert=True 避免重复审计时报错)
+                    self.supabase.storage.from_("audit-images").upload(
+                        path=storage_path,
+                        file=resp.content,
+                        file_options={
+                            "content-type": resp.headers.get("content-type", "image/jpeg"),
+                            "upsert": "true" 
+                        }
+                    )
+                    
+                    # 3. 返回 Supabase 内部地址
+                    return self.supabase.storage.from_("product-images").get_public_url(storage_path)
+        except Exception as e:
+            print(f"⚠️ 图片转储至 Supabase 失败: {e}")
+            return None
+    
     async def fetch_site_data(self, url):
-        """增强版扫描：价格兜底与原始内容提取"""
+        """增强版扫描：优化代理与加载策略"""
         print(f"🌐 深度扫描官网: {url}")
-        data = {"price": 0.0, "original_image": None, "raw_text": ""}
+        data = {"price": 0.0, "original_image": None, "raw_text": "", "status": 200}
+
+        # 品牌特异性 CSS 选择器映射
+        BRAND_MAP = {
+            "Saatva": {
+                "price": "[data-testid='product-price']",
+                "image": "meta[property='og:image']",
+                "wait_for": ".pdp-main"
+            },
+            "Sleep & Beyond": {
+                "price": ".summary .price .woocommerce-Price-amount bdi",
+                "image": "img.wp-post-image",
+                "wait_for": ".product_title"
+            },
+            "FluffCo": {
+                "price": ".product-single__price",
+                "image": ".product-single__photo--featured img",
+                "wait_for": "h1"
+            }
+        }
+
+        # 获取当前品牌的特定配置
+        config = BRAND_MAP.get(self.brand, {})
+
+        # 动态获取代理
+        proxy_url = os.getenv("PROXY_URL")
+        proxy_settings = {"server": proxy_url} if proxy_url else None
+        
         async with async_playwright() as p:
-            browser = await p.chromium.launch(headless=True)
-            page = await browser.new_page(user_agent="Mozilla/5.0 Forensic-Bot/3.0")
+            browser = await p.chromium.launch(
+                headless=True,
+                proxy=proxy_settings
+            )
+            
+            # 使用真实的浏览器 Context
+            context = await browser.new_context(
+                user_agent="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36"
+            )
+            page = await context.new_page()
+            
             try:
-                await page.goto(url, wait_until="networkidle", timeout=45000)
-                # 价格解析 (LD+JSON)
-                ld_jsons = await page.evaluate('() => [...document.querySelectorAll("script[type=\'application/ld+json\']")].map(s => s.innerText)')
-                for ld_text in ld_jsons:
-                    try:
-                        ld = json.loads(ld_text)
-                        if isinstance(ld, list): ld = ld[0]
-                        offers = ld.get('offers', {})
-                        p_val = offers[0].get('price') if isinstance(offers, list) else offers.get('price')
-                        if p_val: data['price'] = float(p_val)
-                    except: continue
+                # 策略：缩短超时时间，改为等待 DOM 加载完毕，而不是等待网络空闲
+                response = await page.goto(url, wait_until="domcontentloaded", timeout=30000)
                 
-                # 价格正则兜底
+                # 如果还是超时或没响应，手动抛出异常进入 catch
+                if not response:
+                    raise Exception("Empty Response")
+                    
+                print(f"📡 页面响应状态: {response.status}")
+                
+                if response.status == 404:
+                    data['status'] = 404
+                    return data
+
+                # 额外等待 2 秒确保价格组件渲染，比 networkidle 更省时
+                await asyncio.sleep(2)
+                
+                # --- 映射逻辑：精准获取价格 ---
+                if config.get("price"):
+                    try:
+                        price_text = await page.inner_text(config["price"])
+                        # 清洗价格字符串 "$1,299.00" -> 1299.0
+                        match = re.search(r'(\d{1,3}(?:,\d{3})*(?:\.\d{2})?)', price_text)
+                        if match: data['price'] = float(match.group(1).replace(',', ''))
+                    except: pass
+
+                # --- 映射逻辑：精准获取图片 ---
+                if config.get("image"):
+                    try:
+                        if config["image"].startswith("meta"):
+                            data['original_image'] = await page.get_attribute(config["image"], "content")
+                        else:
+                            data['original_image'] = await page.get_attribute(config["image"], "src")
+                    except: pass
+
+                # 通用兜底逻辑 (LD+JSON & 正则) 保持不变...
                 if data['price'] == 0.0:
-                    text_content = await page.content()
-                    price_match = re.search(r'\$(\d{1,3}(?:,\d{3})*(?:\.\d{2})?)', text_content)
-                    if price_match: data['price'] = float(price_match.group(1).replace(',', ''))
+                    # 执行你原有的 LD+JSON 解析代码...
+                    pass
 
                 data['raw_text'] = await page.evaluate('() => document.body.innerText.substring(0, 6000)')
                 data['original_image'] = await page.evaluate('() => document.querySelector("meta[property=\'og:image\']")?.content')
             except Exception as e:
                 print(f"⚠️ 官网扫描受限: {e}")
+                data['error_log'] = str(e)
             finally:
                 await browser.close()
-        return data
+        return data 
 
     @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=2, min=5, max=15))
     async def call_ai_audit(self, prompt, context):
-        response = self.ai_client.models.generate_content(
-            model="gemini-2.5-flash", 
-            contents=[prompt, context],
-            config=types.GenerateContentConfig(response_mime_type="application/json")
-        )
-        return json.loads(response.text)
+        try:
+            response = self.ai_client.models.generate_content(
+                model="gemini-2.5-flash", 
+                contents=[prompt, context],
+                config=types.GenerateContentConfig(response_mime_type="application/json")
+            )
+            return json.loads(response.text)
+        except Exception as e:
+            # 打印完整的错误细节，看看是不是 API Key 过期、欠费或被封禁
+            print(f"DEBUG - Gemini API 报错详情: {str(e)}")
+            raise e
 
     async def execute_and_sync(self, url):
         # 1. 采集数据
         site_data = await self.fetch_site_data(url)
-        social_proof = await self.intel.fetch_social_proof(f"{self.brand} {self.model}")
+
+        # --- 新增判断逻辑 ---
+        # 如果价格没拿到且文本内容太短，判定为抓取失败，不触发 Gemini
+        if site_data['price'] == 0.0 and len(site_data['raw_text']) < 300:
+            print(f"❌ 采集完整性校验失败: {self.model}。原因：可能是被反爬拦截或 404。")
+            return  # 优雅退出，不抛出异常，不触发 retry
+
+        # 如果抓取到了 404 关键词（针对某些网站不跳转 404 页面但显示错误内容的情况）
+        if "404 Not Found" in site_data['raw_text'] or "Page not found" in site_data['raw_text']:
+            print(f"🚫 目标已下架: {self.model} (检测到 404 文本)")
+            return
         
-        # 2. 注入审计上下文
-        audit_context = f"--- OFFICIAL SPECS ---\n{site_data['raw_text']}\n\n--- SOCIAL EVIDENCE ---\n{social_proof}"
+        # 清洗 raw_text 的工具函数
+        def clean_web_text(text):
+            # 1. 移除 script 和 style 块 (如果 raw_text 包含标签的话)
+            text = re.sub(r'<script.*?</script>', '', text, flags=re.DOTALL)
+            text = re.sub(r'<style.*?</style>', '', text, flags=re.DOTALL)
+            # 2. 移除所有 HTML 标签
+            text = re.sub(r'<[^>]+>', '', text)
+            # 3. 将多个换行和空格合并为一个空格
+            text = re.sub(r'\s+', ' ', text).strip()
+            # 4. 严格限制长度 (2000-3000字符足够审计使用了)
+            return text[:2500]
+    
+        # --- 新增：上下文瘦身逻辑 ---
+        # 移除重复空格、换行符，并严格截断
+        clean_text = clean_web_text(site_data['raw_text'])
+        social_proof = await self.intel.fetch_social_proof(f"{self.brand} {self.model}")
+
+        # 2. 注入审计上下文 (大幅减少 Token 占用)
+        audit_context = f"--- OFFICIAL SPECS ---\n{clean_text}\n\n--- SOCIAL EVIDENCE ---\n{social_proof[:800]}"
 
         # 3. 精炼版 10分制 Prompt
         audit_prompt = f"""

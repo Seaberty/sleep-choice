@@ -2,6 +2,7 @@ import { supabase } from "@/lib/supabase"
 import { notFound } from "next/navigation"
 import { Metadata } from "next"
 import Image from "next/image"
+import React, { useMemo } from "react"
 import AuditRadarChart from "@/components/AuditRadarChart"
 import {
     ShieldCheck,
@@ -88,9 +89,9 @@ function getAffiliateLink(
     // 不要重定向到 /quiz，而是直接输出原始官网链接。
     // 这样部署在 layout.tsx 中的 Skimlinks JS 才能识别并进行自动转链。
     if (offers.length > 0 && offers[0].link) {
-        return { 
+        return {
             href: offers[0].link, // 指向 image_6d0976.png 中提到的官网商品页
-            restricted: false 
+            restricted: false
         }
     }
 
@@ -99,13 +100,6 @@ function getAffiliateLink(
         href: `/quiz?brand=${encodeURIComponent(brand)}&slug=${encodeURIComponent(slug)}`,
         restricted: true
     }
-}
-
-function sampleRealtimePriceDrop(): string | null {
-    // Randomly generate a small set of urgency offers for approved partners
-    const chance = Math.random()
-    if (chance < 0.25) return `SAVE_${Math.floor(10 + Math.random() * 30)}%`
-    return null
 }
 
 // --- SEO 注入逻辑 ---
@@ -154,41 +148,119 @@ export async function generateMetadata({
 }
 
 // --- 子组件：物理层级解剖 ---
-const LayerStack = ({ specs }: { specs: any }) => {
-    // 保持原始数据结构不变
-    const layers = [
-        {
-            name: "Euro Top Layer",
-            height: "15%",
-            color: "bg-slate-50",
-            detail: "High-density foam"
-        },
-        {
-            name: "Support Coil System",
-            height: "35%",
-            color: "bg-blue-100",
-            detail: "884 Pocketed coils"
-        },
-        {
-            name: "Base Steel Coil",
-            height: "40%",
-            color: "bg-slate-200",
-            detail: "Tempered steel base"
-        },
-        {
-            name: "Reinforced Edge",
-            height: "10%",
-            color: "bg-slate-950",
-            detail: "High-density perimeter"
+// 接受完整的 `product` 优先使用，或者接受已经解析好的 `specs`（向后兼容）
+const LayerStack = ({
+    product,
+    specs: incomingSpecs
+}: {
+    product?: Product
+    specs?: Record<string, string>
+}) => {
+    // 使用 useMemo 确保只有在 product 或 specs 变化时才重新计算层级
+    const layers = useMemo(() => {
+        const modelName = (product?.model || "").toLowerCase()
+
+        // 优先从 product.technical_specs 解析，如果没有则使用传入的 specs
+        let specs: any = {}
+        try {
+            if (product && typeof product.technical_specs === "string") {
+                specs = JSON.parse(product.technical_specs || "{}")
+            } else if (product && product.technical_specs) {
+                specs = product.technical_specs
+            } else {
+                specs = incomingSpecs || {}
+            }
+        } catch (e) {
+            specs = incomingSpecs || {}
         }
-    ]
+
+        // --- 逻辑 A: 检测是否为枕头 ---
+        if (modelName.includes("pillow") || modelName.includes("枕")) {
+            return [
+                {
+                    name: "Outer Shell",
+                    detail: specs.Construction || "Organic Cotton",
+                    color: "bg-slate-100",
+                    height: "20%"
+                },
+                {
+                    name: "Support Core",
+                    detail: specs.Comfort_Layer || "Adjustable Fill",
+                    color: "bg-blue-200",
+                    height: "60%"
+                },
+                {
+                    name: "Base Lining",
+                    detail: "High-density weave",
+                    color: "bg-slate-300",
+                    height: "20%"
+                }
+            ]
+        }
+
+        // --- 逻辑 B: 检测是否为被褥/床单 ---
+        if (
+            modelName.includes("sheet") ||
+            modelName.includes("duvet") ||
+            modelName.includes("quilt")
+        ) {
+            return [
+                {
+                    name: "Surface Weave",
+                    detail: specs.Construction || "Sateen / Percale",
+                    color: "bg-blue-50",
+                    height: "30%"
+                },
+                {
+                    name: "Fiber Density",
+                    detail: specs.Firmness || "Thread Count Analysis",
+                    color: "bg-blue-100",
+                    height: "40%"
+                },
+                {
+                    name: "Edge Finish",
+                    detail: "Double-stitched integrity",
+                    color: "bg-slate-400",
+                    height: "30%"
+                }
+            ]
+        }
+
+        // --- 默认逻辑: 视为床垫 ---
+        return [
+            {
+                name: "Comfort Layer",
+                detail: specs.Comfort_Layer || "Adaptive Foam",
+                color: "bg-blue-100",
+                height: "20%"
+            },
+            {
+                name: "Transition Zone",
+                detail: "Pressure Relief",
+                color: "bg-blue-200",
+                height: "20%"
+            },
+            {
+                name: "Support Core",
+                detail: specs.Support_Core || "Coil System",
+                color: "bg-slate-300",
+                height: "50%"
+            },
+            {
+                name: "Base Foundation",
+                detail: "High-density base",
+                color: "bg-slate-950",
+                height: "10%"
+            }
+        ]
+    }, [product])
 
     return (
         <div className="relative w-full py-10 px-6 bg-slate-50 border border-slate-200 overflow-hidden font-mono shadow-inner">
             <div className="absolute top-4 left-4 flex items-center gap-2">
                 <Layers className="w-3 h-3 text-blue-600" />
                 <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">
-                    Structural_Decomposition
+                    Material_Forensics
                 </span>
             </div>
             <div className="flex flex-col md:flex-row items-center gap-12 mt-8">
@@ -217,18 +289,17 @@ const LayerStack = ({ specs }: { specs: any }) => {
                 {/* 详情列表 - 取消 reverse 以匹配 3D 物理层级 */}
                 <div className="flex-1 w-full space-y-3">
                     {layers.map((layer, idx) => (
-                        <div
-                            key={idx}
-                            className="flex items-center gap-4 group"
-                        >
+                        <div key={idx} className="flex items-start gap-4 group">
                             <div
-                                className={`w-3 h-3 shrink-0 ${layer.color} border border-slate-950 shadow-[2px_2px_0px_0px_rgba(0,0,0,0.1)]`}
+                                className={`w-3 h-3 mt-1 ${layer.color} border border-slate-950 shadow-[2px_2px_0px_0px_rgba(0,0,0,0.1)] rounded-sm shrink-0`}
                             />
-                            <div className="flex-1 border-b border-slate-200 pb-1 flex justify-between items-baseline gap-4">
-                                <span className="text-[10px] font-black uppercase group-hover:text-blue-600 transition-colors">
+
+                            {/* 响应式：小屏垂直排列，宽屏左右对齐；使用 min-w-0 允许子元素缩小换行 */}
+                            <div className="flex-1 border-b border-slate-200 pb-1 flex flex-col md:flex-row justify-between items-baseline gap-4 min-w-0">
+                                <span className="text-[10px] font-black uppercase group-hover:text-blue-600 transition-colors mr-3">
                                     {layer.name}
                                 </span>
-                                <span className="text-[9px] text-slate-400 italic shrink-0">
+                                <span className="text-[9px] text-slate-400 italic min-w-0 md:text-right break-words">
                                     {layer.detail}
                                 </span>
                             </div>
@@ -463,7 +534,7 @@ export default async function ProductAuditPage({
                             </div>
                         </section>
 
-                        <LayerStack specs={technicalSpecs} />
+                        <LayerStack product={product} specs={technicalSpecs} />
 
                         {/* 4. Pros & Cons */}
                         <section className="grid md:grid-cols-2 gap-px bg-slate-200 border border-slate-200 font-mono shadow-sm">
