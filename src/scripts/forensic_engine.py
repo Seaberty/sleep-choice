@@ -67,37 +67,64 @@ class ForensicAuditEngine:
     def generate_hash(self):
         return hashlib.md5(f"{self.slug}-{datetime.now().date()}".encode()).hexdigest()[:8].upper()
     
+    @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=2, max=8))
     async def transfer_to_supabase_storage(self, original_url):
-        """下载远程图片并存储到 Supabase Storage"""
+        """下载远程图片并存储到 Supabase Storage。
+
+        修复点：
+        - 使用相同 bucket (`product-images`) 做上传与获取公开 URL（之前上传到了 audit-images，取 public url 时使用了 product-images，导致不一致）。
+        - 添加重试策略并确保返回字符串 URL。
+        """
         if not original_url:
             return None
 
         # 1. 确定文件名：优先使用 slug，保持与图片示例一致 (例如 saatva-rx.jpg)
         file_ext = original_url.split('.')[-1].split('?')[0] or "jpg"
-        if len(file_ext) > 4: file_ext = "jpg" # 过滤超长后缀
-        
+        if len(file_ext) > 4:
+            file_ext = "jpg"  # 过滤超长后缀
+
         # 路径格式：品牌/产品slug.后缀
         storage_path = f"{self.brand_slug}/{self.slug}.{file_ext}"
+
+        bucket = "product-images"
 
         try:
             async with httpx.AsyncClient() as client:
                 resp = await client.get(original_url, timeout=15.0)
-                if resp.status_code == 200:
-                    # 2. 执行上传 (使用 upsert=True 避免重复审计时报错)
-                    self.supabase.storage.from_("audit-images").upload(
-                        path=storage_path,
-                        file=resp.content,
-                        file_options={
-                            "content-type": resp.headers.get("content-type", "image/jpeg"),
-                            "upsert": "true" 
-                        }
-                    )
-                    
-                    # 3. 返回 Supabase 内部地址
-                    return self.supabase.storage.from_("product-images").get_public_url(storage_path)
+                if resp.status_code != 200:
+                    raise Exception(f"非200响应: {resp.status_code}")
+
+                # 2. 执行上传。storage.upload 在 python client 中接受 bytes/file-like，使用 upsert 参数。
+                upload_res = self.supabase.storage.from_(bucket).upload(
+                    path=storage_path,
+                    file=resp.content,
+                    file_options={
+                        "content-type": resp.headers.get("content-type", "image/jpeg")
+                    }
+                )
+
+                # 检查上传结果（不同客户端返回结构不同，尽量容错）
+                # 如果 upload_res 有 error 字段则抛出
+                try:
+                    if isinstance(upload_res, dict) and upload_res.get("error"):
+                        raise Exception(upload_res.get("error"))
+                except Exception:
+                    # 某些客户端会直接返回 None 或抛出；忽略这里的检查，让后续获取 public url 决定
+                    pass
+
+                # 3. 返回 Supabase 公共 URL（确保返回字符串）
+                public = self.supabase.storage.from_(bucket).get_public_url(storage_path)
+                # get_public_url 可能返回 dict 或字符串，根据常见实现兼容处理
+                if isinstance(public, dict):
+                    # 常见键名：publicUrl / public_url
+                    return public.get("publicUrl") or public.get("public_url") or None
+                if isinstance(public, str):
+                    return public
+
+                return None
         except Exception as e:
             print(f"⚠️ 图片转储至 Supabase 失败: {e}")
-            return None
+            raise
     
     async def fetch_site_data(self, url):
         """增强版扫描：优化代理与加载策略"""
@@ -107,21 +134,22 @@ class ForensicAuditEngine:
         # 品牌特异性 CSS 选择器映射
         BRAND_MAP = {
             "Saatva": {
-                "price": "[data-testid='product-price']",
-                "image": "meta[property='og:image']",
-                "wait_for": ".pdp-main"
+                "price_selector": "[data-testid='product-price']",
+                "image_selector": "meta[property='og:image']",
+                "wait_for": "h1"
             },
             "Sleep & Beyond": {
-                "price": ".summary .price .woocommerce-Price-amount bdi",
-                "image": "img.wp-post-image",
+                "price_selector": ".summary p.price", # 抓取整个价格段
+                "image_selector": ".woocommerce-product-gallery__image img.wp-post-image",
                 "wait_for": ".product_title"
             },
             "FluffCo": {
-                "price": ".product-single__price",
-                "image": ".product-single__photo--featured img",
+                "price_selector": ".product-single__price",
+                "image_selector": ".product-single__photo--featured img",
                 "wait_for": "h1"
             }
         }
+
 
         # 获取当前品牌的特定配置
         config = BRAND_MAP.get(self.brand, {})
@@ -160,21 +188,32 @@ class ForensicAuditEngine:
                 await asyncio.sleep(2)
                 
                 # --- 映射逻辑：精准获取价格 ---
-                if config.get("price"):
+                if config.get("price_selector"):
                     try:
-                        price_text = await page.inner_text(config["price"])
-                        # 清洗价格字符串 "$1,299.00" -> 1299.0
-                        match = re.search(r'(\d{1,3}(?:,\d{3})*(?:\.\d{2})?)', price_text)
-                        if match: data['price'] = float(match.group(1).replace(',', ''))
-                    except: pass
+                        # 获取 inner_text 可能会得到 "From $75.00 - $85.00"
+                        price_text = await page.inner_text(config["price_selector"])
+                        # 正则匹配所有数字价格，取第一个（通常是最低价）
+                        all_prices = re.findall(r'(\d{1,3}(?:,\d{3})*(?:\.\d{2})?)', price_text)
+                        if all_prices:
+                            data['price'] = float(all_prices[0].replace(',', ''))
+                    except Exception as e:
+                        print(f"⚠️ 价格映射抓取失败: {e}")
 
                 # --- 映射逻辑：精准获取图片 ---
-                if config.get("image"):
+                if self.brand == "Sleep & Beyond":
                     try:
-                        if config["image"].startswith("meta"):
-                            data['original_image'] = await page.get_attribute(config["image"], "content")
-                        else:
-                            data['original_image'] = await page.get_attribute(config["image"], "src")
+                        # 尝试直接从第一个幻灯片获取 data-large_image (1500x1000 的原图)
+                        img_element = await page.query_selector(config["image_selector"])
+                        if img_element:
+                            # 优先取大图属性，没有则取 src
+                            large_img = await img_element.get_attribute("data-large_image")
+                            data['original_image'] = large_img if large_img else await img_element.get_attribute("src")
+                    except: pass
+                elif config.get("image_selector"):
+                    # 其他品牌的通用逻辑
+                    try:
+                        # ... 原有的获取属性逻辑 ...
+                        data['original_image'] = await page.evaluate('() => document.querySelector("meta[property=\'og:image\']")?.content')
                     except: pass
 
                 # 通用兜底逻辑 (LD+JSON & 正则) 保持不变...
@@ -183,7 +222,7 @@ class ForensicAuditEngine:
                     pass
 
                 data['raw_text'] = await page.evaluate('() => document.body.innerText.substring(0, 6000)')
-                data['original_image'] = await page.evaluate('() => document.querySelector("meta[property=\'og:image\']")?.content')
+                
             except Exception as e:
                 print(f"⚠️ 官网扫描受限: {e}")
                 data['error_log'] = str(e)
@@ -219,6 +258,13 @@ class ForensicAuditEngine:
         if "404 Not Found" in site_data['raw_text'] or "Page not found" in site_data['raw_text']:
             print(f"🚫 目标已下架: {self.model} (检测到 404 文本)")
             return
+        
+        # --- 新增：图片转储逻辑 ---
+        hosted_image_url = None
+        if site_data.get('original_image'):
+            print(f"📸 正在转储图片至 Supabase Storage: {self.slug}")
+            # 调用你定义的函数
+            hosted_image_url = await self.transfer_to_supabase_storage(site_data['original_image'])
         
         # 清洗 raw_text 的工具函数
         def clean_web_text(text):
@@ -287,7 +333,7 @@ class ForensicAuditEngine:
             print(f"🧠 启动 Gemini-2.5-Flash 深度审计...")
             report = await self.call_ai_audit(audit_prompt, audit_context)
             
-            # 4. 逻辑层：生成专业日志与数据校正 
+            # 逻辑层：生成专业日志与数据校正 
             scores = report.get('audit_scores', {})
             for k in scores: # 标准化分数
                 if 0 < scores[k] <= 1.0: scores[k] = round(scores[k] * 10, 1)
@@ -328,7 +374,8 @@ class ForensicAuditEngine:
                 "seo_keywords": clean_keywords, 
 
                 "audit_data": audit_data_payload,
-                "original_image_url": site_data['original_image'],
+                "original_image_url": site_data['original_image'], # 原始地址用于溯源
+                "image_url": hosted_image_url or site_data['original_image'], # 优先使用转储地址
                 "confidence_score": 0.85 if site_data['price'] > 0 else 0.6,
                 "is_verified": site_data['price'] > 0,
                 "protocol_version": "v3.0-forensic",

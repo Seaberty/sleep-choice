@@ -108,6 +108,20 @@ class ForensicRepairman:
                         "updated_at": datetime.now(UTC).isoformat()
                     }).eq("id", item['id']).execute()
                     print(f"✨ 成功同步: ${patch['price']}")
+
+                    # 同步到 product_offers 表，避免 price 在 UI/offer 列表中不一致
+                    try:
+                        self.supabase.table("product_offers").upsert({
+                            "product_id": item['id'],
+                            "site_name": item.get('brand') or item.get('brand_slug') or 'external',
+                            "price": patch['price'],
+                            "offer_url": item.get('official_link') or item.get('official_url') or None,
+                            "is_primary": True,
+                            "status": "active",
+                            "last_checked_at": datetime.now(UTC).isoformat()
+                        }, on_conflict="product_id, site_name").execute()
+                    except Exception as e:
+                        print(f"⚠️ 同步 product_offers 失败: {e}")
                 else:
                     print("⚠️ 未能获取有效价格。")
                 
