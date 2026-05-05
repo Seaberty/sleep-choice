@@ -71,7 +71,7 @@ const safeParse = <T,>(data: any, fallback: T): T => {
 }
 
 // --- Monetization helpers ---
-const APPROVED_BRANDS = new Set(["FluffCo", "Sleep & Beyond"])
+const APPROVED_BRANDS = new Set(["Saatva", "FluffCo", "Sleep & Beyond"])
 
 function getAffiliateLink(
     brand: string,
