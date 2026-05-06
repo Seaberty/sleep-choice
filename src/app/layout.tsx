@@ -95,6 +95,20 @@ export default function RootLayout({
                     strategy="afterInteractive"
                     src="https://s.skimresources.com/js/302440X1790440.skimlinks.js"
                 />
+
+                {/* Google Analytics 4 */}
+                <Script
+                    src="https://www.googletagmanager.com/gtag/js?id=G-SCZWF4WVTR"
+                    strategy="afterInteractive"
+                />
+                <Script id="google-analytics" strategy="afterInteractive">
+                    {`
+            window.dataLayer = window.dataLayer || [];
+            function gtag(){dataLayer.push(arguments);}
+            gtag('js', new Date());
+            gtag('config', 'G-SCZWF4WVTR');
+          `}
+                </Script>
             </body>
         </html>
     )
