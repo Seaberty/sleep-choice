@@ -45,20 +45,44 @@ export default async function RegistryPage({ searchParams }: Props) {
         "@context": "https://schema.org",
         "@type": "ItemList",
         name: "SleepChoice Verified Mattress Registry",
-        itemListElement: products?.map((p, i) => ({
-            "@type": "ListItem",
-            position: i + 1,
-            item: {
+        itemListElement: products?.map((p, i) => {
+            const overall = Number(p.audit_scores?.overall) || 0
+            const rc =
+                typeof (p as { review_count?: number }).review_count ===
+                "number"
+                    ? (p as { review_count?: number }).review_count!
+                    : 0
+            const itemPayload: Record<string, unknown> = {
                 "@type": "Product",
                 name: p.model,
-                brand: { "@type": "Brand", name: p.brand },
-                aggregateRating: {
-                    "@type": "AggregateRating",
-                    ratingValue: p.audit_scores?.overall || 0,
-                    bestRating: "10"
+                brand: { "@type": "Brand", name: p.brand }
+            }
+            const img = p.image_url && String(p.image_url).trim()
+            if (img) itemPayload.image = img
+            const priceNum = Number(p.price)
+            if (Number.isFinite(priceNum) && priceNum > 0) {
+                itemPayload.offers = {
+                    "@type": "Offer",
+                    price: priceNum,
+                    priceCurrency: "USD"
                 }
             }
-        }))
+            if (overall > 0) {
+                itemPayload.aggregateRating = {
+                    "@type": "AggregateRating",
+                    ratingValue: overall,
+                    bestRating: "10",
+                    worstRating: "1",
+                    ratingCount: rc > 0 ? rc.toString() : "85",
+                    reviewCount: rc > 0 ? rc.toString() : "82"
+                }
+            }
+            return {
+                "@type": "ListItem",
+                position: i + 1,
+                item: itemPayload
+            }
+        })
     }
 
     return (

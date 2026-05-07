@@ -30,23 +30,61 @@ if os.getenv("PROXY_URL"):
 
 class IntelligenceProvider:
     """情报供应商：Serper API 舆情采集"""
+
     def __init__(self, api_key):
         self.api_key = api_key
-        self.url = "https://google.serper.dev/search" 
+        self.url = "https://google.serper.dev/search"
 
-    async def fetch_social_proof(self, query):
+    async def fetch_social_proof(self, query, product_id=None, supabase_client=None):
         all_evidence = []
-        headers = {'X-API-KEY': self.api_key, 'Content-Type': 'application/json'}
-        async with httpx.AsyncClient(timeout=15.0, follow_redirects=True) as client:
-            search_query = f"site:reddit.com OR site:sleepline.com {query} user experience"
+        review_count = 0
+        headers = {
+            "X-API-KEY": self.api_key, 
+            "Content-Type": "application/json"
+        }
+        
+        # 构造精确的请求体，不要包含任何自定义字段
+        payload = {
+            "q": f"{query} user experience reviews reddit",
+            "num": 100,  # 确保是整数
+            "page": 1
+        }
+
+        async with httpx.AsyncClient(timeout=20.0) as client:
             try:
-                resp = await client.post(self.url, headers=headers, json={"q": search_query})
+                # 发送请求
+                resp = await client.post(
+                    self.url, 
+                    headers=headers, 
+                    json=payload # httpx 会自动处理成正确的 JSON
+                )
+                
+                # 如果还是 400，打印出详细的错误信息
+                if resp.status_code != 200:
+                    print(f"❌ Serper 报错: {resp.status_code} - {resp.text}")
+                    return "", 0
+
                 data = resp.json()
-                for item in data.get('organic', [])[:8]:
+                organic_results = data.get("organic", []) or []
+                review_count = len(organic_results)
+
+                # ... 后续处理逻辑保持不变 ...
+                for item in organic_results[:10]:
                     all_evidence.append(f"🔍 SOURCE: {item.get('title')}\nCONTEXT: {item.get('snippet')}")
+
+                # 存储到 Supabase 的逻辑独立出来，不要混合在请求体里
+                if product_id and supabase_client:
+                    evidence_text = "\n\n".join(all_evidence)
+                    supabase_client.table("audit_products").update({
+                        "evidence_log": evidence_text,
+                        "review_count": review_count,
+                        "updated_at": datetime.now(UTC).isoformat(),
+                    }).eq("id", product_id).execute()
+
             except Exception as e:
-                print(f"⚠️ 情报采集受阻: {e}")
-        return "\n\n".join(all_evidence)
+                print(f"⚠️ 系统异常: {e}")
+
+        return "\n\n".join(all_evidence), review_count
 
 class ForensicAuditEngine: 
     def __init__(self, brand, model):
@@ -71,6 +109,55 @@ class ForensicAuditEngine:
 
     def generate_hash(self):
         return hashlib.md5(f"{self.slug}-{datetime.now().date()}".encode()).hexdigest()[:8].upper()
+
+    def _chromium_launch_options(self, proxy_settings):
+        """默认 Chromium 启动；可选代理与本机 Chrome channel。"""
+        slow_mo_ms = 0
+        if os.getenv("PLAYWRIGHT_SLOW_MO"):
+            try:
+                slow_mo_ms = int(os.getenv("PLAYWRIGHT_SLOW_MO", "0"))
+            except ValueError:
+                slow_mo_ms = 0
+
+        opts = {
+            "headless": os.getenv("PLAYWRIGHT_HEADED", "").lower()
+            not in ("1", "true", "yes"),
+            "slow_mo": slow_mo_ms,
+        }
+        if proxy_settings and proxy_settings.get("server"):
+            opts["proxy"] = proxy_settings
+        channel = os.getenv("PLAYWRIGHT_CHROME_CHANNEL", "").strip()
+        if channel:
+            opts["channel"] = channel
+        return opts
+
+    async def _likely_bot_or_challenge_page(self, page) -> bool:
+        try:
+            title = (await page.title() or "").lower()
+            if any(
+                x in title
+                for x in (
+                    "access denied",
+                    "just a moment",
+                    "attention required",
+                    "verify you are human",
+                )
+            ):
+                return True
+            snippet = await page.evaluate(
+                "() => (document.body && document.body.innerText) ? "
+                "document.body.innerText.slice(0, 4000) : ''"
+            )
+            low = snippet.lower()
+            if "cloudflare" in low and "ray id" in low:
+                return True
+            if "sorry, you have been blocked" in low:
+                return True
+            if len(snippet.strip()) < 80 and "javascript" in low:
+                return True
+        except Exception:
+            pass
+        return False
     
     @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=2, max=8))
     async def transfer_to_supabase_storage(self, original_url):
@@ -197,67 +284,73 @@ class ForensicAuditEngine:
             return None
         
     async def fetch_site_data(self, url):
-        """增强版扫描：优化代理与加载策略"""
+        """默认 Playwright 扫描（无品牌专用反爬强化）。"""
         print(f"🌐 深度扫描官网: {url}")
         data = {"price": 0.0, "original_image": None, "raw_text": "", "status": 200}
 
-        # 品牌特异性 CSS 选择器映射
         BRAND_MAP = {
             "Saatva": {
                 "price_selector": "[data-testid='product-price']",
+                "price_selectors_fallback": [
+                    '[data-testid="product-price"]',
+                    "[itemprop=\"price\"]",
+                    "[data-testid*=\"price\"]",
+                    ".product-detail__price",
+                    "[class*=\"ProductPrice\"]",
+                ],
                 "image_selector": "meta[property='og:image']",
-                "wait_for": "h1"
+                "wait_for": "h1",
             },
             "Sleep & Beyond": {
-                "price_selector": ".summary p.price", # 抓取整个价格段
+                "price_selector": ".summary p.price",
                 "image_selector": ".woocommerce-product-gallery__image img.wp-post-image",
-                "wait_for": ".product_title"
+                "wait_for": ".product_title",
             },
             "FluffCo": {
                 "price_selector": ".product-single__price",
                 "image_selector": ".product-single__photo--featured img",
-                "wait_for": "h1"
-            }
+                "wait_for": "h1",
+            },
         }
 
-
-        # 获取当前品牌的特定配置
         config = BRAND_MAP.get(self.brand, {})
-
-        # 动态获取代理
         proxy_url = os.getenv("PROXY_URL")
         proxy_settings = {"server": proxy_url} if proxy_url else None
-        
+
+        goto_timeout = 30000
+        wait_until = "domcontentloaded"
+
         async with async_playwright() as p:
-            browser = await p.chromium.launch(
-                headless=True,
-                proxy=proxy_settings
-            )
-            
-            # 使用真实的浏览器 Context
-            context = await browser.new_context(
-                user_agent="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36"
-            )
+            browser = await p.chromium.launch(**self._chromium_launch_options(proxy_settings))
+            context = await browser.new_context()
             page = await context.new_page()
-            
+
             try:
-                # 策略：缩短超时时间，改为等待 DOM 加载完毕，而不是等待网络空闲
-                response = await page.goto(url, wait_until="domcontentloaded", timeout=30000)
-                
+                response = await page.goto(
+                    url, wait_until=wait_until, timeout=goto_timeout
+                )
+
                 # 如果还是超时或没响应，手动抛出异常进入 catch
                 if not response:
                     raise Exception("Empty Response")
-                    
+
                 print(f"📡 页面响应状态: {response.status}")
-                
+
                 if response.status == 404:
-                    data['status'] = 404
+                    data["status"] = 404
                     return data
-                
+
+                if await self._likely_bot_or_challenge_page(page):
+                    print(
+                        "🛑 疑似命中机器人拦截 / 挑战页（正文极短或 Cloudflare）。"
+                        " 可尝试：调整 PROXY_URL、PLAYWRIGHT_CHROME_CHANNEL=chrome、PLAYWRIGHT_HEADED=1。"
+                    )
+
                 wait_sel = config.get("wait_for") or config.get("price_selector")
+                wait_budget = 12000
                 if wait_sel:
                     try:
-                        await page.wait_for_selector(wait_sel, timeout=12000)
+                        await page.wait_for_selector(wait_sel, timeout=wait_budget)
                     except Exception:
                         pass
 
@@ -265,31 +358,48 @@ class ForensicAuditEngine:
                 if ld_price is not None and 5.0 <= ld_price <= 100000.0:
                     data["price"] = ld_price
 
-                # --- DOM 价格（JSON-LD 未命中时）---
-                if data["price"] == 0.0 and config.get("price_selector"):
-                    try:
-                        await page.wait_for_selector(config["price_selector"], timeout=8000)
-                        price_text = await page.inner_text(config["price_selector"])
-                        all_prices = re.findall(
-                            r"(\d{1,3}(?:,\d{3})*(?:\.\d{2})?)", price_text
-                        )
-                        parsed = [float(p.replace(",", "")) for p in all_prices]
-                        # 枕头/配件可能低于 $100；排除典型百分比碎片（单独一位数）
-                        valid_prices = [
-                            x for x in parsed if 9.0 <= x <= 100000.0
-                        ]
-                        if valid_prices:
-                            data["price"] = valid_prices[0]
-                    except Exception:
+                if data["price"] == 0.0:
+                    selectors = []
+                    if config.get("price_selector"):
+                        selectors.append(config["price_selector"])
+                    for fb in config.get("price_selectors_fallback") or []:
+                        if fb and fb not in selectors:
+                            selectors.append(fb)
+
+                    dom_ok = False
+                    sel_timeout = 8000
+                    for sel in selectors:
+                        try:
+                            await page.wait_for_selector(sel, timeout=sel_timeout)
+                            price_text = await page.inner_text(sel)
+                            all_prices = re.findall(
+                                r"(\d{1,3}(?:,\d{3})*(?:\.\d{2})?)", price_text
+                            )
+                            parsed = [float(p.replace(",", "")) for p in all_prices]
+                            valid_prices = [
+                                x for x in parsed if 9.0 <= x <= 100000.0
+                            ]
+                            if valid_prices:
+                                data["price"] = valid_prices[0]
+                                dom_ok = True
+                                break
+                        except Exception:
+                            continue
+                    if not dom_ok and selectors:
                         print("⚠️ 价格抓取失败，已尝试 JSON-LD / DOM。")
 
-                # --- 图片 ---
                 if self.brand == "Sleep & Beyond":
                     try:
                         img_element = await page.query_selector(config["image_selector"])
                         if img_element:
-                            large_img = await img_element.get_attribute("data-large_image")
-                            src = large_img if large_img else await img_element.get_attribute("src")
+                            large_img = await img_element.get_attribute(
+                                "data-large_image"
+                            )
+                            src = (
+                                large_img
+                                if large_img
+                                else await img_element.get_attribute("src")
+                            )
                             data["original_image"] = src
                         if not data["original_image"]:
                             data["original_image"] = await page.evaluate(
@@ -305,7 +415,9 @@ class ForensicAuditEngine:
                     except Exception:
                         pass
 
-                data['raw_text'] = await page.evaluate('() => document.body.innerText.substring(0, 6000)')
+                data["raw_text"] = await page.evaluate(
+                    "() => document.body.innerText.substring(0, 6000)"
+                )
                 
             except Exception as e:
                 print(f"⚠️ 官网扫描受限: {e}")
@@ -377,7 +489,26 @@ class ForensicAuditEngine:
         # --- 新增：上下文瘦身逻辑 ---
         # 移除重复空格、换行符，并严格截断
         clean_text = clean_web_text(site_data['raw_text'])
-        social_proof = await self.intel.fetch_social_proof(f"{self.brand} {self.model}")
+
+        existing_id = None
+        try:
+            prev = (
+                self.supabase.table("audit_products")
+                .select("id")
+                .eq("slug", self.slug)
+                .limit(1)
+                .execute()
+            )
+            if prev.data:
+                existing_id = prev.data[0]["id"]
+        except Exception:
+            pass
+
+        social_proof, serp_review_count = await self.intel.fetch_social_proof(
+            f"{self.brand} {self.model}",
+            product_id=existing_id,
+            supabase_client=self.supabase if existing_id else None,
+        )
 
         # 2. 注入审计上下文 (大幅减少 Token 占用)
         audit_context = f"--- OFFICIAL SPECS ---\n{clean_text}\n\n--- SOCIAL EVIDENCE ---\n{social_proof[:800]}"
@@ -476,7 +607,9 @@ class ForensicAuditEngine:
                 "is_verified": site_data['price'] > 0,
                 "protocol_version": "v3.0-forensic",
                 "last_audited_at": datetime.now(UTC).isoformat(),
-                "updated_at": datetime.now(UTC).isoformat()
+                "updated_at": datetime.now(UTC).isoformat(),
+                "evidence_log": social_proof,
+                "review_count": serp_review_count,
             }
 
             # 6. 数据库双表同步

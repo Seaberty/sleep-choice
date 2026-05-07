@@ -20,19 +20,19 @@ load_dotenv(dotenv_path=env_path)
 SB_TARGETS = [
     # 1. PILLOWS
     {"model": "MyTravel Pillow", "url": "https://sleepandbeyond.com/product/mytravel-pillow/"},
-    {"model": "MyWoolly Pillow", "url": "https://sleepandbeyond.com/product/mywoolly-pillow/"},
+    # {"model": "MyWoolly Pillow", "url": "https://sleepandbeyond.com/product/mywoolly-pillow/"},
     
-    # 2. COMFORTERS
-    {"model": "MyMerino Comforter", "url": "https://sleepandbeyond.com/product/mymerino-comforter/"},
-    {"model": "MyComforter", "url": "https://sleepandbeyond.com/product/mycomforter/"},
+    # # 2. COMFORTERS
+    # {"model": "MyMerino Comforter", "url": "https://sleepandbeyond.com/product/mymerino-comforter/"},
+    # {"model": "MyComforter", "url": "https://sleepandbeyond.com/product/mycomforter/"},
 
-    # 3. TOPPERS
-    {"model": "MyTopper", "url": "https://sleepandbeyond.com/product/mytopper/"},
-    # 如果该链接 404，脚本现在会捕获异常并继续
-    {"model": "MyMerino Topper", "url": "https://sleepandbeyond.com/product/mymerino-topper/"},
+    # # 3. TOPPERS
+    # {"model": "MyTopper", "url": "https://sleepandbeyond.com/product/mytopper/"},
+    # # 如果该链接 404，脚本现在会捕获异常并继续
+    # {"model": "MyMerino Topper", "url": "https://sleepandbeyond.com/product/mymerino-topper/"},
 
-    # 4. PROTECTORS
-    {"model": "MyProtector", "url": "https://sleepandbeyond.com/product/myprotector/"},
+    # # 4. PROTECTORS
+    # {"model": "MyProtector", "url": "https://sleepandbeyond.com/product/myprotector/"},
 ]
 
 class SBBatchScanner:
@@ -171,5 +171,5 @@ class SBBatchScanner:
         print("\n🏁 批处理任务结束。")
 
 if __name__ == "__main__":
-    scanner = SBBatchScanner(force_update=False)
+    scanner = SBBatchScanner(force_update=True)
     asyncio.run(scanner.main_loop())

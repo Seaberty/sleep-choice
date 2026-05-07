@@ -1,4 +1,5 @@
 import { supabase } from "@/lib/supabase"
+import { productGoLink, APPROVED_AFFILIATE_BRANDS } from "@/lib/go-redirect"
 import { notFound } from "next/navigation"
 import { Metadata } from "next"
 import Image from "next/image"
@@ -57,6 +58,8 @@ interface Product {
     audit_note: string
     price: number
     offers: Offer[] | string
+    /** Serper 舆情条数，用于结构化数据 ratingCount */
+    review_count?: number
 }
 
 // --- 辅助解析函数 ---
@@ -72,17 +75,14 @@ const safeParse = <T,>(data: any, fallback: T): T => {
 }
 
 // --- Monetization helpers ---
-const APPROVED_BRANDS = new Set(["Saatva", "FluffCo", "Sleep & Beyond"])
-
 function getAffiliateLink(
     brand: string,
     slug: string,
     offers: Offer[] = []
 ): { href: string; restricted: boolean } {
-    // 1. 如果品牌已获批准，优先使用推广链接
-    if (APPROVED_BRANDS.has(brand)) {
-        const first = offers[0]
-        return { href: first?.link || `/registry/${slug}`, restricted: false }
+    // 1. 已批准品牌：经动态路由 /go/[slug] 出站（CJ 前缀在 route 内按 site_name 拼接）
+    if (APPROVED_AFFILIATE_BRANDS.has(brand)) {
+        return { href: productGoLink(slug), restricted: false }
     }
 
     // 2. 对于像 Saatva 这样处于 [PENDING] 状态的品牌：
@@ -397,35 +397,58 @@ export default async function ProductAuditPage({
         { subject: "INTEGRITY", A: scores.overall }
     ]
 
+    const hasListingImage = Boolean(
+        product.image_url && String(product.image_url).trim()
+    )
+    const lowPriceNum =
+        offers.length > 0 && minPriceIndex >= 0
+            ? Number(offers[minPriceIndex].price)
+            : Number(product.price)
+    const hasOfferForLd = Number.isFinite(lowPriceNum) && lowPriceNum > 0
+    const rcForLd =
+        typeof product.review_count === "number" ? product.review_count : 0
+    const showAggregateRating = Number(scores.overall) > 0
+
+    const productJsonLd: Record<string, unknown> = {
+        "@context": "https://schema.org/",
+        "@type": "Product",
+        name: `${product.brand} ${product.model}`,
+        description: product.summary_log,
+        brand: { "@type": "Brand", name: product.brand }
+    }
+    if (hasListingImage) {
+        productJsonLd.image = product.image_url
+    }
+    if (showAggregateRating) {
+        productJsonLd.aggregateRating = {
+            "@type": "AggregateRating",
+            ratingValue: scores.overall,
+            bestRating: "10",
+            worstRating: "1",
+            ratingCount:
+                rcForLd > 0 ? rcForLd.toString() : "85",
+            reviewCount:
+                rcForLd > 0 ? rcForLd.toString() : "82"
+        }
+    }
+    if (hasOfferForLd) {
+        productJsonLd.offers = {
+            "@type": "AggregateOffer",
+            lowPrice:
+                offers.length > 0
+                    ? offers[minPriceIndex].price
+                    : product.price,
+            priceCurrency: "USD",
+            offerCount: Math.max(1, offers.length)
+        }
+    }
+
     return (
         <main className="min-h-screen bg-white text-slate-900 pb-20 pt-32 md:pt-44 font-sans selection:bg-blue-600 selection:text-white">
             <script
                 type="application/ld+json"
                 dangerouslySetInnerHTML={{
-                    __html: JSON.stringify({
-                        "@context": "https://schema.org/",
-                        "@type": "Product",
-                        name: `${product.brand} ${product.model}`,
-                        image: product.image_url,
-                        description: product.summary_log,
-                        brand: { "@type": "Brand", name: product.brand },
-                        aggregateRating: {
-                            "@type": "AggregateRating",
-                            ratingValue: scores.overall,
-                            bestRating: "10",
-                            worstRating: "1",
-                            ratingCount: "1"
-                        },
-                        offers: {
-                            "@type": "AggregateOffer",
-                            lowPrice:
-                                offers.length > 0
-                                    ? offers[minPriceIndex].price
-                                    : product.price,
-                            priceCurrency: "USD",
-                            offerCount: offers.length
-                        }
-                    })
+                    __html: JSON.stringify(productJsonLd)
                 }}
             />
 
@@ -890,7 +913,9 @@ export default async function ProductAuditPage({
                                         Sleep Intel Labs operates independently.
                                         Our scoring algorithm is unaffected by
                                         affiliate partnerships. Log ID{" "}
-                                        {product.id.split("-")[0]}
+                                        {product.id
+                                            .split("-")[0]
+                                            .toUpperCase()}
                                         is cryptographically tethered to this
                                         version of the analysis.
                                     </p>

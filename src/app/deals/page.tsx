@@ -1,4 +1,5 @@
 import { getAutomatedRegistry } from "@/lib/registry"
+import { outboundDealLink } from "@/lib/go-redirect"
 import {
     Timer,
     ShieldCheck,
@@ -198,7 +199,11 @@ export default async function DealsPage() {
 
                                     {/* 导出链接 */}
                                     <a
-                                        href={offer.url}
+                                        href={outboundDealLink(
+                                            p.slug,
+                                            p.brand,
+                                            offer.url
+                                        )}
                                         target="_blank"
                                         rel="nofollow"
                                         className={cn(

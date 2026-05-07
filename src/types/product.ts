@@ -40,6 +40,8 @@ export interface ForensicAuditData {
         [key: string]: string
     }
     arbitrage_report: string
+    /** 与 forensic_engine 写入的 audit_data.audit_hash 一致（8 位十六进制指纹） */
+    audit_hash?: string
 }
 
 export interface ProductMeta {
@@ -95,6 +97,8 @@ export interface ProductData {
     // 深度 JSON 数据
     audit_scores: AuditScores
     audit_data: ForensicAuditData // 这里的嵌套结构对应你生成的 JSON 内容
+    /** 便于卡片等组件展示，通常来自 audit_data.audit_hash */
+    audit_hash?: string
 
     // 原始数据参考 (保持追溯)
     technical_specs: Record<string, string>
@@ -107,4 +111,7 @@ export interface ProductData {
     price_range: string
     isBestSeller?: boolean // 👈 添加这一行
     meta?: ProductMeta
+
+    /** Serper 有机结果条数，供 JSON-LD aggregateRating.ratingCount */
+    review_count?: number
 }

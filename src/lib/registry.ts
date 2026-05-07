@@ -84,6 +84,27 @@ export const getAutomatedRegistry = cache(
                         ? localMeta.cons
                         : item.cons || []
 
+                const auditDataRaw = item.audit_data
+                let auditHash: string | undefined
+                if (
+                    auditDataRaw &&
+                    typeof auditDataRaw === "object" &&
+                    "audit_hash" in auditDataRaw
+                ) {
+                    auditHash = String(
+                        (auditDataRaw as { audit_hash?: string }).audit_hash ||
+                            ""
+                    ).trim()
+                } else if (typeof auditDataRaw === "string") {
+                    try {
+                        const parsed = JSON.parse(auditDataRaw)
+                        if (parsed?.audit_hash)
+                            auditHash = String(parsed.audit_hash).trim()
+                    } catch {
+                        /* ignore */
+                    }
+                }
+
                 // 3. Offer 逻辑
                 const defaultOffer: Offer = {
                     site: dbOffer?.site_name || "Official Store",
@@ -125,7 +146,11 @@ export const getAutomatedRegistry = cache(
                     cons: finalCons, // ✨ 确保这里被赋值
                     // 补全必填
                     protocol_version: "2026.1",
-                    last_audited_at: item.updated_at || new Date().toISOString()
+                    last_audited_at: item.updated_at || new Date().toISOString(),
+                    ...(auditHash ? { audit_hash: auditHash } : {}),
+                    ...(typeof item.review_count === "number"
+                        ? { review_count: item.review_count }
+                        : {})
                 } as ProductData
             })
         } catch (e) {

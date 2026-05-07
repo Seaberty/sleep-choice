@@ -14,6 +14,7 @@ import {
 import Image from "next/image"
 import { cn } from "@/lib/utils"
 import { ProductData } from "@/types/product"
+import { outboundDealLink } from "@/lib/go-redirect"
 
 export function ProductCard({
     data,
@@ -68,7 +69,7 @@ export function ProductCard({
                     )}
                     <div className="bg-slate-900/90 backdrop-blur-md text-white text-[8px] font-mono px-2 py-0.5 rounded flex items-center gap-1.5 shadow-sm">
                         <span className="w-1 h-1 bg-blue-400 rounded-full animate-pulse" />
-                        ID:{data.slug.split("-")[0].toUpperCase()}
+                        LOG:{data.id.split("-")[0].toUpperCase()}
                     </div>
                 </div>
 
@@ -187,7 +188,11 @@ export function ProductCard({
                     </div>
 
                     <a
-                        href={primaryOffer.url}
+                        href={outboundDealLink(
+                            data.slug,
+                            data.brand,
+                            primaryOffer.url
+                        )}
                         target="_blank"
                         rel="nofollow sponsored"
                         className="group/btn relative flex items-center justify-between w-full bg-slate-950 hover:bg-blue-600 text-white rounded-2xl p-2 transition-all duration-500 shadow-xl hover:shadow-blue-500/40"

@@ -17,9 +17,10 @@ export interface UserPreference {
 export interface QuizMatchResult {
     recommendedBrand: string
     recommendedModel: string
+    /** 与 audit_products.slug 对应，用于 `/go/[slug]` 联盟中转 */
+    recommendedSlug: string
     matchScore: number // 0-100
     reasoningSummary: string
-    affiliateLink: string
 }
 
 /**
@@ -129,8 +130,6 @@ const SLEEP_AND_BEYOND_CATALOG = [
             price: 1899,
             firmness: "medium" as const
         },
-        affiliateLink:
-            "https://www.cjdropshipping.com/product/sleep-beyond-pure-natural-latex",
         reasoningTemplate: (score: number) =>
             `Your preference for organic materials (${score > 85 ? "exceptional" : "strong"}) aligns perfectly with Pure Natural Latex. 100% GOLS-certified latex provides superior thermoregulation and 15+ year durability verified through forensic analysis.`
     },
@@ -144,8 +143,6 @@ const SLEEP_AND_BEYOND_CATALOG = [
             price: 2299,
             firmness: "soft" as const
         },
-        affiliateLink:
-            "https://www.cjdropshipping.com/product/sleep-beyond-organic-cloud-hybrid",
         reasoningTemplate: (score: number) =>
             `Balance of support and cloud-like comfort. Your sleep profile suggests need for enhanced pressure relief, which Organic Cloud Hybrid delivers through 7-zone organic support. Natural thermoregulation ensures optimal sleep temperature.`
     },
@@ -159,8 +156,6 @@ const SLEEP_AND_BEYOND_CATALOG = [
             price: 1599,
             firmness: "medium" as const
         },
-        affiliateLink:
-            "https://www.cjdropshipping.com/product/sleep-beyond-eco-comfort-plus",
         reasoningTemplate: (score: number) =>
             `Value-conscious choice without compromise on organic integrity. Eco Comfort Plus delivers 85% of Pure Natural Latex performance at 16% lower price point. Carbon-neutral manufacturing aligns with your eco-consciousness.`
     }
@@ -192,9 +187,9 @@ export function generatePersonalizedRecommendation(
     return {
         recommendedBrand: "Sleep & Beyond",
         recommendedModel: bestMatch.model,
+        recommendedSlug: bestMatch.slug,
         matchScore: bestScore,
-        reasoningSummary: bestMatch.reasoningTemplate(bestScore),
-        affiliateLink: bestMatch.affiliateLink
+        reasoningSummary: bestMatch.reasoningTemplate(bestScore)
     }
 }
 

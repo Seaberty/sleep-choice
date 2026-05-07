@@ -7,6 +7,7 @@
 
 import React from "react"
 import Link from "next/link"
+import { productGoLink } from "@/lib/go-redirect"
 import { motion } from "framer-motion"
 import { ArrowRight, Badge, Leaf, Thermometer } from "lucide-react"
 
@@ -16,7 +17,6 @@ interface SleepAndBeyondRecommendationProps {
         slug: string
         matchScore: number
         reasoningSummary: string
-        affiliateLink: string
     }
     onDismiss?: () => void
 }
@@ -99,7 +99,7 @@ export default function SleepAndBeyondRecommendation({
                 {/* Call to Action */}
                 <div className="flex items-center gap-3">
                     <a
-                        href={recommendation.affiliateLink}
+                        href={productGoLink(recommendation.slug)}
                         target="_blank"
                         rel="nofollow noopener"
                         className="flex-1"

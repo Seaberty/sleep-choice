@@ -48,17 +48,6 @@ const nextConfig = {
             }
         ]
     },
-
-    // 建议增加：白帽站常用的联盟链接中转
-    async redirects() {
-        return [
-            {
-                source: "/go/:slug",
-                destination: "https://link.sleepchoice.com/:slug", // 替换为你的中转逻辑
-                permanent: false
-            }
-        ]
-    }
 }
 
 module.exports = nextConfig

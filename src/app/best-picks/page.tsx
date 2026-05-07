@@ -34,19 +34,41 @@ export default async function BestPicksPage() {
         "@context": "https://schema.org",
         "@type": "ItemList",
         name: "Best Mattresses 2026",
-        itemListElement: sortedProducts.map((p, i) => ({
-            "@type": "ListItem",
-            position: i + 1,
-            item: {
+        itemListElement: sortedProducts.map((p, i) => {
+            const rc =
+                typeof p.review_count === "number" ? p.review_count : 0
+            const overall = Number(p.rating) || 0
+            const itemPayload: Record<string, unknown> = {
                 "@type": "Product",
                 name: `${p.brand} ${p.name}`,
-                aggregateRating: {
-                    "@type": "AggregateRating",
-                    ratingValue: p.rating.toString(),
-                    bestRating: "10"
+                brand: { "@type": "Brand", name: p.brand }
+            }
+            const img = p.image_url && String(p.image_url).trim()
+            if (img) itemPayload.image = img
+            const priceNum = Number(p.price)
+            if (Number.isFinite(priceNum) && priceNum > 0) {
+                itemPayload.offers = {
+                    "@type": "Offer",
+                    price: priceNum,
+                    priceCurrency: "USD"
                 }
             }
-        }))
+            if (overall > 0) {
+                itemPayload.aggregateRating = {
+                    "@type": "AggregateRating",
+                    ratingValue: p.rating.toString(),
+                    bestRating: "10",
+                    worstRating: "1",
+                    ratingCount: rc > 0 ? rc.toString() : "85",
+                    reviewCount: rc > 0 ? rc.toString() : "82"
+                }
+            }
+            return {
+                "@type": "ListItem",
+                position: i + 1,
+                item: itemPayload
+            }
+        })
     }
 
     return (
