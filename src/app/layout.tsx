@@ -93,11 +93,11 @@ export default async function RootLayout({
                 <SpeedInsights />
 
                 {/* 5. Skimlinks 脚本：使用 Next.js 标准加载方式 */}
-                <Script
+                {/* <Script
                     id="skimlinks-js"
                     strategy="afterInteractive"
                     src="https://s.skimresources.com/js/302440X1790440.skimlinks.js"
-                />
+                /> */}
 
                 {/* Google Analytics 4 */}
                 <Script
