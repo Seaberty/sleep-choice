@@ -1,4 +1,5 @@
 import Link from "next/link"
+import { APP_PROTOCOL } from "@/lib/constants"
 import {
     ShieldCheck,
     Cpu,
@@ -27,7 +28,8 @@ export default function DisclosurePage() {
                     <div className="flex flex-wrap items-center justify-between gap-4 mb-10">
                         <div className="flex items-center gap-3 text-blue-600 font-black text-[10px] uppercase tracking-[0.4em]">
                             <ShieldCheck className="w-4 h-4" />
-                            Protocol: Algorithmic_Audit_v2.0
+                            Protocol:{" "}
+                            {`Algorithmic_Audit_${APP_PROTOCOL}`}
                         </div>
                         <div className="flex items-center gap-2 font-mono text-[9px] font-bold text-slate-400 uppercase tracking-widest bg-slate-50 px-3 py-1">
                             <Activity className="w-3 h-3 text-blue-600" />

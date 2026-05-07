@@ -82,7 +82,7 @@ export interface ProductData {
     // 审计状态
     is_verified: boolean
     last_audited_at: string
-    protocol_version: string // 例如 "v1.5-forensic"
+    protocol_version: string // 例如 APP_PROTOCOL (v3.0-forensic)
 
     // 内容描述
     // --- 审计核心数据 ---

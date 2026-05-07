@@ -1,4 +1,5 @@
 import { supabase } from "@/lib/supabase"
+import { APP_PROTOCOL } from "@/lib/constants"
 import { productGoLink, APPROVED_AFFILIATE_BRANDS } from "@/lib/go-redirect"
 import { notFound } from "next/navigation"
 import { Metadata } from "next"
@@ -490,7 +491,7 @@ export default async function ProductAuditPage({
                             href="/methodology"
                             className="text-blue-600 hover:bg-blue-600 hover:text-white px-1 transition-colors border-b border-blue-600/30"
                         >
-                            {product.protocol_version || "v1.5-forensic"}
+                            {product.protocol_version || APP_PROTOCOL}
                             <ExternalLink className="w-2 h-2 inline-block ml-1 mb-0.5" />
                         </a>
                     </div>
@@ -723,7 +724,7 @@ export default async function ProductAuditPage({
                                             <span className="text-[8px] font-mono text-blue-500 font-bold bg-blue-50 px-2 py-0.5 border border-blue-100">
                                                 PROTOCOL:{" "}
                                                 {product.protocol_version ||
-                                                    "v2.5-forensic"}
+                                                    APP_PROTOCOL}
                                             </span>
                                         </div>
                                     </div>
@@ -950,7 +951,7 @@ export default async function ProductAuditPage({
 
                             <div className="text-center border-b border-slate-100 pb-10 mb-8 font-mono">
                                 <div className="text-[10px] font-black text-slate-400 uppercase tracking-[0.4em] mb-4">
-                                    Efficiency_Rating
+                                    Performance_Index
                                 </div>
                                 <div className="text-[110px] font-[1000] italic text-slate-950 leading-none tracking-tighter">
                                     {scores.overall}

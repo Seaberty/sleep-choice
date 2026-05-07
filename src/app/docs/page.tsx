@@ -1,5 +1,6 @@
 import { getAutomatedRegistry } from "@/lib/registry"
 import Link from "next/link"
+import { APP_PROTOCOL } from "@/lib/constants"
 import {
     History,
     FlaskConical,
@@ -121,7 +122,8 @@ export default async function JournalIndex() {
                                     &apos;s adaptive layer. Subject exhibited
                                     consistent spinal neutrality in 85% of
                                     lateral test positions. Performance index
-                                    recalibrated via Scored-Matrix™ v4.
+                                    recalibrated via Scored-Matrix™{" "}
+                                    {APP_PROTOCOL}.
                                 </p>
 
                                 {/* 交互组件：查看详情 */}

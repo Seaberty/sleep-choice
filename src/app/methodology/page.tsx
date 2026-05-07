@@ -17,10 +17,9 @@ import {
     SearchCode,
     Network
 } from "lucide-react"
+import { APP_PROTOCOL } from "@/lib/constants"
 
 export default function MethodologyPage() {
-    // 动态生成审计版本
-    const auditVersion = "v4.2.0-PRO"
 
     const methodologySchema = {
         "@context": "https://schema.org",
@@ -103,7 +102,7 @@ export default function MethodologyPage() {
                     className="flex items-center gap-3 text-blue-600 font-black text-[10px] uppercase tracking-[0.3em] mb-8"
                 >
                     <div className="w-2 h-2 bg-blue-600 rounded-full animate-pulse" />
-                    Protocol: Scored-Matrix™ Audit_{auditVersion}
+                    {`Protocol: Scored-Matrix™ Audit_${APP_PROTOCOL}`}
                 </motion.div>
 
                 <h1 className="text-6xl md:text-[7.5rem] font-[1000] tracking-tighter uppercase leading-[0.85] text-slate-950 mb-10">
@@ -232,7 +231,7 @@ export default function MethodologyPage() {
                         <div className="grid grid-cols-1 gap-4 mb-10">
                             {[
                                 "Real-time scraper nodes across 50+ retail channels",
-                                "NLP sentiment weight normalization v4.2",
+                                `NLP sentiment weight normalization ${APP_PROTOCOL}`,
                                 "Zero-human-intervention scoring logic",
                                 "Peer-verified algorithm transparency"
                             ].map((feature, i) => (

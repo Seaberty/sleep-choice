@@ -11,6 +11,7 @@ import {
     Search
 } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { APP_PROTOCOL } from "@/lib/constants"
 
 export const metadata = {
     title: "Technical Benchmarks | Side-by-Side Audit",
@@ -63,7 +64,7 @@ export default async function ComparePage() {
                 <header className="max-w-4xl mb-16 border-l-4 border-blue-600 pl-8">
                     <div className="flex items-center gap-3 text-blue-600 font-black text-[9px] uppercase tracking-[0.4em] mb-4">
                         <Cpu className="w-4 h-4" />
-                        System_Protocol: AIR_v2.6_Comparison
+                        {`System_Protocol: AIR_${APP_PROTOCOL}_Comparison`}
                     </div>
                     <h1 className="text-5xl md:text-8xl font-[1000] tracking-tighter uppercase leading-[0.8] mb-6 italic text-slate-950">
                         Metric <br />

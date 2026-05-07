@@ -19,6 +19,7 @@ import {
     Fingerprint
 } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { APP_PROTOCOL } from "@/lib/constants"
 
 export default function PrivacyPage() {
     // 动态日期：显示为当前月份的审计修订
@@ -91,7 +92,7 @@ export default function PrivacyPage() {
                                 COMPLIANCE_STATUS: ACTIVE
                             </span>
                             <span className="text-[9px] font-bold text-slate-400 font-mono uppercase">
-                                Scored-Matrix™ v4.2 Security
+                                Scored-Matrix™ {APP_PROTOCOL} Security
                             </span>
                         </div>
                     </motion.div>

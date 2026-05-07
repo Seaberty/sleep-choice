@@ -17,6 +17,7 @@ import {
     Command
 } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { APP_PROTOCOL } from "@/lib/constants"
 import { subscribeAction } from "@/app/actions/subscribe"
 
 export function SiteFooter() {
@@ -165,7 +166,7 @@ export function SiteFooter() {
 
                                 <div className="mt-4 flex items-center gap-2 text-[9px] font-bold text-slate-400 uppercase tracking-tight">
                                     <Fingerprint className="w-3 h-3 text-blue-500" />
-                                    SHA-256 Encrypted / System v4.1
+                                    SHA-256 Encrypted / System {APP_PROTOCOL}
                                 </div>
                             </div>
                         </div>
@@ -290,7 +291,7 @@ export function SiteFooter() {
 
                         <p className="text-[11px] leading-relaxed text-slate-500 font-medium max-w-5xl relative z-10">
                             <span className="text-blue-600 font-bold mr-1">
-                                [PROTOCOL_v4.2]
+                                [PROTOCOL_{APP_PROTOCOL}]
                             </span>
                             <strong>
                                 SleepChoiceGuide (Intelligence Unit)

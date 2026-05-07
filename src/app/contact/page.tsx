@@ -19,6 +19,7 @@ import {
     Fingerprint
 } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { APP_PROTOCOL } from "@/lib/constants"
 
 const CONTACT_CONFIG = {
     domain: "sleepchoiceguide.com",
@@ -147,7 +148,7 @@ export default function ContactPage() {
                             </div>
                             <h2 className="text-xl font-black uppercase tracking-tighter mb-6 flex items-center gap-2 relative z-10">
                                 <Lock className="w-5 h-5 text-blue-500" />
-                                PROTOCOL_V3.1
+                                {`PROTOCOL_${APP_PROTOCOL}`}
                             </h2>
                             <div className="space-y-6 relative z-10">
                                 <div className="space-y-2">

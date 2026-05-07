@@ -17,6 +17,7 @@ import { Hero } from "@/components/hero"
 import { ProductCard } from "@/components/product-card"
 import { getAutomatedRegistry } from "@/lib/registry"
 import { cn } from "@/lib/utils"
+import { APP_PROTOCOL } from "@/lib/constants"
 
 // 2026 顶级白帽策略：极致的实时性与动态缓存控制
 export const revalidate = 0
@@ -82,7 +83,7 @@ export default async function HomePage() {
                             },
                             {
                                 icon: <Cpu />,
-                                label: "Audit v4.1",
+                                label: `Audit ${APP_PROTOCOL}`,
                                 detail: "Registry Sync",
                                 color: "text-slate-900",
                                 bg: "bg-slate-100"

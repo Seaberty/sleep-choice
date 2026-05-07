@@ -16,6 +16,7 @@ import {
 } from "lucide-react"
 import { motion, AnimatePresence } from "framer-motion"
 import { cn } from "@/lib/utils"
+import { APP_PROTOCOL } from "@/lib/constants"
 
 export default function CalculatorPage() {
     const [roomWidthFt, setRoomWidthFt] = useState<string>("12")
@@ -74,7 +75,7 @@ export default function CalculatorPage() {
                 <header className="max-w-4xl mb-16 border-l-4 border-blue-600 pl-8">
                     <div className="flex items-center gap-3 text-blue-600 font-black text-[9px] uppercase tracking-[0.4em] mb-4">
                         <Cpu className="w-4 h-4" />
-                        Spatial_Audit_System_v4.1 // Dimension_Scanner
+                        {`Spatial_Audit_System_${APP_PROTOCOL} // Dimension_Scanner`}
                     </div>
                     <h1 className="text-5xl md:text-8xl font-[1000] tracking-tighter uppercase leading-[0.8] mb-6 italic">
                         Spatial <br />

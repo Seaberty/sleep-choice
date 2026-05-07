@@ -18,6 +18,7 @@ import {
     Activity
 } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { APP_PROTOCOL } from "@/lib/constants"
 
 export default function AboutPage() {
     return (
@@ -183,7 +184,7 @@ export default function AboutPage() {
                             <div className="mb-6 flex items-center gap-3 font-mono text-blue-500">
                                 <Terminal className="h-5 w-5" />
                                 <span className="text-xs font-black uppercase tracking-[0.4em]">
-                                    PROTOCOL_V4.2_STABLE
+                                    {`PROTOCOL_${APP_PROTOCOL}_STABLE`}
                                 </span>
                             </div>
                             <h2 className="mb-10 text-5xl font-[1000] leading-[0.9] tracking-tighter md:text-7xl uppercase">

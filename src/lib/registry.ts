@@ -7,6 +7,7 @@ import {
     Offer
 } from "@/types/product"
 import { supabase } from "./supabase"
+import { APP_PROTOCOL } from "./constants"
 import { cache } from "react"
 
 const REGISTRY_PATH = path.join(process.cwd(), "src/data/registry.json")
@@ -145,7 +146,7 @@ export const getAutomatedRegistry = cache(
                     pros: finalPros, // ✨ 确保这里被赋值
                     cons: finalCons, // ✨ 确保这里被赋值
                     // 补全必填
-                    protocol_version: "2026.1",
+                    protocol_version: APP_PROTOCOL,
                     last_audited_at: item.updated_at || new Date().toISOString(),
                     ...(auditHash ? { audit_hash: auditHash } : {}),
                     ...(typeof item.review_count === "number"

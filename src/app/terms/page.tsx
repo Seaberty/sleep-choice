@@ -17,6 +17,7 @@ import {
     Activity
 } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { APP_PROTOCOL } from "@/lib/constants"
 
 export default function TermsPage() {
     // 动态生成版本号，例如 REV_FEB_2026
@@ -93,7 +94,7 @@ export default function TermsPage() {
                             key={i}
                             className="flex justify-around mb-40 uppercase tracking-[1em] rotate-12 font-mono text-[9px] whitespace-nowrap"
                         >
-                            <span>LEGAL_PROTOCOL_V4.2</span>
+                            <span>{`LEGAL_PROTOCOL_${APP_PROTOCOL}`}</span>
                             <span>INTEL_UNIT_ENCRYPTED</span>
                         </div>
                     ))}
