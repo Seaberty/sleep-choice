@@ -24,24 +24,25 @@ import {
 } from "lucide-react"
 // Info icon removed because unused
 import { cn } from "@/lib/utils"
+import type { SiteHeaderMetrics } from "@/lib/site-metrics"
 
-export function SiteHeader() {
+export function SiteHeader({ metrics }: { metrics: SiteHeaderMetrics }) {
     const pathname = usePathname()
     const [isScrolled, setIsScrolled] = React.useState(false)
+    const [hasHydrated, setHasHydrated] = React.useState(false)
     const [isMobileMenuOpen, setIsMobileMenuOpen] = React.useState(false)
     const { scrollY } = useScroll()
 
-    // 权威站元数据
-    const SITE_METRICS = {
-        modelsAnalyzed: "1,240+",
-        lastUpdate: "JAN_2026",
-        protocol: "V2.4.0",
-        node: "US-E1"
-    }
+    React.useEffect(() => {
+        setHasHydrated(true)
+    }, [])
 
     useMotionValueEvent(scrollY, "change", (latest) => {
         setIsScrolled(latest > 20)
     })
+
+    /** Until hydrated, keep trust strip visible so SSR matches client (scroll restore / motion differ). */
+    const trustStripVisible = !hasHydrated || !isScrolled
 
     React.useEffect(() => {
         setIsMobileMenuOpen(false)
@@ -64,9 +65,9 @@ export function SiteHeader() {
         <motion.div className="fixed top-0 left-0 right-0 z-[100] w-full">
             {/* 1. EEAT Trust Bar: 权威背书层 (顶级白帽站标志) */}
             <AnimatePresence mode="wait">
-                {!isScrolled && (
+                {trustStripVisible && (
                     <motion.div
-                        initial={{ height: 0, opacity: 0 }}
+                        initial={false}
                         animate={{ height: "auto", opacity: 1 }}
                         exit={{ height: 0, opacity: 0 }}
                         className="bg-[#050505] border-b border-white/[0.05] py-2 hidden lg:block"
@@ -75,7 +76,7 @@ export function SiteHeader() {
                             <div className="flex items-center gap-6">
                                 <span className="flex items-center gap-2 text-blue-500 cursor-default">
                                     <Activity className="w-3 h-3 animate-pulse" />
-                                    LIVE_INDEX: {SITE_METRICS.modelsAnalyzed}{" "}
+                                    LIVE_INDEX: {metrics.modelsAnalyzed}{" "}
                                     MODELS
                                 </span>
                                 <span className="w-[1px] h-3 bg-white/10" />
@@ -88,11 +89,11 @@ export function SiteHeader() {
                                 <div className="flex items-center gap-4">
                                     <span className="flex items-center gap-1.5">
                                         <Database className="w-2.5 h-2.5 opacity-50" />
-                                        SYNC: {SITE_METRICS.lastUpdate}
+                                        SYNC: {metrics.lastUpdate}
                                     </span>
                                     <div className="flex items-center gap-1.5 px-2 py-0.5 bg-white/5 rounded border border-white/10 text-slate-400">
                                         <Command className="w-2.5 h-2.5" />
-                                        <span>NODE: {SITE_METRICS.node}</span>
+                                        <span>NODE: {metrics.node}</span>
                                     </div>
                                 </div>
                             </div>
@@ -254,7 +255,7 @@ export function SiteHeader() {
                                             Database
                                         </span>
                                         <span className="text-[11px] font-black text-slate-950 uppercase">
-                                            {SITE_METRICS.protocol}
+                                            {metrics.protocol}
                                         </span>
                                     </div>
                                 </div>

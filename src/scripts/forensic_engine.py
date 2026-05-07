@@ -5,6 +5,7 @@ import asyncio
 import hashlib
 import httpx
 import re
+from pathlib import Path
 from datetime import datetime, UTC
 from dotenv import load_dotenv
 from tenacity import retry, stop_after_attempt, wait_exponential
@@ -15,7 +16,11 @@ from playwright.async_api import async_playwright
 from google import genai
 from google.genai import types
 
-load_dotenv(dotenv_path=".env.local")
+_PROJECT_ROOT = Path(__file__).resolve().parents[2]
+_ENV_FILE = _PROJECT_ROOT / ".env.local"
+if not _ENV_FILE.is_file():
+    _ENV_FILE = Path(__file__).resolve().parents[1] / ".env.local"
+load_dotenv(dotenv_path=_ENV_FILE)
 
 # --- 强制提前注入 ---
 # 这样可以确保所有后续初始化的库（httpx, playwright, genai）都读取到同一个配置
@@ -69,63 +74,128 @@ class ForensicAuditEngine:
     
     @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=2, max=8))
     async def transfer_to_supabase_storage(self, original_url):
-        """下载远程图片并存储到 Supabase Storage。
-
-        修复点：
-        - 使用相同 bucket (`product-images`) 做上传与获取公开 URL（之前上传到了 audit-images，取 public url 时使用了 product-images，导致不一致）。
-        - 添加重试策略并确保返回字符串 URL。
-        """
-        if not original_url:
-            return None
-
-        # 1. 确定文件名：优先使用 slug，保持与图片示例一致 (例如 saatva-rx.jpg)
-        file_ext = original_url.split('.')[-1].split('?')[0] or "jpg"
-        if len(file_ext) > 4:
-            file_ext = "jpg"  # 过滤超长后缀
-
-        # 路径格式：品牌/产品slug.后缀
-        storage_path = f"{self.brand_slug}/{self.slug}.{file_ext}"
+        if not original_url: return None
+        
+        # 确保 URL 是完整的
+        if original_url.startswith('//'):
+            original_url = 'https:' + original_url
 
         bucket = "product-images"
+        raw_ext = (original_url.split(".")[-1].split("?")[0] or "jpg").lower()
+        if raw_ext not in ("jpg", "jpeg", "png", "webp", "gif"):
+            raw_ext = "jpg"
+        storage_path = f"{self.brand_slug}/{self.slug}.{raw_ext}"
 
         try:
-            async with httpx.AsyncClient() as client:
-                resp = await client.get(original_url, timeout=15.0)
+            async with httpx.AsyncClient(follow_redirects=True) as client:
+                resp = await client.get(original_url, timeout=20.0)
                 if resp.status_code != 200:
-                    raise Exception(f"非200响应: {resp.status_code}")
+                    print(f"❌ 图片下载失败 HTTP {resp.status_code}")
+                    return None
+                ct = (resp.headers.get("content-type") or "").split(";")[0].strip()
+                if ct and not ct.startswith("image/"):
+                    print(f"❌ 非图片响应 Content-Type: {ct}")
+                    return None
 
-                # 2. 执行上传。storage.upload 在 python client 中接受 bytes/file-like，使用 upsert 参数。
-                upload_res = self.supabase.storage.from_(bucket).upload(
-                    path=storage_path,
-                    file=resp.content,
-                    file_options={
-                        "content-type": resp.headers.get("content-type", "image/jpeg")
-                    }
-                )
+                loop = asyncio.get_running_loop()
 
-                # 检查上传结果（不同客户端返回结构不同，尽量容错）
-                # 如果 upload_res 有 error 字段则抛出
-                try:
-                    if isinstance(upload_res, dict) and upload_res.get("error"):
-                        raise Exception(upload_res.get("error"))
-                except Exception:
-                    # 某些客户端会直接返回 None 或抛出；忽略这里的检查，让后续获取 public url 决定
-                    pass
+                def upload():
+                    return self.supabase.storage.from_(bucket).upload(
+                        path=storage_path,
+                        file=resp.content,
+                        file_options={
+                            "content-type": ct or "image/jpeg",
+                            "upsert": "true",
+                        },
+                    )
 
-                # 3. 返回 Supabase 公共 URL（确保返回字符串）
-                public = self.supabase.storage.from_(bucket).get_public_url(storage_path)
-                # get_public_url 可能返回 dict 或字符串，根据常见实现兼容处理
-                if isinstance(public, dict):
-                    # 常见键名：publicUrl / public_url
-                    return public.get("publicUrl") or public.get("public_url") or None
-                if isinstance(public, str):
-                    return public
+                await loop.run_in_executor(None, upload)
 
-                return None
+                res = self.supabase.storage.from_(bucket).get_public_url(storage_path)
+                if isinstance(res, str):
+                    return res
+                if isinstance(res, dict):
+                    return res.get("publicUrl") or res.get("public_url")
+                return str(res) if res else None
         except Exception as e:
-            print(f"⚠️ 图片转储至 Supabase 失败: {e}")
-            raise
-    
+            print(f"❌ 图片转储失败: {e}")
+            return None
+
+    async def _extract_json_ld_price(self, page):
+        """从 schema.org / WooCommerce 的 JSON-LD 解析标价（优先于 DOM 文本）。"""
+        script = r"""() => {
+          function walk(node, fn) {
+            if (node === null || node === undefined) return;
+            if (Array.isArray(node)) { for (const x of node) walk(x, fn); return; }
+            if (typeof node !== 'object') return;
+            fn(node);
+            for (const k of Object.keys(node)) walk(node[k], fn);
+          }
+          function priceFromOffer(o) {
+            if (!o || typeof o !== 'object') return null;
+            const t = o['@type'];
+            const types = Array.isArray(t) ? t : (t ? [t] : []);
+            const isAgg = types.some(x => String(x).toLowerCase() === 'aggregateoffer');
+            if (isAgg && o.lowPrice != null) {
+              const p = parseFloat(String(o.lowPrice).replace(/,/g, ''));
+              if (!isNaN(p) && p > 0) return p;
+            }
+            if (o.price != null) {
+              const p = parseFloat(String(o.price).replace(/,/g, ''));
+              if (!isNaN(p) && p > 0) return p;
+            }
+            if (o.priceSpecification && o.priceSpecification.price != null) {
+              const p = parseFloat(String(o.priceSpecification.price).replace(/,/g, ''));
+              if (!isNaN(p) && p > 0) return p;
+            }
+            return null;
+          }
+          function findInProduct(n) {
+            const t = n['@type'];
+            const types = Array.isArray(t) ? t : (t ? [t] : []);
+            if (!types.some(x => String(x).toLowerCase() === 'product')) return null;
+            const offers = n.offers;
+            if (!offers) return null;
+            const olist = Array.isArray(offers) ? offers : [offers];
+            for (const o of olist) {
+              const pr = priceFromOffer(o);
+              if (pr != null) return pr;
+            }
+            return null;
+          }
+          const scripts = document.querySelectorAll('script[type="application/ld+json"]');
+          for (const s of scripts) {
+            try {
+              const j = JSON.parse(s.textContent);
+              const roots = [];
+              if (Array.isArray(j)) roots.push(...j);
+              else {
+                roots.push(j);
+                if (j['@graph'] && Array.isArray(j['@graph'])) roots.push(...j['@graph']);
+              }
+              for (const root of roots) {
+                const pr = findInProduct(root);
+                if (pr != null) return pr;
+              }
+              let found = null;
+              walk(j, (node) => {
+                if (found != null) return;
+                if (node && typeof node === 'object') {
+                  const pr = findInProduct(node);
+                  if (pr != null) found = pr;
+                }
+              });
+              if (found != null) return found;
+            } catch (e) {}
+          }
+          return null;
+        }"""
+        try:
+            val = await page.evaluate(script)
+            return float(val) if val is not None else None
+        except Exception:
+            return None
+        
     async def fetch_site_data(self, url):
         """增强版扫描：优化代理与加载策略"""
         print(f"🌐 深度扫描官网: {url}")
@@ -183,43 +253,57 @@ class ForensicAuditEngine:
                 if response.status == 404:
                     data['status'] = 404
                     return data
-
-                # 额外等待 2 秒确保价格组件渲染，比 networkidle 更省时
-                await asyncio.sleep(2)
                 
-                # --- 映射逻辑：精准获取价格 ---
-                if config.get("price_selector"):
+                wait_sel = config.get("wait_for") or config.get("price_selector")
+                if wait_sel:
                     try:
-                        # 获取 inner_text 可能会得到 "From $75.00 - $85.00"
-                        price_text = await page.inner_text(config["price_selector"])
-                        # 正则匹配所有数字价格，取第一个（通常是最低价）
-                        all_prices = re.findall(r'(\d{1,3}(?:,\d{3})*(?:\.\d{2})?)', price_text)
-                        if all_prices:
-                            data['price'] = float(all_prices[0].replace(',', ''))
-                    except Exception as e:
-                        print(f"⚠️ 价格映射抓取失败: {e}")
+                        await page.wait_for_selector(wait_sel, timeout=12000)
+                    except Exception:
+                        pass
 
-                # --- 映射逻辑：精准获取图片 ---
+                ld_price = await self._extract_json_ld_price(page)
+                if ld_price is not None and 5.0 <= ld_price <= 100000.0:
+                    data["price"] = ld_price
+
+                # --- DOM 价格（JSON-LD 未命中时）---
+                if data["price"] == 0.0 and config.get("price_selector"):
+                    try:
+                        await page.wait_for_selector(config["price_selector"], timeout=8000)
+                        price_text = await page.inner_text(config["price_selector"])
+                        all_prices = re.findall(
+                            r"(\d{1,3}(?:,\d{3})*(?:\.\d{2})?)", price_text
+                        )
+                        parsed = [float(p.replace(",", "")) for p in all_prices]
+                        # 枕头/配件可能低于 $100；排除典型百分比碎片（单独一位数）
+                        valid_prices = [
+                            x for x in parsed if 9.0 <= x <= 100000.0
+                        ]
+                        if valid_prices:
+                            data["price"] = valid_prices[0]
+                    except Exception:
+                        print("⚠️ 价格抓取失败，已尝试 JSON-LD / DOM。")
+
+                # --- 图片 ---
                 if self.brand == "Sleep & Beyond":
                     try:
-                        # 尝试直接从第一个幻灯片获取 data-large_image (1500x1000 的原图)
                         img_element = await page.query_selector(config["image_selector"])
                         if img_element:
-                            # 优先取大图属性，没有则取 src
                             large_img = await img_element.get_attribute("data-large_image")
-                            data['original_image'] = large_img if large_img else await img_element.get_attribute("src")
-                    except: pass
+                            src = large_img if large_img else await img_element.get_attribute("src")
+                            data["original_image"] = src
+                        if not data["original_image"]:
+                            data["original_image"] = await page.evaluate(
+                                "() => document.querySelector('meta[property=\"og:image\"]')?.content"
+                            )
+                    except Exception:
+                        pass
                 elif config.get("image_selector"):
-                    # 其他品牌的通用逻辑
                     try:
-                        # ... 原有的获取属性逻辑 ...
-                        data['original_image'] = await page.evaluate('() => document.querySelector("meta[property=\'og:image\']")?.content')
-                    except: pass
-
-                # 通用兜底逻辑 (LD+JSON & 正则) 保持不变...
-                if data['price'] == 0.0:
-                    # 执行你原有的 LD+JSON 解析代码...
-                    pass
+                        data["original_image"] = await page.evaluate(
+                            "() => document.querySelector(\"meta[property='og:image']\")?.content"
+                        )
+                    except Exception:
+                        pass
 
                 data['raw_text'] = await page.evaluate('() => document.body.innerText.substring(0, 6000)')
                 
@@ -259,12 +343,24 @@ class ForensicAuditEngine:
             print(f"🚫 目标已下架: {self.model} (检测到 404 文本)")
             return
         
-        # --- 新增：图片转储逻辑 ---
+        # --- 图片转储：audit_products.image_url 仅存 Storage 公链；失败时保留库内旧图 ---
         hosted_image_url = None
         if site_data.get('original_image'):
             print(f"📸 正在转储图片至 Supabase Storage: {self.slug}")
-            # 调用你定义的函数
             hosted_image_url = await self.transfer_to_supabase_storage(site_data['original_image'])
+        if not hosted_image_url:
+            try:
+                prev = (
+                    self.supabase.table("audit_products")
+                    .select("image_url")
+                    .eq("slug", self.slug)
+                    .limit(1)
+                    .execute()
+                )
+                if prev.data and prev.data[0].get("image_url"):
+                    hosted_image_url = prev.data[0]["image_url"]
+            except Exception:
+                pass
         
         # 清洗 raw_text 的工具函数
         def clean_web_text(text):
@@ -374,8 +470,8 @@ class ForensicAuditEngine:
                 "seo_keywords": clean_keywords, 
 
                 "audit_data": audit_data_payload,
-                "original_image_url": site_data['original_image'], # 原始地址用于溯源
-                "image_url": hosted_image_url or site_data['original_image'], # 优先使用转储地址
+                "original_image_url": site_data['original_image'],
+                "image_url": hosted_image_url,
                 "confidence_score": 0.85 if site_data['price'] > 0 else 0.6,
                 "is_verified": site_data['price'] > 0,
                 "protocol_version": "v3.0-forensic",
@@ -396,6 +492,7 @@ class ForensicAuditEngine:
                     "coupon_code": report.get('detected_coupon'),
                     "promo_text": report.get('promo_text') or "Best Offer Detected",
                     "is_primary": True,
+                    "status": "active",
                     "last_checked_at": datetime.now(UTC).isoformat()
                 }, on_conflict="product_id, site_name").execute()
 

@@ -9,7 +9,7 @@ import {
 import { supabase } from "./supabase"
 import { cache } from "react"
 
-const REGISTRY_PATH = path.join(process.cwd(), "data/registry.json")
+const REGISTRY_PATH = path.join(process.cwd(), "src/data/registry.json")
 /**
  * 优化后的自动化注册表获取逻辑
  * 策略：DB 提供实时审计分值和状态，Local JSON 提供运营文案、SEO 和人工校准

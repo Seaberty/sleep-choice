@@ -1,6 +1,7 @@
 import { Inter, JetBrains_Mono } from "next/font/google"
 import { SiteHeader } from "@/components/site-header"
 import { SiteFooter } from "@/components/site-footer"
+import { getSiteHeaderMetrics } from "@/lib/site-metrics"
 import { cn } from "@/lib/utils"
 import { SpeedInsights } from "@vercel/speed-insights/next"
 import Script from "next/script"
@@ -32,11 +33,13 @@ export const metadata = {
     // ... metadata 保持之前的硬核 SEO 配置
 }
 
-export default function RootLayout({
+export default async function RootLayout({
     children
 }: {
     children: React.ReactNode
 }) {
+    const siteMetrics = await getSiteHeaderMetrics()
+
     return (
         <html lang="en" className="scroll-smooth antialiased">
             <body
@@ -73,7 +76,7 @@ export default function RootLayout({
                 />
 
                 {/* 2. 布局优化：SiteHeader 内部应处理吸顶逻辑 */}
-                <SiteHeader />
+                <SiteHeader metrics={siteMetrics} />
 
                 {/* 3. 解决“样式闪烁”的关键：
                    使用 pt (padding-top) 替代偏移类名，并结合 CSS 变量。

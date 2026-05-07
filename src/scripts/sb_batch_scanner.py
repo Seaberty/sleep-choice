@@ -8,9 +8,11 @@ from dotenv import load_dotenv
 from supabase import create_client, Client
 from forensic_engine import ForensicAuditEngine
 
-# 动态定位 .env.local 路径 (假设脚本在 scripts 文件夹内，.env 在根目录)
-current_dir = Path(__file__).parent
-env_path = current_dir.parent / ".env.local"
+# 与 forensic_engine 一致：优先项目根目录 .env.local，其次 src/.env.local
+_ROOT = Path(__file__).resolve().parents[2]
+env_path = _ROOT / ".env.local"
+if not env_path.is_file():
+    env_path = Path(__file__).resolve().parents[1] / ".env.local"
 load_dotenv(dotenv_path=env_path)
 
 # --- 修正后的任务矩阵 ---
@@ -18,19 +20,19 @@ load_dotenv(dotenv_path=env_path)
 SB_TARGETS = [
     # 1. PILLOWS
     {"model": "MyTravel Pillow", "url": "https://sleepandbeyond.com/product/mytravel-pillow/"},
-    # {"model": "MyWoolly Pillow", "url": "https://sleepandbeyond.com/product/mywoolly-pillow/"},
+    {"model": "MyWoolly Pillow", "url": "https://sleepandbeyond.com/product/mywoolly-pillow/"},
     
-    # # 2. COMFORTERS
-    # {"model": "MyMerino Comforter", "url": "https://sleepandbeyond.com/product/mymerino-comforter/"},
-    # {"model": "MyComforter", "url": "https://sleepandbeyond.com/product/mycomforter/"},
+    # 2. COMFORTERS
+    {"model": "MyMerino Comforter", "url": "https://sleepandbeyond.com/product/mymerino-comforter/"},
+    {"model": "MyComforter", "url": "https://sleepandbeyond.com/product/mycomforter/"},
 
-    # # 3. TOPPERS
-    # {"model": "MyTopper", "url": "https://sleepandbeyond.com/product/mytopper/"},
-    # # 如果该链接 404，脚本现在会捕获异常并继续
-    # {"model": "MyMerino Topper", "url": "https://sleepandbeyond.com/product/mymerino-topper/"},
+    # 3. TOPPERS
+    {"model": "MyTopper", "url": "https://sleepandbeyond.com/product/mytopper/"},
+    # 如果该链接 404，脚本现在会捕获异常并继续
+    {"model": "MyMerino Topper", "url": "https://sleepandbeyond.com/product/mymerino-topper/"},
 
-    # # 4. PROTECTORS
-    # {"model": "MyProtector", "url": "https://sleepandbeyond.com/product/myprotector/"},
+    # 4. PROTECTORS
+    {"model": "MyProtector", "url": "https://sleepandbeyond.com/product/myprotector/"},
 ]
 
 class SBBatchScanner:
@@ -63,7 +65,7 @@ class SBBatchScanner:
         existing_record = None
         try:
             res = self.supabase.table("audit_products").select(
-                "id, last_audited_at, price, original_image_url, audit_note"
+                "id, last_audited_at, price, original_image_url, image_url, audit_note, official_link"
             ).eq("slug", slug).execute()
             if res.data and len(res.data) > 0:
                 existing_record = res.data[0]
@@ -81,8 +83,13 @@ class SBBatchScanner:
             # 情况 B: 有记录但没审计笔记 -> AI 之前可能崩了，走全量
             print(f"🔍 发现残缺审计记录: {task['model']}，准备重新触发全量审计...")
             needs_full_audit = True
-        elif not existing_record.get('price') or existing_record.get('price') == 0 or not existing_record.get('original_image_url'):
-            # 情况 C: 审计逻辑都在，但缺价格或图片 -> 走补完逻辑
+        elif (
+            not existing_record.get('price')
+            or existing_record.get('price') == 0
+            or not existing_record.get('original_image_url')
+            or not existing_record.get('image_url')
+        ):
+            # 情况 C: 审计完整但缺价格 / 图源 / Storage 图链 -> 补完并同步 product_offers
             print(f"🩹 发现缺失市场数据: {task['model']}，准备执行数据补完...")
             needs_data_patch = True
         else:
@@ -104,21 +111,50 @@ class SBBatchScanner:
         elif needs_data_patch:
             print(f"\n[法医扫描-补完] 正在重新抓取 DOM: {task['model']}")
             try:
-                # 只调用 fetch_site_data，不触发 Gemini
                 new_site_data = await engine.fetch_site_data(task['url'])
-                
+
                 update_payload = {}
-                if new_site_data['price'] > 0:
-                    update_payload["price"] = new_site_data['price']
-                if new_site_data['original_image']:
-                    update_payload["original_image_url"] = new_site_data['original_image']
-                
+                if new_site_data.get("price", 0) > 0:
+                    update_payload["price"] = new_site_data["price"]
+                if new_site_data.get("original_image"):
+                    update_payload["original_image_url"] = new_site_data["original_image"]
+                    hosted = await engine.transfer_to_supabase_storage(
+                        new_site_data["original_image"]
+                    )
+                    if hosted:
+                        update_payload["image_url"] = hosted
+                    elif existing_record.get("image_url"):
+                        update_payload["image_url"] = existing_record["image_url"]
+
                 if update_payload:
-                    update_payload["updated_at"] = datetime.now(UTC).isoformat()
-                    self.supabase.table("audit_products").update(update_payload).eq("slug", slug).execute()
+                    now_iso = datetime.now(UTC).isoformat()
+                    update_payload["updated_at"] = now_iso
+                    update_payload["last_audited_at"] = now_iso
+                    self.supabase.table("audit_products").update(update_payload).eq(
+                        "slug", slug
+                    ).execute()
                     print(f"✅ {task['model']} 市场数据已修正: {update_payload}")
                 else:
                     print(f"⚠️ {task['model']} 补完尝试未获取到新信息。")
+
+                if new_site_data.get("price", 0) > 0:
+                    try:
+                        self.supabase.table("product_offers").upsert(
+                            {
+                                "product_id": existing_record["id"],
+                                "site_name": self.brand,
+                                "price": new_site_data["price"],
+                                "offer_url": existing_record.get("official_link")
+                                or task["url"],
+                                "is_primary": True,
+                                "status": "active",
+                                "last_checked_at": datetime.now(UTC).isoformat(),
+                            },
+                            on_conflict="product_id, site_name",
+                        ).execute()
+                        print(f"✅ {task['model']} product_offers 价格已同步。")
+                    except Exception as oe:
+                        print(f"⚠️ product_offers 同步失败: {oe}")
             except Exception as e:
                 print(f"❌ {task['model']} 补完任务失败: {e}")
 
