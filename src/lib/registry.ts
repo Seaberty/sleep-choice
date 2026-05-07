@@ -8,6 +8,7 @@ import {
 } from "@/types/product"
 import { supabase } from "./supabase"
 import { APP_PROTOCOL } from "./constants"
+import { isListableAuditProduct } from "./audit-list-eligibility"
 import { cache } from "react"
 
 const REGISTRY_PATH = path.join(process.cwd(), "src/data/registry.json")
@@ -54,10 +55,13 @@ export const getAutomatedRegistry = cache(
             const { data: dbProducts, error } = dbResult
 
             if (error || !dbProducts) {
-                return Object.values(localRegistry.products || {})
+                return Object.values(localRegistry.products || {}).filter(
+                    isListableAuditProduct
+                )
             }
 
-            return dbProducts.map((item: any): ProductData => {
+            return dbProducts
+                .map((item: any): ProductData => {
                 const slug = item.slug || ""
                 const localMeta = localRegistry.products[slug] || {}
                 const dbOffer = item.product_offers?.[0]
@@ -154,6 +158,7 @@ export const getAutomatedRegistry = cache(
                         : {})
                 } as ProductData
             })
+                .filter(isListableAuditProduct)
         } catch (e) {
             console.error("❌ Critical Failure:", e)
             return []

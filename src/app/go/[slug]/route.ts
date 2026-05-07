@@ -19,6 +19,9 @@ type OfferRow = {
  */
 function cjDeepLinkPrefix(siteName: string): string | undefined {
     const map: Record<string, string | undefined> = {
+        FluffCo:
+        process.env.AFFILIATE_IMPACT_FUFFCO ??
+        "https://fluffco.pxf.io/jeK6vZ?u=",
         "Sleep & Beyond":
             process.env.AFFILIATE_CJ_SLEEP_AND_BEYOND ??
             "https://www.tkqlhce.com/click-101698024-13814555?url=",

@@ -87,7 +87,7 @@ class IntelligenceProvider:
         return "\n\n".join(all_evidence), review_count
 
 class ForensicAuditEngine: 
-    def __init__(self, brand, model):
+    def __init__(self, brand, model, slug_override=None):
         self.brand = brand
         self.model = model
         # 1. 预处理：将 & 转化为 and，处理空格
@@ -100,8 +100,12 @@ class ForensicAuditEngine:
             return text.strip('-')
 
         self.brand_slug = slugify(brand)
-        # 组合后的 slug 也要跑一遍 slugify 确保 model 里的特殊字符被清洗
-        self.slug = slugify(f"{brand}-{model}")
+        # 组合后的 slug 也要跑一遍 slugify 确保 model 里的特殊字符被清洗。
+        # slug_override：同一 model 多 variant 时需唯一 slug（如 fluffco-audit-{variant_id}）。
+        if slug_override:
+            self.slug = slugify(slug_override.strip())
+        else:
+            self.slug = slugify(f"{brand}-{model}")
         
         self.supabase: Client = create_client(os.getenv("SUPABASE_URL"), os.getenv("SUPABASE_KEY"))
         self.ai_client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))

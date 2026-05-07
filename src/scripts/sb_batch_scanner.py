@@ -18,21 +18,23 @@ load_dotenv(dotenv_path=env_path)
 # --- 修正后的任务矩阵 ---
 # 移除了无效链接，并根据 Sleep & Beyond 官网当前的 URL 结构进行了更新
 SB_TARGETS = [
-    # 1. PILLOWS
+   # 1. PILLOWS (核心引流)
     {"model": "MyTravel Pillow", "url": "https://sleepandbeyond.com/product/mytravel-pillow/"},
-    # {"model": "MyWoolly Pillow", "url": "https://sleepandbeyond.com/product/mywoolly-pillow/"},
+    {"model": "MyWoolly Pillow", "url": "https://sleepandbeyond.com/product/mywoolly-pillow/"},
+    {"model": "MyMerino Pillow", "url": "https://sleepandbeyond.com/product/mymerino-pillow/"},
     
-    # # 2. COMFORTERS
-    # {"model": "MyMerino Comforter", "url": "https://sleepandbeyond.com/product/mymerino-comforter/"},
-    # {"model": "MyComforter", "url": "https://sleepandbeyond.com/product/mycomforter/"},
+    # 2. COMFORTERS (高客单价)
+    {"model": "MyMerino Comforter", "url": "https://sleepandbeyond.com/product/mymerino-comforter/"},
+    {"model": "MyComforter", "url": "https://sleepandbeyond.com/product/mycomforter/"},
 
-    # # 3. TOPPERS
-    # {"model": "MyTopper", "url": "https://sleepandbeyond.com/product/mytopper/"},
-    # # 如果该链接 404，脚本现在会捕获异常并继续
-    # {"model": "MyMerino Topper", "url": "https://sleepandbeyond.com/product/mymerino-topper/"},
+    # 3. TOPPERS & MATTRESSES (利润之王)
+    {"model": "MyTopper", "url": "https://sleepandbeyond.com/product/mytopper/"},
+    {"model": "MyMerino Topper", "url": "https://sleepandbeyond.com/product/mymerino-topper/"},
 
-    # # 4. PROTECTORS
-    # {"model": "MyProtector", "url": "https://sleepandbeyond.com/product/myprotector/"},
+    # 4. PROTECTORS & SHEETS (高转化配件)
+    {"model": "MyProtector", "url": "https://sleepandbeyond.com/product/myprotector/"},
+    {"model": "mySheet Set", "url": "https://sleepandbeyond.com/product/mysheet-set/"},
+    {"model": "myPad", "url": "https://sleepandbeyond.com/product/mypad/"}
 ]
 
 class SBBatchScanner:
@@ -172,5 +174,5 @@ class SBBatchScanner:
         print("\n🏁 批处理任务结束。")
 
 if __name__ == "__main__":
-    scanner = SBBatchScanner(force_update=True)
+    scanner = SBBatchScanner(force_update=False)
     asyncio.run(scanner.main_loop())

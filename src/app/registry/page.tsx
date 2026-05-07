@@ -1,3 +1,4 @@
+import { isListableAuditProduct } from "@/lib/audit-list-eligibility"
 import { supabase } from "@/lib/supabase"
 import Link from "next/link"
 import { Metadata } from "next"
@@ -41,11 +42,13 @@ export default async function RegistryPage({ searchParams }: Props) {
         ascending: false
     })
 
+    const listProducts = (products ?? []).filter(isListableAuditProduct)
+
     const jsonLd = {
         "@context": "https://schema.org",
         "@type": "ItemList",
         name: "SleepChoice Verified Mattress Registry",
-        itemListElement: products?.map((p, i) => {
+        itemListElement: listProducts.map((p, i) => {
             const overall = Number(p.audit_scores?.overall) || 0
             const rc =
                 typeof (p as { review_count?: number }).review_count ===
@@ -125,7 +128,7 @@ export default async function RegistryPage({ searchParams }: Props) {
                     <div className="flex flex-wrap items-center gap-8 py-6 border-y border-slate-100">
                         <div className="flex items-center gap-2 text-[10px] font-mono font-bold text-slate-400 uppercase tracking-widest">
                             <Activity className="w-3.5 h-3.5 text-blue-600" />
-                            Live_Indexed: {products?.length || 0} Entities
+                            Live_Indexed: {listProducts.length} Entities
                         </div>
                         <div className="flex items-center gap-2 text-[10px] font-mono font-bold text-slate-400 uppercase tracking-widest tabular-nums">
                             <RefreshCw className="w-3.5 h-3.5 text-emerald-500 animate-[spin_10s_linear_infinite]" />
@@ -185,14 +188,14 @@ export default async function RegistryPage({ searchParams }: Props) {
                                     Database_Error: [503_CONNECTION_TIMEOUT]
                                 </span>
                             </div>
-                        ) : !products || products.length === 0 ? (
+                        ) : listProducts.length === 0 ? (
                             <div className="p-32 text-center">
                                 <span className="animate-pulse text-[10px] font-mono text-slate-300 uppercase tracking-[0.5em]">
                                     [ No_Matches_Found ]
                                 </span>
                             </div>
                         ) : (
-                            products.map((p) => (
+                            listProducts.map((p) => (
                                 <Link
                                     key={p.id}
                                     href={`/registry/${p.slug}`}
