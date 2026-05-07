@@ -97,6 +97,7 @@ class SBBatchScanner:
             print(f"⏩ 跳过: {task['model']} 已有完整存证。")
             return
 
+
         # 3. 根据判断结果执行操作
         engine = ForensicAuditEngine(self.brand, task['model'])
         
