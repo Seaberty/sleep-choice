@@ -22,6 +22,13 @@ if not _ENV_FILE.is_file():
     _ENV_FILE = Path(__file__).resolve().parents[1] / ".env.local"
 load_dotenv(dotenv_path=_ENV_FILE)
 
+# --- LLM 审计（Gemini 主 / DeepSeek 备）---
+GEMINI_MODEL_ID = "gemini-2.5-flash"
+GEMINI_AUDIT_LABEL = "Gemini-2.5-Flash"
+DEEPSEEK_MODEL_ID = "deepseek-chat"
+DEEPSEEK_AUDIT_LABEL = "DeepSeek-Chat"
+DEEPSEEK_CHAT_URL = "https://api.deepseek.com/chat/completions"
+
 # --- 强制提前注入 ---
 # 这样可以确保所有后续初始化的库（httpx, playwright, genai）都读取到同一个配置
 if os.getenv("PROXY_URL"):
@@ -101,7 +108,7 @@ class ForensicAuditEngine:
 
         self.brand_slug = slugify(brand)
         # 组合后的 slug 也要跑一遍 slugify 确保 model 里的特殊字符被清洗。
-        # slug_override：同一 model 多 variant 时需唯一 slug（如 fluffco-audit-{variant_id}）。
+        # slug_override：仅当同一 model 多 variant 需拆行记录时再传入唯一串。
         if slug_override:
             self.slug = slugify(slug_override.strip())
         else:
@@ -113,6 +120,19 @@ class ForensicAuditEngine:
 
     def generate_hash(self):
         return hashlib.md5(f"{self.slug}-{datetime.now().date()}".encode()).hexdigest()[:8].upper()
+
+    @staticmethod
+    def _parse_llm_json_text(text: str) -> dict:
+        """解析模型返回的 JSON；兼容 ```json 包裹。"""
+        raw = (text or "").strip()
+        if raw.startswith("```"):
+            lines = raw.split("\n")
+            if lines and lines[0].startswith("```"):
+                lines = lines[1:]
+            if lines and lines[-1].strip() == "```":
+                lines = lines[:-1]
+            raw = "\n".join(lines).strip()
+        return json.loads(raw)
 
     def _chromium_launch_options(self, proxy_settings):
         """默认 Chromium 启动；可选代理与本机 Chrome channel。"""
@@ -434,7 +454,7 @@ class ForensicAuditEngine:
     async def call_ai_audit(self, prompt, context):
         try:
             response = self.ai_client.models.generate_content(
-                model="gemini-2.5-flash", 
+                model=GEMINI_MODEL_ID,
                 contents=[prompt, context],
                 config=types.GenerateContentConfig(response_mime_type="application/json")
             )
@@ -443,6 +463,42 @@ class ForensicAuditEngine:
             # 打印完整的错误细节，看看是不是 API Key 过期、欠费或被封禁
             print(f"DEBUG - Gemini API 报错详情: {str(e)}")
             raise e
+
+    async def call_deepseek_audit(self, prompt, context):
+        """Gemini 不可用时的降级：DeepSeek Chat（OpenAI 兼容接口）。"""
+        api_key = os.getenv("DEEPSEEK_API_KEY")
+        if not api_key:
+            raise ValueError("未配置 DEEPSEEK_API_KEY，无法启用降级审计")
+
+        combined = (
+            f"{prompt.strip()}\n\n--- EVIDENCE ---\n{context}\n\n"
+            "Respond with a single valid JSON object only, no markdown fences."
+        )
+        timeout = httpx.Timeout(connect=20.0, read=120.0, write=30.0, pool=20.0)
+        async with httpx.AsyncClient(timeout=timeout, trust_env=True) as client:
+            resp = await client.post(
+                DEEPSEEK_CHAT_URL,
+                headers={
+                    "Authorization": f"Bearer {api_key}",
+                    "Content-Type": "application/json",
+                },
+                json={
+                    "model": DEEPSEEK_MODEL_ID,
+                    "messages": [{"role": "user", "content": combined}],
+                    "response_format": {"type": "json_object"},
+                    "temperature": 0.2,
+                },
+            )
+            resp.raise_for_status()
+            data = resp.json()
+        content = (
+            data.get("choices", [{}])[0]
+            .get("message", {})
+            .get("content", "")
+        )
+        if not content:
+            raise RuntimeError("DeepSeek 返回空内容")
+        return self._parse_llm_json_text(content)
 
     async def execute_and_sync(self, url):
         # 1. 采集数据
@@ -560,11 +616,28 @@ class ForensicAuditEngine:
         }}
         """
 
+        audit_llm_label = GEMINI_AUDIT_LABEL
         try:
-            print(f"🧠 启动 Gemini-2.5-Flash 深度审计...")
+            print(f"🧠 启动 {GEMINI_AUDIT_LABEL}（{GEMINI_MODEL_ID}）深度审计...")
             report = await self.call_ai_audit(audit_prompt, audit_context)
-            
-            # 逻辑层：生成专业日志与数据校正 
+        except Exception as gem_err:
+            print(f"⚠️ Gemini 审计失败，尝试 DeepSeek 降级: {gem_err}")
+            try:
+                print(
+                    f"🧠 启动 {DEEPSEEK_AUDIT_LABEL}（{DEEPSEEK_MODEL_ID}）深度审计..."
+                )
+                report = await self.call_deepseek_audit(
+                    audit_prompt, audit_context
+                )
+                audit_llm_label = DEEPSEEK_AUDIT_LABEL
+            except Exception as ds_err:
+                print(f"❌ DeepSeek 降级失败: {ds_err}")
+                raise RuntimeError(
+                    f"LLM 审计均失败 — Gemini: {gem_err!s} | DeepSeek: {ds_err!s}"
+                ) from ds_err
+
+        try:
+            # 逻辑层：生成专业日志与数据校正
             scores = report.get('audit_scores', {})
             for k in scores: # 标准化分数
                 if 0 < scores[k] <= 1.0: scores[k] = round(scores[k] * 10, 1)
@@ -574,11 +647,16 @@ class ForensicAuditEngine:
             clean_title = report.get('seo_title', '').strip().replace('"', '')
             clean_keywords = report.get('seo_keywords', '').strip().lower()
 
-             # 我们将 specs_matrix 放入 audit_data 字段中
+            # 我们将 specs_matrix 放入 audit_data 字段中
             audit_data_payload = {
                 "audit_hash": self.generate_hash(),
                 "evidence_size": len(audit_context),
-                "model": "Gemini-2.5-Flash",
+                "model": audit_llm_label,
+                "api_model_id": (
+                    GEMINI_MODEL_ID
+                    if audit_llm_label == GEMINI_AUDIT_LABEL
+                    else DEEPSEEK_MODEL_ID
+                ),
                 "timestamp": datetime.now(UTC).isoformat(),
                 "specs_matrix": report.get('specs_matrix', {}), # 这里对应前端的 Forensic Analysis
                 "protocol": "v3.0-forensic"
@@ -633,7 +711,10 @@ class ForensicAuditEngine:
                     "last_checked_at": datetime.now(UTC).isoformat()
                 }, on_conflict="product_id, site_name").execute()
 
-                print(f"✅ 审计存证已锁定: {self.slug} | 价格: {site_data['price']} | 指纹: {payload['audit_data']['audit_hash']}")
+                print(
+                    f"✅ 审计存证已锁定: {self.slug} | LLM: {audit_llm_label} | "
+                    f"价格: {site_data['price']} | 指纹: {payload['audit_data']['audit_hash']}"
+                )
 
         except Exception as e:
             print(f"❌ 级联同步失败: {e}")

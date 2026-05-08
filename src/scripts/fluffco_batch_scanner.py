@@ -2,9 +2,7 @@
 import asyncio
 import os
 import re
-import urllib.parse
 from pathlib import Path
-from datetime import datetime, UTC
 from dotenv import load_dotenv
 from supabase import create_client, Client
 from forensic_engine import ForensicAuditEngine
@@ -84,37 +82,35 @@ class FluffCoForensicScanner:
     def __init__(self, force_update=False):
         self.brand = "FluffCo"
         self.force_update = force_update
-        self.impact_base = "https://fluffco.pxf.io/jeK6vZ"
-        
+
         url = os.getenv("SUPABASE_URL")
         key = os.getenv("SUPABASE_KEY")
         if not url or not key:
             raise ValueError("❌ SUPABASE 配置缺失")
         self.supabase: Client = create_client(url, key)
 
-    def get_smart_slug(self, url):
-        """利用 Variant ID 生成唯一 Slug，确保数据库不冲突"""
-        variant_id = re.search(r'variant=(\d+)', url).group(1)
-        return f"fluffco-audit-{variant_id}"
+    @staticmethod
+    def _slugify(text: str) -> str:
+        """与 ForensicAuditEngine 内逻辑一致：brand-model → URL slug。"""
+        text = text.lower().replace("&", "and")
+        text = re.sub(r"[^a-z0-9]+", "-", text)
+        return text.strip("-")
 
-    def generate_deep_link(self, target_url):
-        """生成 Impact 深度追踪链接"""
-        encoded_url = urllib.parse.quote(target_url, safe='')
-        return f"{self.impact_base}?u={encoded_url}&subId1=forensic_audit"
+    def slug_for_model(self, model: str) -> str:
+        return self._slugify(f"{self.brand}-{model}")
 
     async def execute_audit(self, task):
-        # 必须与 ForensicAuditEngine 写入的 slug 一致：引擎默认用 brand-model，
-        # 多规格时用 variant 衍生 slug，否则会 upsert 成功但后续按错误 slug 查库 → data[0] 越界。
-        slug = self.get_smart_slug(task["url"])
-        engine = ForensicAuditEngine(self.brand, task["model"], slug_override=slug)
-        print(f"\n📑 启动审计存档: {task['model']} [{task['spec_label']}]")
+        # slug 与 ForensicAuditEngine 默认规则一致：slugify("{brand}-{model}")，不传 slug_override
+        slug = self.slug_for_model(task["model"])
+        engine = ForensicAuditEngine(self.brand, task["model"])
+        print(f"\n📑 启动审计存档: {task['model']}")
 
         # 1. 检查数据库是否存在该规格存档
         res = self.supabase.table("audit_products").select("id").eq("slug", slug).execute()
         existing = res.data[0] if res.data else None
 
         if existing and not self.force_update:
-            print(f"⏩ 规格已存在，跳过。")
+            print(f"⏩ 已存在，跳过。")
             return
 
         # 2. 调用法医引擎 (ForensicAuditEngine) 抓取真实 DOM
@@ -128,23 +124,7 @@ class FluffCoForensicScanner:
                 raise RuntimeError(
                     f"未查到 slug={slug} 的记录；请确认 ForensicAuditEngine 使用了相同的 slug_override。"
                 )
-            product_uuid = res.data[0]["id"]
-
-            # 3. 核心：统一 ID 与 深度链接更新
-            # 生成全站唯一的 Archive ID (如 FL-35113578)
-            archive_id = f"FL-{str(product_uuid)[:8].upper()}"
-            deep_link = self.generate_deep_link(task['url'])
-            
-            # 存入数据库，同时把规格信息存入 audit_note 而非 model 名
-            self.supabase.table("audit_products").update({
-                "official_link": deep_link,
-                "audit_archive_id": archive_id,
-                "audit_note": f"Target Specification: {task['spec_label']}",
-                "updated_at": datetime.now(UTC).isoformat()
-            }).eq("id", product_uuid).execute()
-
-            print(f"✅ 审计完成! ARCHIVE_ID: {archive_id}")
-            print(f"🔗 深度链接已就绪。")
+            print(f"✅ 审计完成!")
 
         except Exception as e:
             print(f"❌ 审计过程中止: {e}")
@@ -158,5 +138,5 @@ class FluffCoForensicScanner:
                 await asyncio.sleep(20) # 安全间隔
 
 if __name__ == "__main__":
-    scanner = FluffCoForensicScanner(force_update=False)
+    scanner = FluffCoForensicScanner(force_update=True)
     asyncio.run(scanner.start())
