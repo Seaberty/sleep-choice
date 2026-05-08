@@ -89,7 +89,7 @@ export default async function RegistryPage({ searchParams }: Props) {
     }
 
     return (
-        <main className="min-h-screen bg-white pt-32 pb-20 overflow-hidden font-sans selection:bg-blue-600 selection:text-white">
+        <main className="min-h-screen bg-white pt-32 pb-20 overflow-x-hidden font-sans selection:bg-blue-600 selection:text-white">
             <script
                 type="application/ld+json"
                 dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
@@ -138,25 +138,50 @@ export default async function RegistryPage({ searchParams }: Props) {
                 </header>
 
                 {/* --- Search Bar --- */}
-                <div className="mb-8">
+                <div
+                    id="registry-search"
+                    className="mb-10 scroll-mt-40 rounded-2xl border-[3px] border-slate-950 bg-white p-5 shadow-[12px_12px_0px_0px_rgba(37,99,235,0.12)] md:p-7"
+                >
+                    <div className="mb-4 flex flex-wrap items-center gap-3 border-b-2 border-blue-600 pb-4">
+                        <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-blue-600 text-white shadow-md shadow-blue-600/25">
+                            <Search className="h-4 w-4" strokeWidth={2.5} />
+                        </span>
+                        <div>
+                            <p className="text-[11px] font-black uppercase tracking-[0.28em] text-slate-950">
+                                Search the archive
+                            </p>
+                            <p className="mt-0.5 text-[10px] font-bold uppercase tracking-widest text-blue-600">
+                                Model name · Brand · SKU fragment
+                            </p>
+                        </div>
+                    </div>
                     <form
                         action="/registry"
                         method="GET"
-                        className="flex flex-wrap justify-between items-center gap-4"
+                        className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between sm:gap-6"
                     >
-                        <div className="flex items-center gap-4 bg-slate-50 border-2 border-slate-100 focus-within:border-blue-600 transition-all px-5 py-3 w-full md:w-auto group">
-                            <Search className="w-4 h-4 text-slate-400 group-focus-within:text-blue-600" />
-                            <input
-                                type="text"
-                                name="q"
-                                defaultValue={query}
-                                placeholder="SEARCH_BY_MODEL_OR_BRAND..."
-                                className="bg-transparent border-none outline-none text-[10px] font-mono font-bold text-slate-900 w-64 uppercase tracking-widest placeholder:text-slate-300"
-                            />
-                        </div>
+                        <label className="flex min-w-0 flex-1 cursor-text flex-col gap-2 sm:max-w-xl">
+                            <span className="text-[9px] font-black uppercase tracking-widest text-slate-600">
+                                Query string
+                            </span>
+                            <div className="flex items-center gap-3 border-2 border-slate-900 bg-white px-4 py-3.5 shadow-inner shadow-slate-200/80 transition-all focus-within:border-blue-600 focus-within:ring-4 focus-within:ring-blue-600/15">
+                                <Search
+                                    className="h-4 w-4 shrink-0 text-blue-600"
+                                    aria-hidden
+                                />
+                                <input
+                                    type="search"
+                                    name="q"
+                                    defaultValue={query}
+                                    placeholder="e.g. SAATVA, TEMPUR, HYBRID…"
+                                    autoComplete="off"
+                                    className="min-w-0 flex-1 border-none bg-transparent text-[11px] font-mono font-bold uppercase tracking-widest text-slate-950 outline-none placeholder:text-slate-500 placeholder:normal-case"
+                                />
+                            </div>
+                        </label>
                         <button
                             type="submit"
-                            className="bg-slate-950 text-white px-8 py-3 text-[10px] font-black uppercase tracking-widest hover:bg-blue-600 transition-colors"
+                            className="w-full shrink-0 border-2 border-slate-950 bg-slate-950 px-8 py-3.5 text-[10px] font-black uppercase tracking-widest text-white shadow-[4px_4px_0px_0px_rgba(37,99,235,0.35)] transition-colors hover:bg-blue-600 hover:border-blue-600 sm:w-auto"
                         >
                             Execute_Query
                         </button>

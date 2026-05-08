@@ -1,6 +1,6 @@
 import { getAutomatedRegistry } from "@/lib/registry"
+import { previewTextForJournalCard } from "@/lib/journal-card-blurb"
 import Link from "next/link"
-import { APP_PROTOCOL } from "@/lib/constants"
 import {
     History,
     FlaskConical,
@@ -31,7 +31,7 @@ export default async function JournalIndex() {
     })
 
     return (
-        <main className="relative min-h-screen bg-white pt-24 pb-20 overflow-hidden font-sans selection:bg-blue-600 selection:text-white">
+        <main className="relative min-h-screen bg-white pt-24 pb-20 overflow-x-hidden font-sans selection:bg-blue-600 selection:text-white">
             {/* 1. 全局背景装饰：移除 styled-jsx，改用 Tailwind 原生动画类 */}
             <div className="fixed inset-0 pointer-events-none z-0">
                 {/* 模拟实验室网格背景 */}
@@ -81,9 +81,13 @@ export default async function JournalIndex() {
                             </span>
                         </div>
                     ) : (
-                        products.map((p, idx) => (
+                        products.map((p, idx) => {
+                            const journalSegment = encodeURIComponent(
+                                (p.slug && String(p.slug).trim()) || String(p.id)
+                            )
+                            return (
                             <Link
-                                href={`/journal/${p.id}`}
+                                href={`/journal/${journalSegment}`}
                                 key={p.id}
                                 className="group relative flex flex-col items-start"
                             >
@@ -117,13 +121,8 @@ export default async function JournalIndex() {
                                     </span>
                                 </h2>
 
-                                <p className="text-sm text-slate-500 font-bold uppercase leading-relaxed tracking-tight mb-8 line-clamp-3">
-                                    Automated kinetic assessment of {p.brand}
-                                    &apos;s adaptive layer. Subject exhibited
-                                    consistent spinal neutrality in 85% of
-                                    lateral test positions. Performance index
-                                    recalibrated via Scored-Matrix™{" "}
-                                    {APP_PROTOCOL}.
+                                <p className="text-sm font-medium leading-relaxed text-slate-600 mb-8 line-clamp-4 normal-case tracking-tight">
+                                    {previewTextForJournalCard(p)}
                                 </p>
 
                                 {/* 交互组件：查看详情 */}
@@ -134,7 +133,8 @@ export default async function JournalIndex() {
                                     <ChevronRight className="w-4 h-4 translate-x-0 group-hover:translate-x-2 transition-transform text-blue-600" />
                                 </div>
                             </Link>
-                        ))
+                        )
+                        })
                     )}
                 </div>
 

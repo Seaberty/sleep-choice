@@ -16,7 +16,7 @@ import { APP_PROTOCOL } from "@/lib/constants"
 export const metadata = {
     title: "Technical Benchmarks | Side-by-Side Audit",
     description:
-        "Algorithmic mattress comparison based on 1.2M+ consumer data points and material simulations."
+        "Snapshot comparison of top-scoring verified mattress profiles from the SleepChoice registry index."
 }
 
 // 建议每小时重新验证数据
@@ -25,7 +25,7 @@ export const revalidate = 3600
 export default async function ComparePage() {
     // 获取数据，提供空数组作为保底
     const products = (await getAutomatedRegistry()) || []
-    // 过滤掉无效数据并取前三
+    /** Same ordering as best-picks feed: DB overall score desc (limit 12); we compare top 3 for readability. */
     const topProducts = products.filter(Boolean).slice(0, 3)
 
     // 安全获取对比项的最佳值
@@ -46,7 +46,7 @@ export default async function ComparePage() {
     }
 
     return (
-        <main className="relative min-h-screen bg-white pt-24 pb-20 overflow-hidden font-sans">
+        <main className="relative min-h-screen bg-white pt-24 pb-20 overflow-x-hidden font-sans">
             {/* --- 工业级审计背景 --- */}
             <div className="fixed inset-0 pointer-events-none z-0">
                 <div
@@ -75,6 +75,14 @@ export default async function ComparePage() {
                     <p className="text-sm font-mono font-bold text-slate-400 uppercase tracking-widest max-w-xl leading-relaxed">
                         Synthesizing verified owner logs and material density
                         simulations to identify structural variances.
+                    </p>
+                    <p className="mt-6 max-w-2xl border-l-4 border-blue-600 bg-blue-50/40 py-3 pl-5 text-[11px] font-bold uppercase leading-relaxed tracking-wide text-slate-600">
+                        Benchmark scope: the{" "}
+                        <strong className="text-slate-900">
+                            three highest-index models
+                        </strong>{" "}
+                        from the current registry snapshot — not an exhaustive
+                        market-wide survey. Open each dossier for full specs.
                     </p>
                 </header>
 
@@ -136,8 +144,9 @@ export default async function ComparePage() {
                                 <tbody className="font-mono">
                                     {[
                                         {
-                                            label: "Durability_Forecast",
-                                            key: "rating"
+                                            label: "Overall_Index",
+                                            key: "overall",
+                                            metricKey: "overall"
                                         },
                                         {
                                             label: "Structural_Support",
@@ -153,6 +162,11 @@ export default async function ComparePage() {
                                             label: "Pressure_Map_Score",
                                             key: "pressure",
                                             metricKey: "pressure"
+                                        },
+                                        {
+                                            label: "Durability_Index",
+                                            key: "durability",
+                                            metricKey: "durability"
                                         },
                                         {
                                             label: "Market_Price (USD)",
@@ -297,11 +311,25 @@ export default async function ComparePage() {
                         </div>
                     </div>
                 ) : (
-                    <div className="py-32 flex flex-col items-center justify-center border-2 border-slate-950 border-dashed rounded-none">
-                        <Database className="w-8 h-8 text-slate-200 mb-4 animate-pulse" />
-                        <p className="font-mono text-[10px] font-black text-slate-400 uppercase tracking-[0.3em]">
+                    <div className="flex flex-col items-center justify-center rounded-none border-2 border-dashed border-slate-950 py-32">
+                        <Database className="mb-4 h-8 w-8 animate-pulse text-slate-200" />
+                        <p className="mb-6 max-w-md text-center font-mono text-[10px] font-black uppercase tracking-[0.3em] text-slate-400">
                             Registry_Data_Insufficient_For_Comparison
                         </p>
+                        <div className="flex flex-wrap justify-center gap-4">
+                            <Link
+                                href="/registry"
+                                className="text-[10px] font-black uppercase tracking-widest text-blue-600 underline-offset-4 hover:underline"
+                            >
+                                Browse_Registry
+                            </Link>
+                            <Link
+                                href="/best-picks"
+                                className="text-[10px] font-black uppercase tracking-widest text-blue-600 underline-offset-4 hover:underline"
+                            >
+                                Performance_Index
+                            </Link>
+                        </div>
                     </div>
                 )}
 

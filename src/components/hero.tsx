@@ -42,7 +42,7 @@ export function Hero() {
                             </button>
                         </Link>
 
-                        <Link href="/registry">
+                        <Link href="/registry#registry-search">
                             <button className="w-full sm:w-auto bg-white border border-slate-200 px-8 py-4 rounded-full font-bold hover:bg-slate-50 transition-all text-slate-700">
                                 Browse All Audits
                             </button>

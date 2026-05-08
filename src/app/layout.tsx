@@ -1,6 +1,7 @@
 import { Inter, JetBrains_Mono } from "next/font/google"
 import { SiteHeader } from "@/components/site-header"
 import { SiteFooter } from "@/components/site-footer"
+import { ScrollToTop } from "@/components/scroll-to-top"
 import { getSiteHeaderMetrics } from "@/lib/site-metrics"
 import { cn } from "@/lib/utils"
 import { SpeedInsights } from "@vercel/speed-insights/next"
@@ -49,6 +50,12 @@ export default async function RootLayout({
                     "font-sans bg-[#fdfdfd] text-slate-900 min-h-screen flex flex-col"
                 )}
             >
+                <a
+                    href="#main-content"
+                    className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-[200] focus:rounded-lg focus:bg-slate-950 focus:px-4 focus:py-3 focus:text-[10px] focus:font-black focus:uppercase focus:tracking-widest focus:text-white"
+                >
+                    Skip to main content
+                </a>
                 {/* 1. 高级 Schema 注入：从 Organization 升级为 MedicalOrganization 以提升权威得分 */}
                 <script
                     type="application/ld+json"
@@ -82,10 +89,14 @@ export default async function RootLayout({
                    使用 pt (padding-top) 替代偏移类名，并结合 CSS 变量。
                    这样在 JS 加载前，浏览器就能预留出 Header 的空间。
                 */}
-                <main className="flex-grow pt-[var(--header-height,110px)] md:pt-[var(--header-height,140px)]">
+                <main
+                    id="main-content"
+                    className="flex-grow pt-[var(--header-height,110px)] md:pt-[var(--header-height,140px)]"
+                >
                     {children}
                 </main>
 
+                <ScrollToTop />
                 <SiteFooter />
 
                 {/* 4. 辅助视觉：防止移动端弹性滚动导致的背景留白 */}

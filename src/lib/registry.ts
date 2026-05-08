@@ -4,7 +4,8 @@ import {
     ProductData,
     ProductRegistry,
     AuditScores,
-    Offer
+    Offer,
+    ForensicAuditData
 } from "@/types/product"
 import { supabase } from "./supabase"
 import { APP_PROTOCOL } from "./constants"
@@ -36,6 +37,42 @@ const PRODUCT_OFFERS_SELECT = `
                     offer_url, price, promo_text, is_primary, status, site_name
                 )
             `
+
+function parseTechnicalSpecs(raw: unknown): Record<string, string> {
+    if (!raw) return {}
+    if (typeof raw === "string") {
+        try {
+            const p = JSON.parse(raw)
+            return typeof p === "object" && p !== null ? (p as Record<string, string>) : {}
+        } catch {
+            return {}
+        }
+    }
+    if (typeof raw === "object") return raw as Record<string, string>
+    return {}
+}
+
+function parseAuditDataPartial(
+    raw: unknown
+): Partial<ForensicAuditData> & {
+    specs_matrix?: Record<string, string>
+} {
+    if (!raw) return {}
+    const obj =
+        typeof raw === "string"
+            ? (() => {
+                  try {
+                      return JSON.parse(raw)
+                  } catch {
+                      return {}
+                  }
+              })()
+            : raw
+    if (typeof obj !== "object" || !obj) return {}
+    return obj as Partial<ForensicAuditData> & {
+        specs_matrix?: Record<string, string>
+    }
+}
 
 function mergeAuditProductRow(
     item: any,
@@ -89,6 +126,37 @@ function mergeAuditProductRow(
         }
     }
 
+    const localAudit = parseAuditDataPartial(localMeta.audit_data)
+    const dbAudit = parseAuditDataPartial(item.audit_data)
+    const mergedSpecsMatrix = {
+        ...(typeof localAudit.specs_matrix === "object"
+            ? localAudit.specs_matrix
+            : {}),
+        ...(typeof dbAudit.specs_matrix === "object" ? dbAudit.specs_matrix : {})
+    } as ForensicAuditData["specs_matrix"]
+
+    const mergedAuditData: ForensicAuditData = {
+        msrp:
+            Number(dbAudit.msrp ?? localAudit.msrp ?? 0) ||
+            0,
+        specs_matrix: mergedSpecsMatrix,
+        arbitrage_report: String(
+            dbAudit.arbitrage_report ?? localAudit.arbitrage_report ?? ""
+        ),
+        ...(auditHash ||
+        dbAudit.audit_hash ||
+        localAudit.audit_hash
+            ? {
+                  audit_hash: String(
+                      auditHash ||
+                          dbAudit.audit_hash ||
+                          localAudit.audit_hash ||
+                          ""
+                  ).trim()
+              }
+            : {})
+    }
+
     const defaultOffer: Offer = {
         site: dbOffer?.site_name || "Official Store",
         price:
@@ -113,6 +181,12 @@ function mergeAuditProductRow(
         // Supabase 可无 category / quiz_tags；货架与标签由 quiz-results 用 slug·型号·分数推断
         category: item.category ?? localMeta.category ?? "",
         audit_note: item.audit_note ?? localMeta.audit_note ?? "",
+        summary_log: String(item.summary_log ?? localMeta.summary_log ?? ""),
+        audit_data: mergedAuditData,
+        technical_specs: {
+            ...parseTechnicalSpecs(localMeta.technical_specs),
+            ...parseTechnicalSpecs(item.technical_specs)
+        },
         quiz_tags: normalizeQuizTags(item.quiz_tags),
         image_url:
             item.image_url ||

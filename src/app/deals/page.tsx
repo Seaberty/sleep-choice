@@ -38,7 +38,7 @@ export default async function DealsPage() {
     })
 
     return (
-        <main className="relative min-h-screen bg-white pt-24 pb-20 overflow-hidden font-sans selection:bg-emerald-500 selection:text-white">
+        <main className="relative min-h-screen bg-white pt-24 pb-20 overflow-x-hidden font-sans selection:bg-emerald-500 selection:text-white">
             {/* 动态背景：低对比度扫描网格 */}
             <div className="fixed inset-0 pointer-events-none opacity-[0.02] z-0">
                 <div

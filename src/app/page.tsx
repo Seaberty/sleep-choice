@@ -46,7 +46,8 @@ export default async function HomePage() {
                         ],
                         potentialAction: {
                             "@type": "SearchAction",
-                            target: "https://sleepchoiceguide.com/search?q={search_term_string}",
+                            target:
+                                "https://sleepchoiceguide.com/registry?q={search_term_string}",
                             "query-input": "required name=search_term_string"
                         }
                     })

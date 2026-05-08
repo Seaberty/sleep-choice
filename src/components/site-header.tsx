@@ -20,7 +20,8 @@ import {
     ArrowRight,
     Command,
     Database,
-    ChevronRight
+    ChevronRight,
+    Search
 } from "lucide-react"
 // Info icon removed because unused
 import { cn } from "@/lib/utils"
@@ -168,8 +169,22 @@ export function SiteHeader({ metrics }: { metrics: SiteHeaderMetrics }) {
                         })}
                     </nav>
 
-                    {/* Desktop Actions */}
-                    <div className="flex items-center gap-3">
+                    {/* Desktop Actions — icon jumps to registry search; inline fields belong on /registry */}
+                    <div className="flex items-center gap-2 sm:gap-3">
+                        <Link
+                            href="/registry#registry-search"
+                            title="Search verified mattresses"
+                            aria-label="Search verified mattresses in registry"
+                            className={cn(
+                                "hidden lg:inline-flex h-11 w-11 items-center justify-center rounded-xl border border-slate-200 bg-white",
+                                "text-slate-500 shadow-sm transition-colors",
+                                "hover:border-slate-950 hover:bg-slate-950 hover:text-white",
+                                "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 focus-visible:ring-offset-2"
+                            )}
+                        >
+                            <Search className="h-[18px] w-[18px]" strokeWidth={2.25} />
+                        </Link>
+
                         <Link
                             href="/quiz"
                             className="bg-slate-950 text-white px-5 py-3 rounded-xl text-[10px] font-black uppercase tracking-[0.25em] hover:bg-blue-700 transition-all shadow-xl shadow-slate-950/10 flex items-center gap-2.5 cursor-pointer group overflow-hidden relative"
@@ -207,6 +222,21 @@ export function SiteHeader({ metrics }: { metrics: SiteHeaderMetrics }) {
                         className="fixed inset-0 top-[60px] bg-white z-[90] lg:hidden flex flex-col"
                     >
                         <div className="flex flex-col p-8 space-y-10 overflow-y-auto">
+                            <Link
+                                href="/registry#registry-search"
+                                className="flex items-center justify-between rounded-2xl border border-slate-200 bg-slate-50 px-5 py-4 text-slate-950 transition-colors hover:border-blue-600 hover:bg-blue-50/50 active:scale-[0.99]"
+                            >
+                                <span className="flex items-center gap-3">
+                                    <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-white border border-slate-200 text-blue-600">
+                                        <Search className="h-5 w-5" aria-hidden />
+                                    </span>
+                                    <span className="text-sm font-black uppercase tracking-wide">
+                                        Registry Search
+                                    </span>
+                                </span>
+                                <ArrowRight className="h-5 w-5 text-slate-300" aria-hidden />
+                            </Link>
+
                             <div>
                                 <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em] mb-8 flex items-center gap-2">
                                     <Terminal className="w-3.5 h-3.5 text-blue-600" />

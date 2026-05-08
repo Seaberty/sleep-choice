@@ -52,6 +52,23 @@ export default function DisclosurePage() {
                         thousands of consumer data points into unbiased
                         performance metrics.
                     </p>
+                    <p className="mt-6 max-w-2xl text-[11px] font-bold uppercase leading-relaxed tracking-wide text-slate-500">
+                        When we say{" "}
+                        <span className="text-slate-950">&quot;lab&quot;</span>{" "}
+                        or{" "}
+                        <span className="text-slate-950">
+                            &quot;lab-verified&quot;
+                        </span>{" "}
+                        elsewhere on this site, we mean{" "}
+                        <strong className="text-slate-950">
+                            structured forensic scoring against documented
+                            certification data and owner-verified field logs
+                        </strong>
+                        — not an on-site wet lab photograph of every mattress.
+                        Physical SKUs where cited are purchased or sampled under
+                        our independence rules where applicable; numerical index
+                        outputs are produced here via our registry pipeline.
+                    </p>
                 </header>
 
                 <div className="grid lg:grid-cols-12 gap-16">

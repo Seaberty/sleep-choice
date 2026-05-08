@@ -56,16 +56,29 @@ const CONTACT_CONFIG = {
 }
 
 export default function ContactPage() {
+    const [name, setName] = useState("")
+    const [email, setEmail] = useState("")
+    const [message, setMessage] = useState("")
     const [isSubmitting, setIsSubmitting] = useState(false)
     const [isSent, setIsSent] = useState(false)
 
-    const handleSubmit = async (e: React.FormEvent) => {
+    const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault()
+        const trimmed = email.trim().toLowerCase()
+        if (!trimmed || !trimmed.includes("@")) return
+
         setIsSubmitting(true)
-        // 模拟上行链路传输
-        await new Promise((resolve) => setTimeout(resolve, 1500))
-        setIsSubmitting(false)
-        setIsSent(true)
+        const subject = encodeURIComponent(
+            `SleepChoice inquiry · ${name.trim() || "visitor"}`
+        )
+        const body = encodeURIComponent(
+            `Name: ${name.trim() || "—"}\nReply-To: ${trimmed}\n\n${message.trim()}`
+        )
+        window.location.href = `mailto:editorial@${CONTACT_CONFIG.domain}?subject=${subject}&body=${body}`
+        window.setTimeout(() => {
+            setIsSubmitting(false)
+            setIsSent(true)
+        }, 400)
     }
 
     return (
@@ -185,11 +198,14 @@ export default function ContactPage() {
                             <h4 className="text-[10px] font-black text-blue-600 uppercase tracking-widest mb-4 flex items-center gap-2">
                                 <Activity className="w-3 h-3" /> System_Note
                             </h4>
-                            <p className="text-xs text-blue-900/70 font-bold leading-relaxed italic">
-                                "All submissions are parsed by our NLP engine
-                                for prioritization. We maintain a zero-spam
-                                policy to protect the integrity of our audit
-                                queue."
+                            <p className="text-xs font-bold italic leading-relaxed text-blue-900/70">
+                                Quick message opens your default mail client to{" "}
+                                <strong className="not-italic text-blue-900">
+                                    editorial@
+                                    {CONTACT_CONFIG.domain}
+                                </strong>
+                                . For routing-specific topics, use the
+                                departmental mailto cards above.
                             </p>
                         </div>
                     </div>
@@ -210,11 +226,16 @@ export default function ContactPage() {
                                         Transmission_Success
                                     </h3>
                                     <p className="text-slate-500 font-bold uppercase text-xs">
-                                        Acknowledge: Message logged in secure
-                                        vault.
+                                        If your mail client opened, send the
+                                        draft from there. No copy is stored on
+                                        this page.
                                     </p>
                                     <button
-                                        onClick={() => setIsSent(false)}
+                                        type="button"
+                                        onClick={() => {
+                                            setIsSent(false)
+                                            setMessage("")
+                                        }}
                                         className="text-blue-600 font-black text-[10px] uppercase tracking-widest hover:underline"
                                     >
                                         Initiate New Session
@@ -244,6 +265,11 @@ export default function ContactPage() {
                                                 <input
                                                     required
                                                     type="text"
+                                                    value={name}
+                                                    onChange={(e) =>
+                                                        setName(e.target.value)
+                                                    }
+                                                    autoComplete="name"
                                                     className="w-full bg-slate-50 border-2 border-slate-100 rounded-xl px-5 py-4 focus:outline-none focus:border-blue-600 focus:bg-white transition-all font-bold text-sm"
                                                     placeholder="IDENTIFIER"
                                                 />
@@ -255,6 +281,11 @@ export default function ContactPage() {
                                                 <input
                                                     required
                                                     type="email"
+                                                    value={email}
+                                                    onChange={(e) =>
+                                                        setEmail(e.target.value)
+                                                    }
+                                                    autoComplete="email"
                                                     className="w-full bg-slate-50 border-2 border-slate-100 rounded-xl px-5 py-4 focus:outline-none focus:border-blue-600 focus:bg-white transition-all font-bold text-sm"
                                                     placeholder="EMAIL@DOMAIN.COM"
                                                 />
@@ -267,6 +298,10 @@ export default function ContactPage() {
                                             <textarea
                                                 required
                                                 rows={5}
+                                                value={message}
+                                                onChange={(e) =>
+                                                    setMessage(e.target.value)
+                                                }
                                                 className="w-full bg-slate-50 border-2 border-slate-100 rounded-xl px-5 py-4 focus:outline-none focus:border-blue-600 focus:bg-white transition-all font-bold text-sm resize-none"
                                                 placeholder="DESCRIBE_YOUR_QUERY..."
                                             />

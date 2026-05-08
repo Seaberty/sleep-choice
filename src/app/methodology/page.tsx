@@ -75,7 +75,7 @@ export default function MethodologyPage() {
             icon: <BarChart3 className="w-6 h-6" />,
             title: "Predictive Longevity",
             score: "Durability Score",
-            desc: "By simulating 10 years of use through material stress models and historical failure rate data, we predict mattress lifespan with 94% accuracy.",
+            desc: "By simulating multi-year use via material stress models and historical failure cohorts, we assign durability tier signals — modeled projections, not warranty guarantees.",
             details: [
                 "Material fatigue simulation",
                 "High-usage failure node detection",

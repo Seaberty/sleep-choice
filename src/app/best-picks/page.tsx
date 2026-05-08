@@ -135,7 +135,8 @@ export default async function BestPicksPage({ searchParams }: SearchProps) {
                         backgroundSize: "40px 40px"
                     }}
                 />
-                <div className="absolute inset-0 bg-gradient-to-b from-white/0 via-white/50 to-white" />
+                {/* 轻微顶部高光即可；不要用 to-white 铺满底部，否则会像遮住整页下半区 */}
+                <div className="absolute inset-0 bg-gradient-to-b from-white/25 via-transparent to-transparent pointer-events-none" />
                 {/* 顶部装饰线 */}
                 <div className="absolute top-0 left-0 w-full h-[1px] bg-blue-600/10" />
             </div>

@@ -181,7 +181,7 @@ export default function QuizPage() {
     const isComplete = Object.keys(answers).length === questions.length
 
     return (
-        <main className="relative min-h-screen bg-white pt-[120px] pb-24 overflow-hidden font-sans text-slate-900">
+        <main className="relative min-h-screen bg-white pt-[120px] pb-24 overflow-x-hidden font-sans text-slate-900">
             {/* 1. 背景工业网格与动态扫描线 */}
             <div className="fixed inset-0 pointer-events-none z-0">
                 <div

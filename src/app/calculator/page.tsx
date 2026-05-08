@@ -56,7 +56,7 @@ export default function CalculatorPage() {
     const hasOptimalClearance = clearanceW >= 30 && clearanceL >= 30 // 提高到 30 英寸
 
     return (
-        <main className="relative min-h-screen bg-white pt-24 pb-20 overflow-hidden font-sans">
+        <main className="relative min-h-screen bg-white pt-24 pb-20 overflow-x-hidden font-sans">
             {/* 实验室环境纹理 */}
             <div className="fixed inset-0 pointer-events-none z-0">
                 <div
@@ -67,7 +67,7 @@ export default function CalculatorPage() {
                         backgroundSize: "40px 40px"
                     }}
                 />
-                <div className="absolute inset-0 bg-gradient-to-b from-transparent via-white/50 to-white" />
+                <div className="absolute inset-0 bg-gradient-to-b from-white/20 via-transparent to-transparent pointer-events-none" />
             </div>
 
             <div className="container mx-auto px-6 relative z-10 max-w-7xl">

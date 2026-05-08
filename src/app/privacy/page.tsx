@@ -54,7 +54,7 @@ export default function PrivacyPage() {
     ]
 
     return (
-        <main className="min-h-screen bg-[#fdfdfd] pt-32 pb-24 overflow-hidden font-sans">
+        <main className="min-h-screen bg-[#fdfdfd] pt-32 pb-24 overflow-x-hidden font-sans">
             {/* 背景水印 - 增强情报感 */}
             <div className="fixed inset-0 pointer-events-none opacity-[0.02] select-none flex flex-col justify-between p-10 font-mono text-xs">
                 {[...Array(10)].map((_, i) => (

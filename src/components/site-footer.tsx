@@ -181,6 +181,13 @@ export function SiteFooter() {
                             </h4>
                             <nav className="flex flex-col gap-4 text-xs font-bold text-slate-600">
                                 <Link
+                                    href="/registry#registry-search"
+                                    className="hover:text-blue-600 flex items-center justify-between group"
+                                >
+                                    Verified Registry{" "}
+                                    <ArrowRight className="w-3 h-3 opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all" />
+                                </Link>
+                                <Link
                                     href="/best-picks"
                                     className="hover:text-blue-600 flex items-center justify-between group"
                                 >
