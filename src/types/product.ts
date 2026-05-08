@@ -114,4 +114,10 @@ export interface ProductData {
 
     /** Serper 有机结果条数，供 JSON-LD aggregateRating.ratingCount */
     review_count?: number
+
+    /**
+     * Quiz 匹配标签（Supabase `quiz_tags` jsonb，如 ["side-sleeper","back-pain"]）。
+     * 未配置时由 `inferProductTags` 启发式补齐。
+     */
+    quiz_tags?: string[]
 }

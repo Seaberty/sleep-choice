@@ -1,11 +1,13 @@
 import { Metadata } from "next"
 import Link from "next/link"
 import Image from "next/image"
-import { getAutomatedRegistry } from "@/lib/registry"
 import {
-    parseQuizAnswersParam,
-    rankProductsByQuiz
-} from "@/lib/quiz-score"
+    getAutomatedRegistry,
+    getQuizProductCatalog
+} from "@/lib/registry"
+import { parseQuizAnswersParam } from "@/lib/quiz-score"
+import { calculateQuizResults, expertSnippet } from "@/lib/quiz-results"
+import { getMerchantTrustBadgesForBrand } from "@/lib/quiz-trust-badges"
 import { ProductCard } from "@/components/product-card"
 import {
     Activity,
@@ -36,25 +38,43 @@ type SearchProps = {
 
 export default async function BestPicksPage({ searchParams }: SearchProps) {
     const sp = await searchParams
-    const products = await getAutomatedRegistry(50)
-
     const parsedQuiz = parseQuizAnswersParam(
         typeof sp.answers === "string" ? sp.answers : undefined
     )
     const quizActive =
         (sp.quiz === "1" || sp.quiz === "true") && parsedQuiz !== null
 
-    let quizRank: ReturnType<typeof rankProductsByQuiz> | null = null
+    const products = quizActive
+        ? await getQuizProductCatalog()
+        : await getAutomatedRegistry(50)
+
+    let bundle = null as ReturnType<typeof calculateQuizResults> | null
     let sortedProducts = [...products].sort((a, b) => b.rating - a.rating)
 
     if (quizActive && parsedQuiz) {
-        quizRank = rankProductsByQuiz(products, parsedQuiz)
-        sortedProducts = quizRank.ranked
+        bundle = calculateQuizResults(products, parsedQuiz)
+        sortedProducts = bundle.ranked
     }
 
+    const championProduct =
+        quizActive && bundle
+            ? bundle.hero ?? sortedProducts[0] ?? null
+            : sortedProducts[0] ?? null
+
+    const featuredSlugs = new Set<string>()
+    if (bundle) {
+        if (bundle.hero) featuredSlugs.add(bundle.hero.slug)
+        bundle.essentials.forEach((p) => featuredSlugs.add(p.slug))
+        if (bundle.lifestyle) featuredSlugs.add(bundle.lifestyle.slug)
+    }
+
+    const registryGridProducts = bundle
+        ? sortedProducts.filter((p) => !featuredSlugs.has(p.slug))
+        : sortedProducts.slice(1)
+
     const topMatchScore =
-        quizRank && sortedProducts[0]
-            ? Math.round(quizRank.scoresBySlug[sortedProducts[0].slug] ?? 0)
+        bundle && championProduct
+            ? bundle.weightsBySlug[championProduct.slug]
             : null
 
     const jsonLd = {
@@ -183,35 +203,206 @@ export default async function BestPicksPage({ searchParams }: SearchProps) {
                     </div>
                 </header>
 
-                {quizActive && parsedQuiz && sortedProducts.length > 0 && (
-                    <section className="mb-12 md:mb-16 max-w-4xl border border-blue-600/30 bg-blue-50/40 px-6 py-6 md:px-10 md:py-8">
-                        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-                            <div>
+                {quizActive && bundle && (
+                    <section className="mb-12 md:mb-16 max-w-5xl border-l-4 border-blue-600 bg-slate-50/80 px-6 py-8 md:px-12 md:py-10">
+                        <div className="flex flex-col gap-6 md:flex-row md:items-start md:justify-between">
+                            <div className="space-y-4 max-w-3xl">
                                 <span className="text-[10px] font-black uppercase tracking-[0.35em] text-blue-600">
-                                    Quiz_Calibration_Applied
+                                    The_Diagnosis
                                 </span>
-                                <p className="mt-2 text-sm md:text-base font-bold text-slate-800 uppercase tracking-tight">
-                                    Registry re-ranked using live audit vectors
-                                    (support · cooling · pressure · durability)
-                                    vs. your session inputs.
+                                <h2 className="text-xl md:text-2xl font-black uppercase italic tracking-tight text-slate-950 leading-snug">
+                                    {bundle.diagnosis.headline}
+                                </h2>
+                                <p className="text-sm font-medium text-slate-600 leading-relaxed">
+                                    {bundle.diagnosis.body}
                                 </p>
+                                <div className="flex flex-wrap gap-2 pt-2">
+                                    {bundle.matchTokens.map((t) => (
+                                        <span
+                                            key={t.tag}
+                                            className={cn(
+                                                "text-[9px] font-mono font-bold uppercase px-2 py-1 border",
+                                                t.critical
+                                                    ? "border-red-200 bg-red-50 text-red-800"
+                                                    : "border-slate-200 bg-white text-slate-600"
+                                            )}
+                                        >
+                                            {t.tag}
+                                            {t.critical ? " · weighted" : ""}
+                                        </span>
+                                    ))}
+                                </div>
                             </div>
-                            <div className="shrink-0 text-right">
+                            <div className="shrink-0 text-right md:pt-2">
                                 <span className="text-[9px] font-black uppercase tracking-widest text-slate-400 block">
-                                    Top_Protocol_Score
+                                    Tag_Match_Score
                                 </span>
                                 <span className="font-mono text-3xl font-bold text-blue-600">
                                     {topMatchScore ?? "—"}
-                                    <span className="text-lg text-slate-400">
-                                        /100
-                                    </span>
                                 </span>
                             </div>
                         </div>
                     </section>
                 )}
 
-                {/* --- 2. Scoring Protocol Grid: 工业协议展示 --- */}
+                {/* --- 2. Champion / Top Audit Pick --- */}
+                {championProduct && (
+                    <section className="mb-24 md:mb-40">
+                        <div className="flex items-center gap-6 mb-12">
+                            <span className="text-[10px] font-black text-blue-600 uppercase tracking-[0.4em] whitespace-nowrap">
+                                {quizActive
+                                    ? "[ Core_Audit_Result ]"
+                                    : "[ System_Champion_Detected ]"}
+                            </span>
+                            <div className="h-px flex-1 bg-slate-100" />
+                        </div>
+
+                        <div className="relative group">
+                            <div className="absolute -top-5 left-10 z-30 bg-blue-600 text-white px-8 py-3 font-black text-[11px] uppercase tracking-[0.3em] italic shadow-2xl skew-x-[-12deg]">
+                                {quizActive
+                                    ? "#01_Top_Audit_Pick"
+                                    : "#01_Top_Recommendation"}
+                            </div>
+
+                            <div className="border-[6px] border-blue-600 transition-all hover:shadow-[0_0_50px_rgba(37,99,235,0.15)] bg-white overflow-hidden">
+                                {quizActive && championProduct.brand && (
+                                    <div className="flex flex-wrap gap-2 border-b border-slate-100 bg-emerald-50/40 px-6 py-4 md:px-10">
+                                        {getMerchantTrustBadgesForBrand(
+                                            championProduct.brand
+                                        ).map((b) => (
+                                            <span
+                                                key={b}
+                                                className="text-[9px] font-black uppercase tracking-widest text-emerald-800 bg-white border border-emerald-200 px-3 py-1.5"
+                                            >
+                                                {b}
+                                            </span>
+                                        ))}
+                                    </div>
+                                )}
+
+                                <div className="grid lg:grid-cols-12 items-stretch">
+                                    <div className="lg:col-span-5 bg-slate-50 relative overflow-hidden border-b lg:border-b-0 lg:border-r border-slate-100 flex items-center justify-center p-12">
+                                        <div className="absolute inset-0 opacity-[0.03] pointer-events-none font-mono text-[10px] p-4 leading-none break-all">
+                                            {Array.from({ length: 10 }).map(
+                                                (_, i) => (
+                                                    <p key={i} className="mb-1">
+                                                        SCAN_DATA_LOG_{i}:
+                                                        checksum_pending
+                                                    </p>
+                                                )
+                                            )}
+                                        </div>
+
+                                        <div className="relative z-10 w-full h-full flex flex-col items-center justify-center">
+                                            <div className="relative w-full h-[320px] overflow-hidden">
+                                                {championProduct.image_url && (
+                                                    <Image
+                                                        src={
+                                                            championProduct.image_url
+                                                        }
+                                                        alt={
+                                                            championProduct.name ||
+                                                            "Product Image"
+                                                        }
+                                                        fill
+                                                        className="object-contain"
+                                                    />
+                                                )}
+                                            </div>
+                                            <div className="absolute bottom-0 left-0 right-0 flex justify-between items-end opacity-20 group-hover:opacity-40 transition-opacity">
+                                                <div className="h-6 w-[1px] bg-slate-950" />
+                                                <div className="h-[1px] flex-1 bg-slate-950 mx-2 mb-1" />
+                                                <div className="h-6 w-[1px] bg-slate-950" />
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div className="lg:col-span-7 flex flex-col">
+                                        {quizActive &&
+                                            expertSnippet(
+                                                championProduct.audit_note
+                                            ) && (
+                                                <div className="border-b border-slate-100 bg-blue-50/30 px-6 py-6 md:px-10 md:py-8">
+                                                    <span className="text-[9px] font-black uppercase tracking-[0.35em] text-blue-600 block mb-3">
+                                                        Expert_Tip · audit_note
+                                                    </span>
+                                                    <p className="text-sm md:text-base text-slate-800 leading-relaxed font-medium">
+                                                        {expertSnippet(
+                                                            championProduct.audit_note
+                                                        )}
+                                                    </p>
+                                                    <Link
+                                                        href={`/registry/${championProduct.slug}`}
+                                                        className="inline-flex mt-4 text-[10px] font-black uppercase tracking-widest text-blue-600 hover:text-slate-950"
+                                                    >
+                                                        Full forensic file →
+                                                    </Link>
+                                                </div>
+                                            )}
+
+                                        <div className="[&_.aspect-video]:hidden [&_.p-7]:p-10 [&_h3]:text-4xl [&_h3]:md:text-5xl [&_.rounded-\[2rem\]]:rounded-none [&_.border]:border-0 flex-1">
+                                            <ProductCard
+                                                data={championProduct}
+                                                className="h-full !border-0 !shadow-none !translate-y-0"
+                                            />
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+                )}
+
+                {bundle && bundle.essentials.length > 0 && (
+                    <section className="mb-20 md:mb-28">
+                        <div className="mb-10 border-b-2 border-slate-900 pb-6">
+                            <h2 className="text-3xl md:text-5xl font-[1000] uppercase italic text-slate-950">
+                                Essentials_Layer
+                            </h2>
+                            <p className="text-[9px] font-black text-slate-400 uppercase tracking-[0.3em] mt-2">
+                                Pillow SKUs · tag-weighted (top 2)
+                            </p>
+                        </div>
+                        <div className="grid md:grid-cols-2 gap-12">
+                            {bundle.essentials.map((p) => (
+                                <div key={p.id} className="space-y-4">
+                                    <ProductCard data={p} />
+                                    {expertSnippet(p.audit_note, 220) && (
+                                        <p className="text-xs font-medium text-slate-600 leading-relaxed border-l-4 border-blue-600 pl-4">
+                                            {expertSnippet(p.audit_note, 220)}
+                                        </p>
+                                    )}
+                                </div>
+                            ))}
+                        </div>
+                    </section>
+                )}
+
+                {bundle && bundle.lifestyle && (
+                    <section className="mb-24 md:mb-32">
+                        <div className="mb-10 border-b-2 border-slate-900 pb-6">
+                            <h2 className="text-3xl md:text-5xl font-[1000] uppercase italic text-slate-950">
+                                Lifestyle_Vector
+                            </h2>
+                            <p className="text-[9px] font-black text-slate-400 uppercase tracking-[0.3em] mt-2">
+                                Tagged lifestyle / lounge SKU
+                            </p>
+                        </div>
+                        <div className="max-w-2xl">
+                            <ProductCard data={bundle.lifestyle} />
+                            {expertSnippet(bundle.lifestyle.audit_note, 260) && (
+                                <p className="mt-6 text-sm font-medium text-slate-600 leading-relaxed border-l-4 border-blue-600 pl-4">
+                                    {expertSnippet(
+                                        bundle.lifestyle.audit_note,
+                                        260
+                                    )}
+                                </p>
+                            )}
+                        </div>
+                    </section>
+                )}
+
+                {/* --- 3. Scoring Protocol Grid --- */}
                 <section className="mb-20 md:mb-32">
                     <div className="bg-slate-950 text-white p-10 md:p-20 relative overflow-hidden shadow-[20px_20px_0px_0px_rgba(37,99,235,0.1)]">
                         <div className="absolute top-0 right-0 p-10 opacity-[0.03] rotate-12 pointer-events-none">
@@ -228,9 +419,9 @@ export default async function BestPicksPage({ searchParams }: SearchProps) {
                                     Protocol.
                                 </h3>
                                 <p className="text-slate-500 text-[10px] font-bold uppercase tracking-widest leading-relaxed">
-                                    Our proprietary A.I.R system
-                                    cross-references material density with
-                                    spinal alignment heatmaps.
+                                    {quizActive
+                                        ? "Quiz mode: each answer emits match tokens; products accumulate weight when Supabase quiz_tags (or inferred tags) intersect. Critical pain tokens add a second weight pass."
+                                        : "Our proprietary A.I.R system cross-references material density with spinal alignment heatmaps."}
                                 </p>
                             </div>
 
@@ -275,84 +466,6 @@ export default async function BestPicksPage({ searchParams }: SearchProps) {
                     </div>
                 </section>
 
-                {/* --- 3. Champion Tier (#01 Highlight) --- */}
-                {sortedProducts.length > 0 && (
-                    <section className="mb-24 md:mb-40">
-                        <div className="flex items-center gap-6 mb-12">
-                            <span className="text-[10px] font-black text-blue-600 uppercase tracking-[0.4em] whitespace-nowrap">
-                                [ System_Champion_Detected ]
-                            </span>
-                            <div className="h-px flex-1 bg-slate-100" />
-                        </div>
-
-                        <div className="relative group">
-                            {/* 这里的标签稍微偏移以增加工业设计感 */}
-                            <div className="absolute -top-5 left-10 z-30 bg-blue-600 text-white px-8 py-3 font-black text-[11px] uppercase tracking-[0.3em] italic shadow-2xl skew-x-[-12deg]">
-                                {quizActive
-                                    ? "#01_Quiz_Match"
-                                    : "#01_Top_Recommendation"}
-                            </div>
-
-                            <div className="border-[6px] border-blue-600 transition-all hover:shadow-[0_0_50px_rgba(37,99,235,0.15)] bg-white overflow-hidden">
-                                <div className="grid lg:grid-cols-12 items-stretch">
-                                    {/* 左侧：独立快照区域 (占据 5/12) */}
-                                    <div className="lg:col-span-5 bg-slate-50 relative overflow-hidden border-b lg:border-b-0 lg:border-r border-slate-100 flex items-center justify-center p-12">
-                                        {/* 装饰性背景 */}
-                                        <div className="absolute inset-0 opacity-[0.03] pointer-events-none font-mono text-[10px] p-4 leading-none break-all">
-                                            {Array.from({ length: 10 }).map(
-                                                (_, i) => (
-                                                    <p key={i} className="mb-1">
-                                                        SCAN_DATA_LOG_{i}:{" "}
-                                                        {Math.random()
-                                                            .toString(16)
-                                                            .slice(2, 15)}
-                                                    </p>
-                                                )
-                                            )}
-                                        </div>
-
-                                        <div className="relative z-10 w-full h-full flex flex-col items-center justify-center">
-                                            <div className="relative w-full h-[320px] overflow-hidden">
-                                                {sortedProducts[0]
-                                                    ?.image_url && (
-                                                    <Image
-                                                        src={
-                                                            sortedProducts[0]
-                                                                .image_url
-                                                        }
-                                                        alt={
-                                                            sortedProducts[0]
-                                                                .name ||
-                                                            "Product Image"
-                                                        }
-                                                        fill
-                                                        className="object-contain"
-                                                    />
-                                                )}
-                                            </div>
-                                            {/* 工业比例尺装饰 */}
-                                            <div className="absolute bottom-0 left-0 right-0 flex justify-between items-end opacity-20 group-hover:opacity-40 transition-opacity">
-                                                <div className="h-6 w-[1px] bg-slate-950" />
-                                                <div className="h-[1px] flex-1 bg-slate-950 mx-2 mb-1" />
-                                                <div className="h-6 w-[1px] bg-slate-950" />
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    {/* 右侧：直接引入 ProductCard (占据 7/12) */}
-                                    {/* 关键：使用 className 强制覆盖组件内部的特定高度或边距 */}
-                                    <div className="lg:col-span-7 [&_.aspect-video]:hidden [&_.p-7]:p-10 [&_h3]:text-4xl [&_h3]:md:text-5xl [&_.rounded-\[2rem\]]:rounded-none [&_.border]:border-0">
-                                        <ProductCard
-                                            data={sortedProducts[0]}
-                                            className="h-full !border-0 !shadow-none !translate-y-0"
-                                        />
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </section>
-                )}
-
                 {/* --- 4. The Registry Grid --- */}
                 <section className="mb-24 md:mb-40">
                     <div className="flex items-end justify-between mb-16 border-b-2 border-slate-900 pb-8">
@@ -376,7 +489,7 @@ export default async function BestPicksPage({ searchParams }: SearchProps) {
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-12 md:gap-16">
-                        {sortedProducts.slice(1).map((product, index) => (
+                        {registryGridProducts.map((product, index) => (
                             <div key={product.id} className="relative group">
                                 {/* 索引数字：工业感圆形徽章 */}
                                 <div className="absolute -top-5 -left-5 z-20 bg-slate-950 text-white w-12 h-12 flex items-center justify-center font-mono font-bold text-sm shadow-xl border-4 border-white">

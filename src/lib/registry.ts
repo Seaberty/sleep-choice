@@ -13,6 +13,23 @@ import { cache } from "react"
 
 const REGISTRY_PATH = path.join(process.cwd(), "src/data/registry.json")
 
+function normalizeQuizTags(raw: unknown): string[] {
+    if (Array.isArray(raw))
+        return raw.map(String).map((t) => t.trim()).filter(Boolean)
+    if (typeof raw === "string") {
+        try {
+            const j = JSON.parse(raw)
+            if (Array.isArray(j)) return j.map(String).map((t) => String(t).trim())
+        } catch {
+            return raw
+                .split(/[,|]/)
+                .map((t) => t.trim())
+                .filter(Boolean)
+        }
+    }
+    return []
+}
+
 const PRODUCT_OFFERS_SELECT = `
                 *,
                 product_offers (
@@ -92,6 +109,11 @@ function mergeAuditProductRow(
         slug,
         brand: item.brand || localMeta.brand,
         name: item.model || localMeta.name,
+        model: item.model || localMeta.model || "",
+        // Supabase 可无 category / quiz_tags；货架与标签由 quiz-results 用 slug·型号·分数推断
+        category: item.category ?? localMeta.category ?? "",
+        audit_note: item.audit_note ?? localMeta.audit_note ?? "",
+        quiz_tags: normalizeQuizTags(item.quiz_tags),
         image_url:
             item.image_url ||
             localMeta.image_url ||
@@ -195,6 +217,42 @@ export const getAutomatedRegistry = cache(
         } catch (e) {
             console.error("❌ Critical Failure:", e)
             return []
+        }
+    }
+)
+
+/**
+ * Quiz 结果页：拉取更广 SKU（枕头、浴袍等），按更新时间而非仅总分排序，避免只剩床垫。
+ */
+export const getQuizProductCatalog = cache(
+    async (): Promise<ProductData[]> => {
+        try {
+            const [dbResult, localRegistry] = await Promise.all([
+                supabase
+                    .from("audit_products")
+                    .select(PRODUCT_OFFERS_SELECT)
+                    .gt("price", 0)
+                    .not("image_url", "is", null)
+                    .not("image_url", "eq", "/placeholder-product.png")
+                    .eq("product_offers.is_primary", true)
+                    .eq("product_offers.status", "active")
+                    .order("updated_at", { ascending: false })
+                    .limit(120),
+                getRegistry()
+            ])
+
+            const { data: dbProducts, error } = dbResult
+
+            if (error || !dbProducts?.length) {
+                return await getAutomatedRegistry(80)
+            }
+
+            return dbProducts
+                .map((item: any) => mergeAuditProductRow(item, localRegistry))
+                .filter(isListableAuditProduct)
+        } catch (e) {
+            console.error("getQuizProductCatalog:", e)
+            return await getAutomatedRegistry(80)
         }
     }
 )
