@@ -12,6 +12,142 @@ import { isListableAuditProduct } from "./audit-list-eligibility"
 import { cache } from "react"
 
 const REGISTRY_PATH = path.join(process.cwd(), "src/data/registry.json")
+
+const PRODUCT_OFFERS_SELECT = `
+                *,
+                product_offers (
+                    offer_url, price, promo_text, is_primary, status, site_name
+                )
+            `
+
+function mergeAuditProductRow(
+    item: any,
+    localRegistry: ProductRegistry
+): ProductData {
+    const slug = item.slug || ""
+    const localMeta = localRegistry.products[slug] || {}
+    const offersArr = Array.isArray(item.product_offers)
+        ? item.product_offers
+        : []
+    const dbOffer =
+        offersArr.find(
+            (o: { is_primary?: boolean; status?: string }) =>
+                o.is_primary && o.status === "active"
+        ) || offersArr[0]
+
+    const scores: AuditScores = {
+        overall: Number(item.audit_scores?.overall) || 0,
+        support: Number(item.audit_scores?.support) || 0,
+        cooling: Number(item.audit_scores?.cooling) || 0,
+        pressure: Number(item.audit_scores?.pressure) || 0,
+        ...(item.audit_scores || {})
+    }
+
+    const finalPros =
+        localMeta.pros?.length > 0
+            ? localMeta.pros
+            : item.pros?.length > 0
+              ? item.pros
+              : ["Lab Verified Material", "Premium Construction"]
+
+    const finalCons =
+        localMeta.cons?.length > 0 ? localMeta.cons : item.cons || []
+
+    const auditDataRaw = item.audit_data
+    let auditHash: string | undefined
+    if (
+        auditDataRaw &&
+        typeof auditDataRaw === "object" &&
+        "audit_hash" in auditDataRaw
+    ) {
+        auditHash = String(
+            (auditDataRaw as { audit_hash?: string }).audit_hash || ""
+        ).trim()
+    } else if (typeof auditDataRaw === "string") {
+        try {
+            const parsed = JSON.parse(auditDataRaw)
+            if (parsed?.audit_hash) auditHash = String(parsed.audit_hash).trim()
+        } catch {
+            /* ignore */
+        }
+    }
+
+    const defaultOffer: Offer = {
+        site: dbOffer?.site_name || "Official Store",
+        price:
+            Number(dbOffer?.price || item.price || localMeta.price) || 0,
+        url:
+            dbOffer?.offer_url ||
+            item.affiliate_link ||
+            `https://link.sleepchoice.com/${slug}`,
+        primary: true,
+        promo: "LATEST_DEAL",
+        promo_text: dbOffer?.promo_text || "Check Latest Price",
+        is_best_deal: true
+    }
+
+    return {
+        ...localMeta,
+        id: String(item.id),
+        slug,
+        brand: item.brand || localMeta.brand,
+        name: item.model || localMeta.name,
+        image_url:
+            item.image_url ||
+            localMeta.image_url ||
+            item.original_image_url ||
+            "/placeholder-product.png",
+        original_image_url:
+            item.original_image_url || localMeta.original_image_url,
+
+        price: defaultOffer.price,
+        rating: scores.overall,
+        audit_scores: scores,
+        offers: [defaultOffer],
+        pros: finalPros,
+        cons: finalCons,
+        protocol_version: APP_PROTOCOL,
+        last_audited_at: item.updated_at || new Date().toISOString(),
+        ...(auditHash ? { audit_hash: auditHash } : {}),
+        ...(typeof item.review_count === "number"
+            ? { review_count: item.review_count }
+            : {})
+    } as ProductData
+}
+
+/**
+ * 按 slug 或数据库 id 取单条产品（Journal、sitemap 对应 URL 需与归档列表一致）。
+ */
+export const getProductBySlugOrId = cache(
+    async (slugOrId: string): Promise<ProductData | null> => {
+        const key = slugOrId.trim()
+        if (!key) return null
+
+        const localRegistry = await getRegistry()
+
+        const { data: bySlug } = await supabase
+            .from("audit_products")
+            .select(PRODUCT_OFFERS_SELECT)
+            .eq("slug", key)
+            .maybeSingle()
+
+        const item =
+            bySlug ||
+            (
+                await supabase
+                    .from("audit_products")
+                    .select(PRODUCT_OFFERS_SELECT)
+                    .eq("id", key)
+                    .maybeSingle()
+            ).data
+
+        if (!item) return null
+
+        const mapped = mergeAuditProductRow(item, localRegistry)
+        return isListableAuditProduct(mapped) ? mapped : null
+    }
+)
+
 /**
  * 优化后的自动化注册表获取逻辑
  * 策略：DB 提供实时审计分值和状态，Local JSON 提供运营文案、SEO 和人工校准
@@ -23,14 +159,7 @@ export const getAutomatedRegistry = cache(
                 Promise.race([
                     supabase
                         .from("audit_products")
-                        .select(
-                            `
-                *,
-                product_offers (
-                    offer_url, price, promo_text, is_primary, status, site_name
-                )
-            `
-                        )
+                        .select(PRODUCT_OFFERS_SELECT)
                         // ✨ 核心优化 1：排除价格为 0 或空的数据
                         .gt("price", 0)
                         // ✨ 核心优化 2：排除使用占位图的数据
@@ -61,103 +190,7 @@ export const getAutomatedRegistry = cache(
             }
 
             return dbProducts
-                .map((item: any): ProductData => {
-                const slug = item.slug || ""
-                const localMeta = localRegistry.products[slug] || {}
-                const dbOffer = item.product_offers?.[0]
-
-                // 1. 评分逻辑
-                const scores: AuditScores = {
-                    overall: Number(item.audit_scores?.overall) || 0,
-                    support: Number(item.audit_scores?.support) || 0,
-                    cooling: Number(item.audit_scores?.cooling) || 0,
-                    pressure: Number(item.audit_scores?.pressure) || 0,
-                    ...(item.audit_scores || {})
-                }
-
-                // 2. 核心修复：确保 Pros/Cons 优先级
-                // 策略：如果本地 JSON 有精心写的 pros，优先用本地的；否则用 DB 的；最后保底。
-                const finalPros =
-                    localMeta.pros?.length > 0
-                        ? localMeta.pros
-                        : item.pros?.length > 0
-                          ? item.pros
-                          : ["Lab Verified Material", "Premium Construction"]
-
-                const finalCons =
-                    localMeta.cons?.length > 0
-                        ? localMeta.cons
-                        : item.cons || []
-
-                const auditDataRaw = item.audit_data
-                let auditHash: string | undefined
-                if (
-                    auditDataRaw &&
-                    typeof auditDataRaw === "object" &&
-                    "audit_hash" in auditDataRaw
-                ) {
-                    auditHash = String(
-                        (auditDataRaw as { audit_hash?: string }).audit_hash ||
-                            ""
-                    ).trim()
-                } else if (typeof auditDataRaw === "string") {
-                    try {
-                        const parsed = JSON.parse(auditDataRaw)
-                        if (parsed?.audit_hash)
-                            auditHash = String(parsed.audit_hash).trim()
-                    } catch {
-                        /* ignore */
-                    }
-                }
-
-                // 3. Offer 逻辑
-                const defaultOffer: Offer = {
-                    site: dbOffer?.site_name || "Official Store",
-                    price:
-                        Number(
-                            dbOffer?.price || item.price || localMeta.price
-                        ) || 0,
-                    url:
-                        dbOffer?.offer_url ||
-                        item.affiliate_link ||
-                        `https://link.sleepchoice.com/${slug}`,
-                    primary: true,
-                    promo: "LATEST_DEAL",
-                    promo_text: dbOffer?.promo_text || "Check Latest Price",
-                    is_best_deal: true
-                }
-
-                // 4. 返回完整对象
-                return {
-                    ...localMeta, // 基础 UI 配置
-                    id: String(item.id),
-                    slug,
-                    brand: item.brand || localMeta.brand,
-                    name: item.model || localMeta.name,
-                    image_url:
-                        item.image_url ||
-                        localMeta.image_url ||
-                        item.original_image_url ||
-                        "/placeholder-product.png",
-                    original_image_url:
-                        item.original_image_url || localMeta.original_image_url,
-
-                    // 覆盖关键数据
-                    price: defaultOffer.price,
-                    rating: scores.overall,
-                    audit_scores: scores,
-                    offers: [defaultOffer],
-                    pros: finalPros, // ✨ 确保这里被赋值
-                    cons: finalCons, // ✨ 确保这里被赋值
-                    // 补全必填
-                    protocol_version: APP_PROTOCOL,
-                    last_audited_at: item.updated_at || new Date().toISOString(),
-                    ...(auditHash ? { audit_hash: auditHash } : {}),
-                    ...(typeof item.review_count === "number"
-                        ? { review_count: item.review_count }
-                        : {})
-                } as ProductData
-            })
+                .map((item: any) => mergeAuditProductRow(item, localRegistry))
                 .filter(isListableAuditProduct)
         } catch (e) {
             console.error("❌ Critical Failure:", e)

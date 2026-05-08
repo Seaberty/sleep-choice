@@ -18,64 +18,64 @@ load_dotenv(dotenv_path=env_path)
 # 每个产品只取核心规格，避免数量爆炸，同时保证价格覆盖
 FLUFFCO_TARGETS = [
     # 1. PILLOWS (枕头系列)
-    {
-        "model": "Down Feather Pillow", 
-        "spec_label": "Standard / Soft/Medium",
-        "url": "https://fluff.co/products/down-feather-pillow?variant=35113578889377"
-    },
+    # {
+    #     "model": "Down Feather Pillow", 
+    #     "spec_label": "Standard / Soft/Medium",
+    #     "url": "https://fluff.co/products/down-feather-pillow?variant=35113578889377"
+    # },
     {
         "model": "Down Alternative Pillow", 
         "spec_label": "Standard / Soft/Medium",
         "url": "https://fluff.co/products/down-alternative-pillow?variant=35113580527777"
     },
 
-    # 2. COMFORTERS (被褥系列)
-    {
-        "model": "Down Blended Comforter", 
-        "spec_label": "Queen / All Season",
-        "url": "https://fluff.co/products/down-blended-comforter-1?variant=39752258519201"
-    },
-    {
-        "model": "Down Alternative Comforter", 
-        "spec_label": "Queen / All Season",
-        "url": "https://fluff.co/products/down-alternative-comforter?variant=40396635078817"
-    },
+    # # 2. COMFORTERS (被褥系列)
+    # {
+    #     "model": "Down Blended Comforter", 
+    #     "spec_label": "Queen / All Season",
+    #     "url": "https://fluff.co/products/down-blended-comforter-1?variant=39752258519201"
+    # },
+    # {
+    #     "model": "Down Alternative Comforter", 
+    #     "spec_label": "Queen / All Season",
+    #     "url": "https://fluff.co/products/down-alternative-comforter?variant=40396635078817"
+    # },
 
-    # 3. BATH (修正后的浴袍与毛巾系列 - 对应截图 Bath 栏目)
-    {
-        "model": "Hotel Lounge Robe", 
-        "spec_label": "White / L/XL",
-        "url": "https://fluff.co/products/hotel-lounge-robe?variant=39752183447713"
-    },
-    {
-        "model": "Hotel Waffle Robe", 
-        "spec_label": "White / L/XL",
-        "url": "https://fluff.co/products/hotel-waffle-robe?variant=49119638749478"
-    },
-    {
-        "model": "Hotel Towel", 
-        "spec_label": "White / Standard",
-        "url": "https://fluff.co/products/hotel-towel?variant=40808608858273"
-    },
+    # # 3. BATH (修正后的浴袍与毛巾系列 - 对应截图 Bath 栏目)
+    # {
+    #     "model": "Hotel Lounge Robe", 
+    #     "spec_label": "White / L/XL",
+    #     "url": "https://fluff.co/products/hotel-lounge-robe?variant=39752183447713"
+    # },
+    # {
+    #     "model": "Hotel Waffle Robe", 
+    #     "spec_label": "White / L/XL",
+    #     "url": "https://fluff.co/products/hotel-waffle-robe?variant=49119638749478"
+    # },
+    # {
+    #     "model": "Hotel Towel", 
+    #     "spec_label": "White / Standard",
+    #     "url": "https://fluff.co/products/hotel-towel?variant=40808608858273"
+    # },
 
-    # 4. SHEETS & SILK (床单与真丝系列)
-    {
-        "model": "Silk Pillowcase", 
-        "spec_label": "White / Queen",
-        "url": "https://fluff.co/products/silk-pillowcase?variant=35113585016865"
-    },
+    # # 4. SHEETS & SILK (床单与真丝系列)
+    # {
+    #     "model": "Silk Pillowcase", 
+    #     "spec_label": "White / Queen",
+    #     "url": "https://fluff.co/products/silk-pillowcase?variant=35113585016865"
+    # },
 
-    # 5. BUNDLES (截图右侧强力推荐的高佣金套装)
-    {
-        "model": "2x Hotel Pillows & Pillowcase Set", 
-        "spec_label": "Down Alternative / Standard",
-        "url": "https://fluff.co/products/2x-hotel-pillows-pillowcase-set-down-alternative?variant=44681905733926"
-    },
-    {
-        "model": "Pillow & Comforter Kit", 
-        "spec_label": "Standard / Queen",
-        "url": "https://fluff.co/products/pillow-comforter-kit?variant=35113586032705"
-    }
+    # # 5. BUNDLES (截图右侧强力推荐的高佣金套装)
+    # {
+    #     "model": "2x Hotel Pillows & Pillowcase Set", 
+    #     "spec_label": "Down Alternative / Standard",
+    #     "url": "https://fluff.co/products/2x-hotel-pillows-pillowcase-set-down-alternative?variant=44681905733926"
+    # },
+    # {
+    #     "model": "Pillow & Comforter Kit", 
+    #     "spec_label": "Standard / Queen",
+    #     "url": "https://fluff.co/products/pillow-comforter-kit?variant=35113586032705"
+    # }
 ]
 
 class FluffCoForensicScanner:
@@ -138,5 +138,5 @@ class FluffCoForensicScanner:
                 await asyncio.sleep(20) # 安全间隔
 
 if __name__ == "__main__":
-    scanner = FluffCoForensicScanner(force_update=True)
+    scanner = FluffCoForensicScanner(force_update=False)
     asyncio.run(scanner.start())

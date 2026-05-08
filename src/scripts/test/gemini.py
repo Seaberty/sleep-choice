@@ -19,8 +19,8 @@ else:
 
 # 2. 注入 v2rayU 代理端口 (Gemini API 必需)
 # v2rayU 默认 HTTP 端口通常为 1087
-os.environ["HTTP_PROXY"] = "http://127.0.0.1:10801"
-os.environ["HTTPS_PROXY"] = "http://127.0.0.1:10801"
+os.environ["HTTP_PROXY"] = "http://127.0.0.1:1087"
+os.environ["HTTPS_PROXY"] = "http://127.0.0.1:1087"
 
 def test_gemini_2_5():
     api_key = os.getenv("GEMINI_API_KEY")

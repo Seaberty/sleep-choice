@@ -18,6 +18,10 @@ import {
 import { motion, AnimatePresence } from "framer-motion"
 import { cn } from "@/lib/utils"
 import { APP_PROTOCOL } from "@/lib/constants"
+import {
+    persistQuizPrefsFromAnswers,
+    quizAnswersFromRecord
+} from "@/lib/quiz-score"
 
 export default function QuizPage() {
     const [currentStep, setCurrentStep] = useState(0)
@@ -123,6 +127,37 @@ export default function QuizPage() {
                     desc: "Standard performance metrics"
                 }
             ]
+        },
+        {
+            id: "budget",
+            question: "SET: ECONOMIC_CONSTRAINT_VECTOR",
+            options: [
+                {
+                    value: "under_1500",
+                    label: "Tier A (< $1,500)",
+                    desc: "Entry — stronger budget penalty outside band"
+                },
+                {
+                    value: "1500_2500",
+                    label: "Tier B ($1.5k – $2.5k)",
+                    desc: "Mid-market calibration"
+                },
+                {
+                    value: "2500_4000",
+                    label: "Tier C ($2.5k – $4k)",
+                    desc: "Premium hybrid / latex window"
+                },
+                {
+                    value: "over_4000",
+                    label: "Tier D (> $4k)",
+                    desc: "Ultra-lux / split-king territory"
+                },
+                {
+                    value: "unsure",
+                    label: "Undetermined",
+                    desc: "Skip budget filter — lab scores only"
+                }
+            ]
         }
     ]
 
@@ -134,10 +169,12 @@ export default function QuizPage() {
     }
 
     const startAnalysis = () => {
+        const validated = quizAnswersFromRecord(answers)
+        if (!validated) return
+        persistQuizPrefsFromAnswers(validated)
         setIsAnalyzing(true)
-        // 模拟精密计算耗时
         setTimeout(() => {
-            window.location.href = `/best-picks?quiz=true&answers=${encodeURIComponent(JSON.stringify(answers))}`
+            window.location.href = `/best-picks?quiz=1&answers=${encodeURIComponent(JSON.stringify(validated))}`
         }, 2800)
     }
 
@@ -218,11 +255,11 @@ export default function QuizPage() {
                             <div className="flex items-center gap-4 py-3 border-y border-slate-100">
                                 <Fingerprint className="w-4 h-4 text-slate-400" />
                                 <p className="text-[10px] font-mono font-bold text-slate-400 uppercase tracking-widest">
-                                    Secure_Session_ID:{" "}
-                                    {Math.random()
-                                        .toString(16)
-                                        .substring(2, 10)
-                                        .toUpperCase()}
+                                    Match_Target:{" "}
+                                    <span className="text-slate-600">
+                                        Live audit_products registry — brands &
+                                        SKUs expand without quiz code changes
+                                    </span>
                                 </p>
                             </div>
                         </header>

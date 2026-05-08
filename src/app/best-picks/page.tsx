@@ -2,6 +2,10 @@ import { Metadata } from "next"
 import Link from "next/link"
 import Image from "next/image"
 import { getAutomatedRegistry } from "@/lib/registry"
+import {
+    parseQuizAnswersParam,
+    rankProductsByQuiz
+} from "@/lib/quiz-score"
 import { ProductCard } from "@/components/product-card"
 import {
     Activity,
@@ -26,9 +30,32 @@ export const metadata: Metadata = {
     alternates: { canonical: "/best-picks" }
 }
 
-export default async function BestPicksPage() {
+type SearchProps = {
+    searchParams: Promise<{ quiz?: string; answers?: string }>
+}
+
+export default async function BestPicksPage({ searchParams }: SearchProps) {
+    const sp = await searchParams
     const products = await getAutomatedRegistry(50)
-    const sortedProducts = [...products].sort((a, b) => b.rating - a.rating)
+
+    const parsedQuiz = parseQuizAnswersParam(
+        typeof sp.answers === "string" ? sp.answers : undefined
+    )
+    const quizActive =
+        (sp.quiz === "1" || sp.quiz === "true") && parsedQuiz !== null
+
+    let quizRank: ReturnType<typeof rankProductsByQuiz> | null = null
+    let sortedProducts = [...products].sort((a, b) => b.rating - a.rating)
+
+    if (quizActive && parsedQuiz) {
+        quizRank = rankProductsByQuiz(products, parsedQuiz)
+        sortedProducts = quizRank.ranked
+    }
+
+    const topMatchScore =
+        quizRank && sortedProducts[0]
+            ? Math.round(quizRank.scoresBySlug[sortedProducts[0].slug] ?? 0)
+            : null
 
     const jsonLd = {
         "@context": "https://schema.org",
@@ -156,6 +183,34 @@ export default async function BestPicksPage() {
                     </div>
                 </header>
 
+                {quizActive && parsedQuiz && sortedProducts.length > 0 && (
+                    <section className="mb-12 md:mb-16 max-w-4xl border border-blue-600/30 bg-blue-50/40 px-6 py-6 md:px-10 md:py-8">
+                        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                            <div>
+                                <span className="text-[10px] font-black uppercase tracking-[0.35em] text-blue-600">
+                                    Quiz_Calibration_Applied
+                                </span>
+                                <p className="mt-2 text-sm md:text-base font-bold text-slate-800 uppercase tracking-tight">
+                                    Registry re-ranked using live audit vectors
+                                    (support · cooling · pressure · durability)
+                                    vs. your session inputs.
+                                </p>
+                            </div>
+                            <div className="shrink-0 text-right">
+                                <span className="text-[9px] font-black uppercase tracking-widest text-slate-400 block">
+                                    Top_Protocol_Score
+                                </span>
+                                <span className="font-mono text-3xl font-bold text-blue-600">
+                                    {topMatchScore ?? "—"}
+                                    <span className="text-lg text-slate-400">
+                                        /100
+                                    </span>
+                                </span>
+                            </div>
+                        </div>
+                    </section>
+                )}
+
                 {/* --- 2. Scoring Protocol Grid: 工业协议展示 --- */}
                 <section className="mb-20 md:mb-32">
                     <div className="bg-slate-950 text-white p-10 md:p-20 relative overflow-hidden shadow-[20px_20px_0px_0px_rgba(37,99,235,0.1)]">
@@ -233,7 +288,9 @@ export default async function BestPicksPage() {
                         <div className="relative group">
                             {/* 这里的标签稍微偏移以增加工业设计感 */}
                             <div className="absolute -top-5 left-10 z-30 bg-blue-600 text-white px-8 py-3 font-black text-[11px] uppercase tracking-[0.3em] italic shadow-2xl skew-x-[-12deg]">
-                                #01_Top_Recommendation
+                                {quizActive
+                                    ? "#01_Quiz_Match"
+                                    : "#01_Top_Recommendation"}
                             </div>
 
                             <div className="border-[6px] border-blue-600 transition-all hover:shadow-[0_0_50px_rgba(37,99,235,0.15)] bg-white overflow-hidden">

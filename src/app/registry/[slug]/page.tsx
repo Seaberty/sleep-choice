@@ -1,5 +1,6 @@
 import { supabase } from "@/lib/supabase"
 import { APP_PROTOCOL } from "@/lib/constants"
+import { buildRegistryProductJsonLd } from "@/lib/product-jsonld"
 import { productGoLink, APPROVED_AFFILIATE_BRANDS } from "@/lib/go-redirect"
 import { notFound } from "next/navigation"
 import { Metadata } from "next"
@@ -43,7 +44,7 @@ interface Product {
     model: string
     // --- 新增 SEO 字段 ---
     seo_title?: string // 对应 SEO 标题
-    seo_description?: string // 对应 SEO 描述
+    seo_description?: string // 对应 SEO 描述（产品简介，结构化数据 description 优先使用）
     seo_keywords?: string // 对应 SEO 关键词
     // -------------------
     audit_scores: AuditScores | string
@@ -410,39 +411,35 @@ export default async function ProductAuditPage({
         typeof product.review_count === "number" ? product.review_count : 0
     const showAggregateRating = Number(scores.overall) > 0
 
-    const productJsonLd: Record<string, unknown> = {
-        "@context": "https://schema.org/",
-        "@type": "Product",
-        name: `${product.brand} ${product.model}`,
-        description: product.summary_log,
-        brand: { "@type": "Brand", name: product.brand }
-    }
-    if (hasListingImage) {
-        productJsonLd.image = product.image_url
-    }
-    if (showAggregateRating) {
-        productJsonLd.aggregateRating = {
-            "@type": "AggregateRating",
-            ratingValue: scores.overall,
-            bestRating: "10",
-            worstRating: "1",
-            ratingCount:
-                rcForLd > 0 ? rcForLd.toString() : "85",
-            reviewCount:
-                rcForLd > 0 ? rcForLd.toString() : "82"
-        }
-    }
-    if (hasOfferForLd) {
-        productJsonLd.offers = {
-            "@type": "AggregateOffer",
-            lowPrice:
-                offers.length > 0
-                    ? offers[minPriceIndex].price
-                    : product.price,
-            priceCurrency: "USD",
-            offerCount: Math.max(1, offers.length)
-        }
-    }
+    const offerPricesPositive = offers
+        .map((o) => Number(o.price))
+        .filter((n) => Number.isFinite(n) && n > 0)
+    const highPriceNum =
+        offerPricesPositive.length > 0
+            ? Math.max(...offerPricesPositive)
+            : lowPriceNum
+    const offerPriceDisplay =
+        offers.length > 0 && minPriceIndex >= 0
+            ? offers[minPriceIndex].price
+            : product.price
+
+    const productJsonLd = buildRegistryProductJsonLd({
+        slug,
+        brand: product.brand,
+        model: product.model,
+        seo_description: product.seo_description,
+        audit_note: product.audit_note,
+        summary_log: product.summary_log,
+        image_url: product.image_url,
+        lowPriceNum,
+        highPriceNum,
+        offerCount: Math.max(1, offers.length),
+        hasOfferForLd,
+        offerPriceDisplay,
+        scoresOverall: scores.overall,
+        showAggregateRating,
+        reviewCount: rcForLd
+    })
 
     return (
         <main className="min-h-screen bg-white text-slate-900 pb-20 pt-32 md:pt-44 font-sans selection:bg-blue-600 selection:text-white">

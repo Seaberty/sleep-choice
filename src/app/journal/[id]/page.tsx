@@ -1,4 +1,4 @@
-import { getAutomatedRegistry } from "@/lib/registry"
+import { getProductBySlugOrId } from "@/lib/registry"
 import { notFound } from "next/navigation"
 import Link from "next/link"
 import {
@@ -17,14 +17,9 @@ type Props = {
     params: Promise<{ id: string }>
 }
 
-/**
- * 辅助函数：根据 ID (或 slug) 获取产品
- */
+/** 与 sitemap 中 /journal/{slug} 一致：按 slug 或数据库 id 直连查询，不限于首页 registry 条数。 */
 async function getProductEntry(id: string) {
-    const registryData = await getAutomatedRegistry()
-    // 因为 getAutomatedRegistry 返回数组，需使用 find
-    // 优先匹配 slug，如果不匹配再匹配 id
-    return registryData.find(item => item.slug === id || item.id === id)
+    return getProductBySlugOrId(id)
 }
 
 // 异步生成元数据
