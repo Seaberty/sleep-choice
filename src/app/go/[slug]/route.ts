@@ -1,15 +1,41 @@
 import { NextResponse } from "next/server"
-import { supabase } from "@/lib/supabase"
+import { supabase, supabaseAdmin } from "@/lib/supabase"
+import { appendCouponToMerchantUrl } from "@/lib/merchant-coupon-url"
 
 export const dynamic = "force-dynamic"
 
 const FALLBACK_HOME = "https://sleepchoiceguide.com"
 
 type OfferRow = {
+    id: string
     offer_url: string | null
     site_name: string | null
     is_primary: boolean | null
     status: string | null
+    coupon_code: string | null
+}
+
+async function incrementOfferClickCount(offerId: string): Promise<void> {
+    const { data, error: selErr } = await supabaseAdmin
+        .from("product_offers")
+        .select("click_count")
+        .eq("id", offerId)
+        .maybeSingle()
+
+    if (selErr) {
+        console.warn("[go] click_count select:", selErr.message)
+        return
+    }
+
+    const next = (Number(data?.click_count) || 0) + 1
+    const { error: updErr } = await supabaseAdmin
+        .from("product_offers")
+        .update({ click_count: next })
+        .eq("id", offerId)
+
+    if (updErr) {
+        console.warn("[go] click_count update:", updErr.message)
+    }
 }
 
 /**
@@ -21,7 +47,7 @@ function cjDeepLinkPrefix(siteName: string): string | undefined {
     const map: Record<string, string | undefined> = {
         FluffCo:
         process.env.AFFILIATE_IMPACT_FUFFCO ??
-        "https://fluffco.pxf.io/jeK6vZ?u=",
+        "https://fluffco.pxf.io/c/6815113/3012270/26581?u=",
         "Sleep & Beyond":
             process.env.AFFILIATE_CJ_SLEEP_AND_BEYOND ??
             "https://www.tkqlhce.com/click-101698024-13814555?url=",
@@ -48,10 +74,12 @@ export async function GET(
       slug,
       official_link,
       product_offers (
+        id,
         offer_url,
         site_name,
         is_primary,
-        status
+        status,
+        coupon_code
       )
     `
         )
@@ -67,7 +95,7 @@ export async function GET(
     const offer =
         active.find((o) => o.is_primary) ?? active[0] ?? offers[0]
 
-    const targetUrl =
+    let targetUrl =
         (offer?.offer_url && offer.offer_url.trim()) ||
         (typeof data.official_link === "string" && data.official_link.trim()) ||
         ""
@@ -77,6 +105,16 @@ export async function GET(
     }
 
     const siteName = offer?.site_name?.trim() ?? ""
+    targetUrl = appendCouponToMerchantUrl(
+        targetUrl,
+        siteName,
+        offer?.coupon_code
+    )
+
+    if (offer?.id) {
+        await incrementOfferClickCount(offer.id)
+    }
+
     const affiliateBase = cjDeepLinkPrefix(siteName)
 
     if (affiliateBase) {

@@ -31,11 +31,10 @@ function normalizeQuizTags(raw: unknown): string[] {
     return []
 }
 
+/** 嵌套用 `*`：避免请求库里尚未迁移的列名导致整条 select 失败（全站 registry 空白）。 */
 const PRODUCT_OFFERS_SELECT = `
                 *,
-                product_offers (
-                    offer_url, price, promo_text, is_primary, status, site_name
-                )
+                product_offers (*)
             `
 
 function parseTechnicalSpecs(raw: unknown): Record<string, string> {
@@ -72,6 +71,108 @@ function parseAuditDataPartial(
     return obj as Partial<ForensicAuditData> & {
         specs_matrix?: Record<string, string>
     }
+}
+
+function positiveMoney(value: unknown): number | undefined {
+    const n = Number(value)
+    if (!Number.isFinite(n) || n <= 0) return undefined
+    return n
+}
+
+/** 版面促销词，勿当作优惠码（与 forensic_engine COUPON_DENYLIST 对齐） */
+const COUPON_WORD_DENY = new Set([
+    "HOURS",
+    "TODAY",
+    "TONIGHT",
+    "NIGHT",
+    "NIGHTS",
+    "DAYS",
+    "DAY",
+    "WEEKS",
+    "WEEK",
+    "ORDER",
+    "ORDERS",
+    "SHIPPING",
+    "STORE",
+    "STORES",
+    "SHOP",
+    "FREE",
+    "SAVE",
+    "SALE",
+    "DEALS",
+    "DEAL",
+    "LIMITED",
+    "SPRING",
+    "SUMMER",
+    "TIME",
+    "LEFT",
+    "OFF",
+    "VIP",
+    "SLEEP",
+    "REST",
+    "BED"
+])
+
+/**
+ * 从 promo 文案中提取优惠码：优先「字母+数字」形态（如 MOM15），避免首词命中 HOURS 等噪声。
+ */
+function extractCouponFromPromo(
+    promoText: string | undefined | null
+): string | null {
+    if (promoText == null || typeof promoText !== "string") return null
+    const normalized = promoText.toUpperCase()
+    const digitFirst = normalized.match(/\b([A-Z]{2,}\d{2,}[A-Z0-9]*)\b/)
+    if (digitFirst) {
+        const w = digitFirst[1]
+        if (
+            !COUPON_WORD_DENY.has(w) &&
+            w.length >= 4 &&
+            w.length <= 14
+        ) {
+            return w
+        }
+    }
+    const re = /\b[A-Z0-9]{4,14}\b/g
+    let m: RegExpExecArray | null
+    while ((m = re.exec(normalized)) !== null) {
+        const w = m[0]
+        if (COUPON_WORD_DENY.has(w)) continue
+        if (/^\d+$/.test(w)) continue
+        if (/^[A-Z]+$/.test(w) && w.length <= 6) continue
+        return w
+    }
+    return null
+}
+
+function isPlausibleCouponCode(code: string | null | undefined): boolean {
+    if (code == null || typeof code !== "string" || !code.trim()) return false
+    const u = code
+        .trim()
+        .toUpperCase()
+        .replace(/[^A-Z0-9]/g, "")
+    if (u.length < 4 || u.length > 16) return false
+    if (COUPON_WORD_DENY.has(u)) return false
+    if (/^[A-Z]+$/.test(u) && u.length <= 6) return false
+    return true
+}
+
+/** DB / promo 合并；噪声码丢弃；FluffCo 可用站点默认码（与爬虫 FLUFFCO_SITE_COUPON / MOM15 对齐） */
+function resolveCouponCode(
+    brand: string | undefined,
+    fromRow: string | null,
+    fromPromo: string | null
+): string | null {
+    const fluffDefault =
+        process.env.NEXT_PUBLIC_FLUFFCO_SITE_COUPON?.trim().toUpperCase() ||
+        "MOM15"
+    const prefer = (c: string | null | undefined) =>
+        c && isPlausibleCouponCode(c) ? c.trim().toUpperCase() : null
+    const rowOk = prefer(fromRow)
+    if (rowOk) return rowOk
+    const promoOk = prefer(fromPromo)
+    if (promoOk) return promoOk
+    if (brand?.trim() === "FluffCo") return fluffDefault
+    return null
 }
 
 function mergeAuditProductRow(
@@ -135,10 +236,18 @@ function mergeAuditProductRow(
         ...(typeof dbAudit.specs_matrix === "object" ? dbAudit.specs_matrix : {})
     } as ForensicAuditData["specs_matrix"]
 
+    const msrpColumn = positiveMoney(item.msrp)
+    const msrpFromAuditJson =
+        Number(dbAudit.msrp ?? localAudit.msrp ?? 0) || 0
+
+    const mergedAuditVariant = (
+        dbAudit.audit_variant ??
+        localAudit.audit_variant ??
+        ""
+    ).trim()
+
     const mergedAuditData: ForensicAuditData = {
-        msrp:
-            Number(dbAudit.msrp ?? localAudit.msrp ?? 0) ||
-            0,
+        msrp: msrpColumn ?? msrpFromAuditJson,
         specs_matrix: mergedSpecsMatrix,
         arbitrage_report: String(
             dbAudit.arbitrage_report ?? localAudit.arbitrage_report ?? ""
@@ -154,21 +263,63 @@ function mergeAuditProductRow(
                           ""
                   ).trim()
               }
-            : {})
+            : {}),
+        ...(mergedAuditVariant ? { audit_variant: mergedAuditVariant } : {})
     }
+
+    const promoText = dbOffer?.promo_text || "Check Latest Price"
+    const priceNum =
+        Number(dbOffer?.price || item.price || localMeta.price) || 0
+
+    /** 官方原价：优先 audit_products.msrp，其次 product_offers.old_price */
+    const msrpFromProductRow = positiveMoney(item.msrp)
+    const oldFromOffer = positiveMoney(
+        dbOffer?.old_price ?? dbOffer?.oldPrice
+    )
+    const resolvedOldPrice = msrpFromProductRow ?? oldFromOffer
+
+    let savingsAmount: number | null = null
+    let savingsPercent: number | null = null
+    if (
+        resolvedOldPrice !== undefined &&
+        resolvedOldPrice > priceNum
+    ) {
+        savingsAmount = resolvedOldPrice - priceNum
+        savingsPercent = Math.round((savingsAmount / resolvedOldPrice) * 100)
+    }
+
+    const couponFromRow =
+        typeof dbOffer?.coupon_code === "string" && dbOffer.coupon_code.trim()
+            ? dbOffer.coupon_code.trim().toUpperCase()
+            : null
+    const couponFromPromo = extractCouponFromPromo(promoText)
+    const couponCode = resolveCouponCode(
+        item.brand || localMeta.brand,
+        couponFromRow,
+        couponFromPromo
+    )
 
     const defaultOffer: Offer = {
         site: dbOffer?.site_name || "Official Store",
-        price:
-            Number(dbOffer?.price || item.price || localMeta.price) || 0,
+        price: priceNum,
         url:
             dbOffer?.offer_url ||
             item.affiliate_link ||
             `https://link.sleepchoice.com/${slug}`,
         primary: true,
         promo: "LATEST_DEAL",
-        promo_text: dbOffer?.promo_text || "Check Latest Price",
-        is_best_deal: true
+        promo_text: promoText,
+        is_best_deal: true,
+        ...(resolvedOldPrice !== undefined ? { oldPrice: resolvedOldPrice } : {}),
+        savingsAmount,
+        savingsPercent,
+        couponCode,
+        availability: (() => {
+            const a = dbOffer?.availability
+            if (a == null || a === "") return null
+            const s = String(a).trim()
+            return s || null
+        })()
     }
 
     return {
@@ -203,7 +354,11 @@ function mergeAuditProductRow(
         pros: finalPros,
         cons: finalCons,
         protocol_version: APP_PROTOCOL,
-        last_audited_at: item.updated_at || new Date().toISOString(),
+        last_audited_at:
+            (typeof item.last_audited_at === "string" &&
+                item.last_audited_at.trim()) ||
+            item.updated_at ||
+            new Date().toISOString(),
         ...(auditHash ? { audit_hash: auditHash } : {}),
         ...(typeof item.review_count === "number"
             ? { review_count: item.review_count }

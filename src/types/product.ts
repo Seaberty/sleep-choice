@@ -10,6 +10,14 @@ export interface Offer {
     oldPrice?: number
     promo?: string
     promo_text?: string
+    /** 相对原价节省金额；仅当 oldPrice > price 时有值，否则为 null */
+    savingsAmount?: number | null
+    /** 相对原价折扣百分比（整数）；仅当 oldPrice > price 时有值，否则为 null */
+    savingsPercent?: number | null
+    /** 从 promo_text 正则提取的 4–10 位优惠码；未匹配则为 null */
+    couponCode?: string | null
+    /** 库存/供货状态（如 Supabase product_offers.availability） */
+    availability?: string | null
     primary: boolean
     is_best_deal: boolean // 标记是否为审计推荐的最优买入点
 }
@@ -42,6 +50,11 @@ export interface ForensicAuditData {
     arbitrage_report: string
     /** 与 forensic_engine 写入的 audit_data.audit_hash 一致（8 位十六进制指纹） */
     audit_hash?: string
+    /**
+     * 定价锚定规格（与抓取到的 price / msrp 同源，如 Queen、Standard）。
+     * 由抓取端 JSON-LD 伪算法写入；缺失表示旧数据或未锚定。
+     */
+    audit_variant?: string
 }
 
 export interface ProductMeta {
