@@ -49,6 +49,34 @@ if not _ENV.is_file():
 load_dotenv(dotenv_path=_ENV)
 
 
+def _bootstrap_supabase_env_from_aliases() -> None:
+    """把 Vercel 常用别名写回标准名，便于 forensic_engine 等仍读 SUPABASE_*。"""
+    if not (os.getenv("SUPABASE_URL") or "").strip():
+        alt = (os.getenv("NEXT_PUBLIC_SUPABASE_URL") or "").strip()
+        if alt:
+            os.environ["SUPABASE_URL"] = alt
+    if not (os.getenv("SUPABASE_KEY") or "").strip():
+        alt = (os.getenv("SUPABASE_SERVICE_ROLE_KEY") or "").strip()
+        if alt:
+            os.environ["SUPABASE_KEY"] = alt
+
+
+_bootstrap_supabase_env_from_aliases()
+
+
+def _resolve_supabase_credentials() -> tuple[str | None, str | None]:
+    """优先标准名；兼容 Next/Vercel 常用名与 service_role。"""
+    url = (
+        (os.getenv("SUPABASE_URL") or "").strip()
+        or (os.getenv("NEXT_PUBLIC_SUPABASE_URL") or "").strip()
+    )
+    key = (
+        (os.getenv("SUPABASE_KEY") or "").strip()
+        or (os.getenv("SUPABASE_SERVICE_ROLE_KEY") or "").strip()
+    )
+    return (url or None, key or None)
+
+
 def _audit_msrp_unset(row: dict | None) -> bool:
     """audit_products.msrp 未写入或可视为缺失（None / 非正数）。"""
     if not row:
@@ -207,11 +235,16 @@ class IntelBatchScanner:
         self.sync_mode = sync_mode
         self.limit_per_brand = limit_per_brand
         self.no_cooldown = no_cooldown
-        url = os.getenv("SUPABASE_URL")
-        key = os.getenv("SUPABASE_KEY")
+        url, key = _resolve_supabase_credentials()
         if not url or not key:
-            print(f"❌ 环境探测失败: 尝试加载路径 {_ENV.absolute()}")
-            raise ValueError("SUPABASE_URL 或 SUPABASE_KEY 未设置")
+            print(f"❌ 环境探测失败: 已查找 dotenv 路径 {_ENV.absolute()}（CI 上通常不存在）")
+            raise ValueError(
+                "SUPABASE_URL 或 SUPABASE_KEY 未设置。"
+                "本地请在仓库根目录或 src 下放 .env.local；"
+                "GitHub Actions 请在仓库 Settings → Secrets and variables → Actions "
+                "中添加 SUPABASE_URL 与 SUPABASE_KEY（建议 service_role key）。"
+                "亦可使用 NEXT_PUBLIC_SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY。"
+            )
         self.supabase: Client = create_client(url, key)
 
     async def _run_site_intel_patch(
