@@ -10,6 +10,7 @@ import {
 import { supabase } from "./supabase"
 import { APP_PROTOCOL } from "./constants"
 import { isListableAuditProduct } from "./audit-list-eligibility"
+import { merchantPriceAfterSiteStack } from "@/lib/deals-utils"
 import { cache } from "react"
 
 const REGISTRY_PATH = path.join(process.cwd(), "src/data/registry.json")
@@ -156,23 +157,14 @@ function isPlausibleCouponCode(code: string | null | undefined): boolean {
     return true
 }
 
-/** DB / promo 合并；噪声码丢弃；FluffCo 可用站点默认码（与爬虫 FLUFFCO_SITE_COUPON / MOM15 对齐） */
+/** DB / promo 合并；噪声码丢弃；无默认品牌码（须爬虫/库里有真实记录） */
 function resolveCouponCode(
-    brand: string | undefined,
     fromRow: string | null,
     fromPromo: string | null
 ): string | null {
-    const fluffDefault =
-        process.env.NEXT_PUBLIC_FLUFFCO_SITE_COUPON?.trim().toUpperCase() ||
-        "MOM15"
     const prefer = (c: string | null | undefined) =>
         c && isPlausibleCouponCode(c) ? c.trim().toUpperCase() : null
-    const rowOk = prefer(fromRow)
-    if (rowOk) return rowOk
-    const promoOk = prefer(fromPromo)
-    if (promoOk) return promoOk
-    if (brand?.trim() === "FluffCo") return fluffDefault
-    return null
+    return prefer(fromRow) ?? prefer(fromPromo) ?? null
 }
 
 function mergeAuditProductRow(
@@ -268,8 +260,16 @@ function mergeAuditProductRow(
     }
 
     const promoText = dbOffer?.promo_text || "Check Latest Price"
-    const priceNum =
+    const merchantListPrice =
         Number(dbOffer?.price || item.price || localMeta.price) || 0
+    const stackPctSource = (
+        dbOffer as { promo_discount_percent?: number } | null | undefined
+    )?.promo_discount_percent
+    const priceNum = merchantPriceAfterSiteStack(
+        merchantListPrice,
+        item.brand || localMeta.brand,
+        stackPctSource
+    )
 
     /** 官方原价：优先 audit_products.msrp，其次 product_offers.old_price */
     const msrpFromProductRow = positiveMoney(item.msrp)
@@ -293,11 +293,7 @@ function mergeAuditProductRow(
             ? dbOffer.coupon_code.trim().toUpperCase()
             : null
     const couponFromPromo = extractCouponFromPromo(promoText)
-    const couponCode = resolveCouponCode(
-        item.brand || localMeta.brand,
-        couponFromRow,
-        couponFromPromo
-    )
+    const couponCode = resolveCouponCode(couponFromRow, couponFromPromo)
 
     const defaultOffer: Offer = {
         site: dbOffer?.site_name || "Official Store",
@@ -396,6 +392,36 @@ export const getProductBySlugOrId = cache(
 
         const mapped = mergeAuditProductRow(item, localRegistry)
         return isListableAuditProduct(mapped) ? mapped : null
+    }
+)
+
+/**
+ * 法医对比矩阵：按 slug 批量拉取（最多 4 条）。
+ * 不过滤 listable，便于对比仅有评分、暂缺主图的条目。
+ */
+export const getProductsForCompare = cache(
+    async (slugs: string[]): Promise<ProductData[]> => {
+        const unique = [
+            ...new Set(slugs.map((s) => String(s).trim()).filter(Boolean))
+        ].slice(0, 4)
+        if (unique.length === 0) return []
+
+        const localRegistry = await getRegistry()
+        const { data, error } = await supabase
+            .from("audit_products")
+            .select(PRODUCT_OFFERS_SELECT)
+            .in("slug", unique)
+
+        if (error || !data?.length) return []
+
+        const mapped: ProductData[] = data.map((item: unknown) =>
+            mergeAuditProductRow(item as any, localRegistry)
+        )
+        const order = new Map(unique.map((s, i) => [s, i]))
+        return mapped.sort(
+            (a, b) =>
+                (order.get(a.slug) ?? 99) - (order.get(b.slug) ?? 99)
+        )
     }
 )
 

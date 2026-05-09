@@ -1,6 +1,7 @@
 import { Inter, JetBrains_Mono } from "next/font/google"
 import { SiteHeader } from "@/components/site-header"
 import { SiteFooter } from "@/components/site-footer"
+import { CompareDock } from "@/components/compare/compare-dock"
 import { ScrollToTop } from "@/components/scroll-to-top"
 import { getSiteHeaderMetrics } from "@/lib/site-metrics"
 import { cn } from "@/lib/utils"
@@ -27,10 +28,10 @@ export const metadata = {
     title: {
         default:
             "SleepChoice Guide | Bio-Performance Registry & Sleep Forensics",
-        template: "%s | SleepChoice Registry"
+        template: "%s | SleepChoice Guide"
     },
     description:
-        "Global registry for non-sponsored sleep architecture audits. Independent forensic analysis of spinal alignment and chemical safety."
+        "Sleep product intelligence registry: AI-synthesized audits from aggregated owner reviews, retailer listings, and public specs—not in-house bench testing."
     // ... metadata 保持之前的硬核 SEO 配置
 }
 
@@ -56,13 +57,13 @@ export default async function RootLayout({
                 >
                     Skip to main content
                 </a>
-                {/* 1. 高级 Schema 注入：从 Organization 升级为 MedicalOrganization 以提升权威得分 */}
+                {/* 1. Schema：独立审计品牌用 Organization，避免医疗实体误导 */}
                 <script
                     type="application/ld+json"
                     dangerouslySetInnerHTML={{
                         __html: JSON.stringify({
                             "@context": "https://schema.org",
-                            "@type": "MedicalOrganization",
+                            "@type": "Organization",
                             name: "SleepChoice Intelligence Unit",
                             url: "https://sleepchoiceguide.com",
                             logo: "https://sleepchoiceguide.com/logo.png",
@@ -73,11 +74,11 @@ export default async function RootLayout({
                             },
                             knowsAbout: [
                                 "Sleep Science",
-                                "Material Forensics",
-                                "Biometrics"
+                                "Retail Review Intelligence",
+                                "Sleep Product Benchmarking"
                             ],
                             description:
-                                "Autonomous research entity specializing in sleep technology audits and material safety benchmarks."
+                                "Sleep product audit intelligence: registry scores fused from aggregated owner reviews, listings, and public specs via AI—not a physical test house."
                         })
                     }}
                 />
@@ -96,6 +97,7 @@ export default async function RootLayout({
                     {children}
                 </main>
 
+                <CompareDock />
                 <ScrollToTop />
                 <SiteFooter />
 

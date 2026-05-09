@@ -4,7 +4,7 @@ function stripSummaryNoise(log: string): string {
     return log.replace(/\[T-.*?\]\s+/g, "").trim()
 }
 
-/** Single-card preview on /docs — prefer real audit copy over boilerplate. */
+/** Single-card preview on /journal — prefer real audit copy over boilerplate. */
 export function previewTextForJournalCard(
     p: ProductData,
     maxLen = 220

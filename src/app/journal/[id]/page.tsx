@@ -57,7 +57,10 @@ export async function generateMetadata({ params }: Props) {
 
     return {
         title: `Observation Log | ${product.brand} ${product.name}`,
-        description: description.slice(0, 160)
+        description: description.slice(0, 160),
+        alternates: {
+            canonical: `/journal/${id}`
+        }
     }
 }
 
@@ -113,7 +116,7 @@ export default async function JournalEntry({ params }: Props) {
             <div className="container mx-auto max-w-7xl px-6">
                 <nav className="mb-10 flex flex-wrap items-center justify-between gap-4 border-b border-slate-200 pb-6">
                     <Link
-                        href="/docs"
+                        href="/journal"
                         className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-slate-500 transition-colors hover:text-blue-600"
                     >
                         <ChevronLeft className="h-4 w-4" />

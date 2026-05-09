@@ -53,7 +53,17 @@
         --chart-5: 27 87% 67%;
 
         --radius: 0.5rem;
+
+        /** 与 layout main 的 pt-[var(--header-height)] 对齐，供 sticky 侧栏 top / max-h 使用 */
+        --header-height: 110px;
     }
+
+    @media (min-width: 768px) {
+        :root {
+            --header-height: 140px;
+        }
+    }
+
     .dark {
         --background: 222.2 84% 4.9%;
 

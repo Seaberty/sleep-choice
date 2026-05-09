@@ -55,6 +55,7 @@ export function SiteHeader({ metrics }: { metrics: SiteHeaderMetrics }) {
 
     const navLinks = [
         { name: "Performance Index", href: "/best-picks" },
+        { name: "Compare", href: "/compare" },
         { name: "Real-time Arbitrage", href: "/deals", isHot: true },
         { name: "Testing Protocols", href: "/lab" },
         { name: "Technical Docs", href: "/docs" }

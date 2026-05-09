@@ -4,6 +4,7 @@
  */
 export interface Offer {
     site: string
+    /** 货架主价：若库里有爬虫写入的叠加折扣比例则已折算，否则同 PDP 标价 */
     price: number
     original_price?: number // 对应数据中的 msrp 逻辑
     url: string

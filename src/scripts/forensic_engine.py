@@ -6,9 +6,11 @@ import hashlib
 import httpx
 import re
 from pathlib import Path
+from urllib.parse import quote, urlparse
 from datetime import datetime, UTC
 from dotenv import load_dotenv
 from tenacity import retry, stop_after_attempt, wait_exponential
+from typing import Any
 
 # 核心库
 from supabase import create_client, Client
@@ -21,6 +23,25 @@ _ENV_FILE = _PROJECT_ROOT / ".env.local"
 if not _ENV_FILE.is_file():
     _ENV_FILE = Path(__file__).resolve().parents[1] / ".env.local"
 load_dotenv(dotenv_path=_ENV_FILE)
+
+
+def sniff_image_format(data: bytes) -> tuple[str | None, str]:
+    """
+    用文件头识别图片类型。CloudFront 等常对图片返回 application/octet-stream。
+    返回 (mime_type, ext)；无法识别则 (None, jpg)。
+    """
+    if not data or len(data) < 12:
+        return None, "jpg"
+    if data[:8] == b"\x89PNG\r\n\x1a\n":
+        return "image/png", "png"
+    if data[:3] == b"\xff\xd8\xff":
+        return "image/jpeg", "jpg"
+    if len(data) >= 6 and data[:6] in (b"GIF87a", b"GIF89a"):
+        return "image/gif", "gif"
+    if data[:4] == b"RIFF" and data[8:12] == b"WEBP":
+        return "image/webp", "webp"
+    return None, "jpg"
+
 
 # 促销文案里易被误识别为「优惠码」的英文词（如 24 HOURS、LIMITED TIME）
 COUPON_DENYLIST = frozenset(
@@ -117,6 +138,21 @@ def normalize_coupon_token(raw: str | None) -> str | None:
     return c
 
 
+def coupon_looks_like_referral_or_name_spam(token: str) -> bool:
+    """
+    误识别典型：极长大写前缀 + 末尾两位数字（仿人名 referral / UGC 噪声），
+    如 REBEKAHWIGGINS71；与常见短促促销码（MOM15、SAVE20）区分。
+    """
+    u = token.upper().strip()
+    if len(u) < 13:
+        return False
+    if re.match(r"^[A-Z]{12,}\d{2}$", u):
+        return True
+    if len(u) >= 20 and re.match(r"^[A-Z]{14,}\d{2,4}$", u):
+        return True
+    return False
+
+
 def coupon_token_is_plausible(token: str | None) -> bool:
     if not token:
         return False
@@ -125,27 +161,96 @@ def coupon_token_is_plausible(token: str | None) -> bool:
         return False
     if u in COUPON_DENYLIST:
         return False
+    if coupon_looks_like_referral_or_name_spam(u):
+        return False
     # 短纯字母 token 多半是版面词（真实码多为字母+数字如 MOM15）
     if u.isalpha() and len(u) <= 6:
         return False
     return True
 
 
-def apply_brand_site_coupon_fallback(brand: str, data: dict) -> None:
-    """无效/噪声码清空；支持站点级默认券（FluffCo → MOM15，可由 FLUFFCO_SITE_COUPON 覆盖）。"""
+def sanitize_coupon_for_persistence(data: dict) -> None:
+    """仅保留页面爬到的可信码；无效则清空，不把站点默认码写入持久化字段。"""
     raw = data.get("coupon_code")
     n = normalize_coupon_token(raw) if raw else None
     if coupon_token_is_plausible(n):
         data["coupon_code"] = n[:24]
-        return
-    fb_map = {
-        "FluffCo": os.getenv("FLUFFCO_SITE_COUPON", "MOM15").strip().upper(),
-    }
-    fb = fb_map.get((brand or "").strip())
-    if fb and re.fullmatch(r"[A-Z0-9]{4,16}", fb):
-        data["coupon_code"] = fb[:24]
     else:
         data["coupon_code"] = None
+
+
+# Shopify 系店铺：GET /discount/{code} 后从落地页判断（含 headless 部分误报时以「明确无效」为准）
+_SHOPIFY_DISCOUNT_INVALID_SNIPPETS = (
+    "isn't valid",
+    "is not valid",
+    "invalid discount",
+    "this discount code",
+    "couldn't find this discount",
+    "could not find this discount",
+    "can't find this discount",
+    "enter a valid discount",
+    "does not exist",
+    "no longer valid",
+    "discount code expired",
+)
+
+_SHOPIFY_DISCOUNT_OK_PATH_HINTS = ("/cart", "/checkouts", "checkout", "discount=")
+
+
+async def finalize_coupon_for_store(page_url: str, token: str | None) -> str | None:
+    """
+    入库前最后一道：在线探测 discount 链；明确判无效则返回 None。
+    网络/模糊情况返回原 token（避免误杀真实码）。可用环境变量 COUPON_VALIDATE_HTTP=0 关闭请求。
+    """
+    if not token:
+        return None
+    if not coupon_token_is_plausible(token):
+        return None
+    if os.getenv("COUPON_VALIDATE_HTTP", "1").strip().lower() in (
+        "0",
+        "false",
+        "no",
+        "off",
+    ):
+        return token
+    try:
+        pr = urlparse(page_url)
+    except Exception:
+        return token
+    if pr.scheme not in ("http", "https") or not pr.netloc:
+        return token
+    origin = f"{pr.scheme}://{pr.netloc}"
+    path = quote(token, safe="")
+    url = f"{origin.rstrip('/')}/discount/{path}"
+    headers = {
+        "User-Agent": (
+            "Mozilla/5.0 (compatible; SleepChoiceIntel/1.0; "
+            "+https://sleepchoiceguide.com)"
+        ),
+        "Accept": "text/html,application/xhtml+xml;q=0.9,*/*;q=0.8",
+    }
+    try:
+        async with httpx.AsyncClient(
+            timeout=12.0,
+            follow_redirects=True,
+            trust_env=True,
+        ) as client:
+            r = await client.get(url, headers=headers)
+    except Exception:
+        return token
+    text = (r.text or "").lower()
+    final_u = str(r.url or "").lower()
+    for snip in _SHOPIFY_DISCOUNT_INVALID_SNIPPETS:
+        if snip in text:
+            return None
+    if r.status_code == 404:
+        return None
+    for hint in _SHOPIFY_DISCOUNT_OK_PATH_HINTS:
+        if hint in final_u:
+            return token
+    if r.status_code >= 400:
+        return None
+    return token
 
 
 # --- LLM 审计（Gemini 主 / DeepSeek 备）---
@@ -161,63 +266,179 @@ if os.getenv("PROXY_URL"):
     os.environ["HTTP_PROXY"] = os.getenv("PROXY_URL")
     os.environ["HTTPS_PROXY"] = os.getenv("PROXY_URL")
 
+
+def resolve_playwright_proxy_server() -> str | None:
+    """
+    Playwright Chromium 的 proxy.server 需要完整 URL。
+    优先级：PROXY_URL → HTTPS_PROXY → HTTP_PROXY（便于与系统/终端代理对齐）。
+    """
+    raw = (
+        (os.getenv("PROXY_URL") or "").strip()
+        or (os.getenv("HTTPS_PROXY") or "").strip()
+        or (os.getenv("HTTP_PROXY") or "").strip()
+    )
+    if not raw:
+        return None
+    low = raw.lower()
+    if not low.startswith(("http://", "https://", "socks5://", "socks4://")):
+        raw = "http://" + raw.lstrip("/")
+    return raw
+
+
+def format_proxy_for_log(server: str) -> str:
+    """日志脱敏：user:pass@host → ***@host"""
+    try:
+        pr = urlparse(server)
+        if pr.username or pr.password:
+            host = pr.hostname or ""
+            port = f":{pr.port}" if pr.port else ""
+            return f"{pr.scheme}://***@{host}{port}"
+        return server
+    except Exception:
+        return server[:48]
+
+
+# 与 sb_batch_scanner 独立脚本时期（forensic_engine ~235081a）一致的默认 UA，避免站点按指纹区别对待。
+_DEFAULT_FETCH_SITE_USER_AGENT = (
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 "
+    "(KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36"
+)
+
+
+def playwright_fetch_site_new_context_kwargs() -> dict[str, Any]:
+    """
+    fetch_site_data 的 BrowserContext 参数。
+    - 默认 UA 对齐旧版单独 SB 脚本时代；可用 PLAYWRIGHT_USER_AGENT 覆盖。
+    - 额外 Accept 头等仅在 PLAYWRIGHT_FETCH_EXTRA_HEADERS=1 时启用（旧版未加）。
+    """
+    ua = (os.getenv("PLAYWRIGHT_USER_AGENT") or "").strip() or _DEFAULT_FETCH_SITE_USER_AGENT
+    out: dict[str, Any] = {"user_agent": ua}
+    if os.getenv("PLAYWRIGHT_FETCH_EXTRA_HEADERS", "").strip().lower() in (
+        "1",
+        "true",
+        "yes",
+        "on",
+    ):
+        out["locale"] = "en-US"
+        out["extra_http_headers"] = {
+            "Accept-Language": "en-US,en;q=0.9",
+            "Accept": (
+                "text/html,application/xhtml+xml,application/xml;q=0.9,"
+                "image/avif,image/webp,image/apng,*/*;q=0.8"
+            ),
+            "Upgrade-Insecure-Requests": "1",
+        }
+    return out
+
+
+def serper_social_proof_enabled() -> bool:
+    """
+    设为 0/false/off 时跳过 Serper（不自采 SERP、不写 evidence_log 舆情段、不触发 Gemini brand_intel）。
+    情报中心数据请自行写入 brand_intelligence 或对接其它数据源。
+    环境变量：USE_SERPER_SOCIAL_PROOF 或 BRAND_INTEL_USE_SERPER（任一即可）。
+    """
+    for key in ("USE_SERPER_SOCIAL_PROOF", "BRAND_INTEL_USE_SERPER"):
+        raw = (os.getenv(key) or "").strip().lower()
+        if raw in ("0", "false", "no", "off"):
+            return False
+    return True
+
+
+# Reddit / Amazon / Trustpilot / SleepLine — Serper Google organic，用于情报中心与证据日志
+PLATFORM_SEARCHES: tuple[tuple[str, str], ...] = (
+    ("Reddit", "{base} mattress review site:reddit.com"),
+    ("Amazon", "{base} mattress review site:amazon.com"),
+    ("Trustpilot", "{base} mattress reviews site:trustpilot.com"),
+    ("SleepLine", "{base} mattress site:sleepline.com"),
+)
+
+
 class IntelligenceProvider:
-    """情报供应商：Serper API 舆情采集"""
+    """情报供应商：Serper API 多平台舆情采集 → brand_intelligence / evidence_log"""
 
     def __init__(self, api_key):
         self.api_key = api_key
         self.url = "https://google.serper.dev/search"
 
-    async def fetch_social_proof(self, query, product_id=None, supabase_client=None):
-        all_evidence = []
-        review_count = 0
+    async def _serper_organic(self, client: httpx.AsyncClient, q: str, num: int = 20):
+        if not self.api_key:
+            return []
         headers = {
-            "X-API-KEY": self.api_key, 
-            "Content-Type": "application/json"
+            "X-API-KEY": self.api_key,
+            "Content-Type": "application/json",
         }
-        
-        # 构造精确的请求体，不要包含任何自定义字段
-        payload = {
-            "q": f"{query} user experience reviews reddit",
-            "num": 100,  # 确保是整数
-            "page": 1
-        }
+        payload = {"q": q, "num": int(num), "page": 1}
+        resp = await client.post(self.url, headers=headers, json=payload)
+        if resp.status_code != 200:
+            print(f"❌ Serper 报错: {resp.status_code} - {resp.text[:500]}")
+            return []
+        data = resp.json()
+        return data.get("organic", []) or []
 
-        async with httpx.AsyncClient(timeout=20.0) as client:
+    async def fetch_social_proof(self, query, product_id=None, supabase_client=None):
+        """
+        多平台抓取 SERP 摘要；合并为审计上下文，并返回按平台分块的数据供 brand_intelligence 写入。
+        Returns:
+            merged_evidence: str
+            total_review_count: int（各平台 organic 条数之和）
+            platform_blocks: list[{"source_platform","evidence_text","signal_density"}]
+        """
+        all_evidence = []
+        platform_blocks: list[dict[str, Any]] = []
+        total_review_count = 0
+        base_q = (query or "").strip()
+
+        if not serper_social_proof_enabled():
+            print(
+                "ℹ️ Serper 已关闭（USE_SERPER_SOCIAL_PROOF=0 / BRAND_INTEL_USE_SERPER=0），"
+                "跳过 SERP 采集；brand_intelligence 请使用自建情报。"
+            )
+            return "", 0, []
+
+        if not self.api_key:
+            print("⚠️ SERPER_API_KEY 未配置，跳过多平台舆情采集")
+            return "", 0, []
+
+        async with httpx.AsyncClient(timeout=25.0) as client:
             try:
-                # 发送请求
-                resp = await client.post(
-                    self.url, 
-                    headers=headers, 
-                    json=payload # httpx 会自动处理成正确的 JSON
-                )
-                
-                # 如果还是 400，打印出详细的错误信息
-                if resp.status_code != 200:
-                    print(f"❌ Serper 报错: {resp.status_code} - {resp.text}")
-                    return "", 0
+                for platform_name, template in PLATFORM_SEARCHES:
+                    q = template.format(base=base_q)
+                    organic_results = await self._serper_organic(client, q, num=20)
+                    n = len(organic_results)
+                    total_review_count += n
+                    chunk_lines = []
+                    for item in organic_results[:12]:
+                        chunk_lines.append(
+                            f"🔍 SOURCE: {item.get('title')}\nCONTEXT: {item.get('snippet')}"
+                        )
+                    merged_chunk = "\n\n".join(chunk_lines)
+                    if merged_chunk.strip():
+                        all_evidence.append(
+                            f"--- PLATFORM: {platform_name} ---\n{merged_chunk}"
+                        )
+                    platform_blocks.append(
+                        {
+                            "source_platform": platform_name,
+                            "evidence_text": merged_chunk,
+                            "signal_density": n,
+                        }
+                    )
 
-                data = resp.json()
-                organic_results = data.get("organic", []) or []
-                review_count = len(organic_results)
+                evidence_text = "\n\n".join(all_evidence)
 
-                # ... 后续处理逻辑保持不变 ...
-                for item in organic_results[:10]:
-                    all_evidence.append(f"🔍 SOURCE: {item.get('title')}\nCONTEXT: {item.get('snippet')}")
-
-                # 存储到 Supabase 的逻辑独立出来，不要混合在请求体里
                 if product_id and supabase_client:
-                    evidence_text = "\n\n".join(all_evidence)
-                    supabase_client.table("audit_products").update({
-                        "evidence_log": evidence_text,
-                        "review_count": review_count,
-                        "updated_at": datetime.now(UTC).isoformat(),
-                    }).eq("id", product_id).execute()
+                    supabase_client.table("audit_products").update(
+                        {
+                            "evidence_log": evidence_text,
+                            "review_count": total_review_count,
+                            "updated_at": datetime.now(UTC).isoformat(),
+                        }
+                    ).eq("id", product_id).execute()
 
             except Exception as e:
-                print(f"⚠️ 系统异常: {e}")
+                print(f"⚠️ 多平台舆情异常: {e}")
 
-        return "\n\n".join(all_evidence), review_count
+        return "\n\n".join(all_evidence), total_review_count, platform_blocks
 
 class ForensicAuditEngine: 
     def __init__(self, brand, model, slug_override=None):
@@ -288,6 +509,8 @@ class ForensicAuditEngine:
                 x in title
                 for x in (
                     "access denied",
+                    "403",
+                    "forbidden",
                     "just a moment",
                     "attention required",
                     "verify you are human",
@@ -302,6 +525,10 @@ class ForensicAuditEngine:
             if "cloudflare" in low and "ray id" in low:
                 return True
             if "sorry, you have been blocked" in low:
+                return True
+            if "access to this page is forbidden" in low:
+                return True
+            if "403" in title and "forbidden" in low:
                 return True
             if len(snippet.strip()) < 80 and "javascript" in low:
                 return True
@@ -321,7 +548,6 @@ class ForensicAuditEngine:
         raw_ext = (original_url.split(".")[-1].split("?")[0] or "jpg").lower()
         if raw_ext not in ("jpg", "jpeg", "png", "webp", "gif"):
             raw_ext = "jpg"
-        storage_path = f"{self.brand_slug}/{self.slug}.{raw_ext}"
 
         try:
             async with httpx.AsyncClient(follow_redirects=True) as client:
@@ -329,19 +555,46 @@ class ForensicAuditEngine:
                 if resp.status_code != 200:
                     print(f"❌ 图片下载失败 HTTP {resp.status_code}")
                     return None
-                ct = (resp.headers.get("content-type") or "").split(";")[0].strip()
-                if ct and not ct.startswith("image/"):
+                body = resp.content
+                ct = (resp.headers.get("content-type") or "").split(";")[0].strip().lower()
+                upload_ct: str | None = None
+                ext = raw_ext
+
+                if ct.startswith("image/"):
+                    upload_ct = ct
+                elif ct in (
+                    "application/octet-stream",
+                    "binary/octet-stream",
+                    "application/unknown",
+                ) or not ct:
+                    smime, sext = sniff_image_format(body)
+                    if smime:
+                        upload_ct = smime
+                        if sext in ("jpg", "jpeg", "png", "webp", "gif"):
+                            ext = sext
+                    else:
+                        hint = ct or "(empty)"
+                        print(
+                            f"❌ 非图片响应 Content-Type: {hint}（且无法通过文件头识别）"
+                        )
+                        return None
+                else:
                     print(f"❌ 非图片响应 Content-Type: {ct}")
                     return None
+
+                if ext == "jpeg":
+                    ext = "jpg"
+                storage_path = f"{self.brand_slug}/{self.slug}.{ext}"
+                up_ct = upload_ct or "image/jpeg"
 
                 loop = asyncio.get_running_loop()
 
                 def upload():
                     return self.supabase.storage.from_(bucket).upload(
                         path=storage_path,
-                        file=resp.content,
+                        file=body,
                         file_options={
-                            "content-type": ct or "image/jpeg",
+                            "content-type": up_ct,
                             "upsert": "true",
                         },
                     )
@@ -552,7 +805,9 @@ class ForensicAuditEngine:
             'Queen', 'Full', 'King', 'California King', 'Cal King',
             'Twin XL', 'Twin', 'Standard', 'Original', 'Medium'
           ];
-          const BAD = /travel|sample|swatch|trial\s*size|mini(?!\s*k)/i;
+          /* 勿用裸 travel：会误伤「MyTravel」等品牌名；仅匹配独立词 travel 或 travel-size 等 */
+          const BAD =
+            /\btravel\b|travel\s*[-–]?\s*size|sample|swatch|trial\s*size|mini(?!\s*k)/i;
 
           const __sp = new URLSearchParams(window.location.search);
           const variantIdPin = __sp.get('variant');
@@ -972,7 +1227,17 @@ class ForensicAuditEngine:
                 if (pr == null) continue;
                 var cmp = v.compare_at_price != null ? normMoney(v.compare_at_price, true) : null;
                 var title = v.public_title || v.title || v.name || '';
-                return { price: pr, compare_at_price: cmp, title: String(title) };
+                var va = v.available;
+                var vAvail = null;
+                if (va === true || va === 'true') vAvail = true;
+                else if (va === false || va === 'false') vAvail = false;
+                else if (typeof va !== 'undefined' && va !== null) vAvail = Boolean(va);
+                return {
+                  price: pr,
+                  compare_at_price: cmp,
+                  title: String(title),
+                  variant_available: vAvail
+                };
               }
               return null;
             }
@@ -1009,14 +1274,162 @@ class ForensicAuditEngine:
             tit = raw.get("title")
             if isinstance(tit, str) and tit.strip():
                 out["audit_variant"] = tit.strip()[:200]
+            vb = raw.get("variant_available")
+            # 仅在为 true 时标现货：meta 里 available:false 在 Hydrogen/自定义店常与 PDP 可购不一致，
+            # 不再据此直接写 OUT_OF_STOCK，交给主按钮 / DOM 裁定。
+            if vb is True:
+                out["availability"] = "IN_STOCK"
             return out if out else None
+        except Exception:
+            return None
+
+    async def _reconcile_availability_with_buy_button(self, page):
+        """
+        以主「加入购物车」交互为准，修正 meta / JSON-LD 误判的 OUT_OF_STOCK。
+        仅在能识别到明确 purchasable / OOS 按钮时返回；模糊则返回 None。
+        """
+        script = r"""() => {
+          try {
+            function visible(el) {
+              if (!el) return false;
+              if (el.offsetParent === null && el.getClientRects().length === 0)
+                return false;
+              return true;
+            }
+            function findPrimaryAtc() {
+              var scoped = [
+                '.pdp-info',
+                '[class*="pdp-info"]',
+                'form[action*="/cart/add"]',
+                '[data-type="add-to-cart-form"]',
+                '.product-form',
+                '[data-product-form]',
+                'main#main-content',
+                'main'
+              ];
+              var selLists = [
+                'button[type="submit"]',
+                'button[name="add"]',
+                '[data-add-to-cart]',
+                'button.product-form__submit',
+                '.product-form__buttons button',
+                'button'
+              ];
+              for (var si = 0; si < scoped.length; si++) {
+                var root = document.querySelector(scoped[si]);
+                if (!root) continue;
+                for (var sj = 0; sj < selLists.length; sj++) {
+                  var nodes = root.querySelectorAll(selLists[sj]);
+                  for (var k = 0; k < nodes.length; k++) {
+                    var b = nodes[k];
+                    if (!visible(b)) continue;
+                    var tx = (b.innerText || b.textContent || '').trim();
+                    if (tx.length < 3) continue;
+                    var tl = tx.toLowerCase();
+                    if (
+                      tl.indexOf('cart') !== -1 ||
+                      tl.indexOf('buy') !== -1 ||
+                      tl.indexOf('purchase') !== -1 ||
+                      tl.indexOf('checkout') !== -1
+                    )
+                      return b;
+                  }
+                }
+              }
+              return null;
+            }
+            var btn = findPrimaryAtc();
+            if (!btn) return null;
+            var txt = ((btn.innerText || btn.textContent || '') + ' ' +
+              (btn.getAttribute('aria-label') || '')).toLowerCase();
+            var dis =
+              btn.disabled === true ||
+              btn.getAttribute('aria-disabled') === 'true' ||
+              btn.hasAttribute('disabled');
+            if (
+              /sold\s*out|out\s+of\s+stock|unavailable|notify\s+when|coming\s+soon/i.test(
+                txt
+              )
+            )
+              return 'OUT_OF_STOCK';
+            if (dis && /sold|unavailable|notify/i.test(txt))
+              return 'OUT_OF_STOCK';
+            if (
+              !dis &&
+              (/add\s+to\s+cart|add\s+to\s+bag|buy\s+now/i.test(txt) ||
+                (txt.indexOf('cart') !== -1 && !/sold/i.test(txt)))
+            )
+              return 'IN_STOCK';
+            if (!dis && txt.length > 2 && !/sold\s*out/i.test(txt))
+              return 'IN_STOCK';
+          } catch (e) {}
+          return null;
+        }"""
+        try:
+            raw = await page.evaluate(script)
+            if isinstance(raw, str) and raw.strip():
+                return raw.strip().upper()[:160]
+            return None
+        except Exception:
+            return None
+
+    async def _extract_fluffco_availability_dom(self, page):
+        """
+        home.fluff.co React PDP：schema.org 常与图中其它实体串味或缺失；
+        从主购买区文案读取在售/售罄/紧迫库存（与 URL variant 所见一致）。
+        """
+        script = r"""() => {
+          try {
+            var root =
+              document.querySelector('.pdp-info') ||
+              document.querySelector('[class*="pdp-info"]');
+            if (!root) return null;
+            var btns = root.querySelectorAll('button');
+            for (var bi = 0; bi < btns.length; bi++) {
+              var b = btns[bi];
+              if (b.offsetParent === null) continue;
+              var bx = (
+                (b.innerText || '') +
+                ' ' +
+                (b.getAttribute('aria-label') || '')
+              ).toLowerCase();
+              var dis =
+                b.disabled ||
+                b.getAttribute('aria-disabled') === 'true';
+              if (/sold\s*out|unavailable|notify\s+when/i.test(bx))
+                continue;
+              if (
+                !dis &&
+                bx.indexOf('cart') !== -1 &&
+                /add|buy/i.test(bx)
+              )
+                return 'IN_STOCK';
+            }
+            var slice = (root.innerText || '').slice(0, 8000);
+            if (/sold\s+out|out\s+of\s+stock/i.test(slice))
+              return 'OUT_OF_STOCK';
+            var low = slice.toLowerCase();
+            if (
+              /only\s+\d+\s*%?\s*left|almost\s+sold\s+out|low\s+stock|limited\s+quantity|few\s+left/i.test(
+                low
+              )
+            )
+              return 'LIMITED';
+          } catch (e) {}
+          return null;
+        }"""
+        try:
+            raw = await page.evaluate(script)
+            if isinstance(raw, str) and raw.strip():
+                return raw.strip()[:160]
+            return None
         except Exception:
             return None
 
     async def _extract_fluffco_product_price_dom(self, page):
         """
-        FluffCo（Shopify）：前台使用自定义元素 <product-price>，
-        划线价在 span.compare，现价在 span.final.price-field（见 .desktop.module.block-price）。
+        FluffCo：新版站点 home.fluff.co 使用 React PDP（.pdp-price + 同排划线价）；
+        旧版 Shopify 自定义 <product-price> 仍作后备。
         JSON-LD / window.meta 有时无 compare_at，必须从 DOM 配对。
         """
         script = r"""() => {
@@ -1029,6 +1442,73 @@ class ForensicAuditEngine:
               if (isNaN(v) || v < 5 || v > 100000) return null;
               return v;
             }
+            function homeFluffPdpRow() {
+              var pe =
+                document.querySelector('.pdp-info .pdp-price') ||
+                document.querySelector('.pdp-price');
+              if (!pe) return null;
+              var saleTxt = pe.innerText || pe.textContent || '';
+              var saleM = String(saleTxt).match(
+                /(\d{1,3}(?:,\d{3})*(?:\.\d{2})?)/
+              );
+              var sale = saleM
+                ? parseFloat(saleM[1].replace(/,/g, ''))
+                : null;
+              if (
+                sale == null ||
+                isNaN(sale) ||
+                sale < 5 ||
+                sale > 100000
+              ) {
+                return null;
+              }
+              var row = pe.closest('div');
+              if (!row) row = pe.parentElement;
+              var compare = null;
+              if (row) {
+                var strike =
+                  row.querySelector('span[style*="line-through"]') ||
+                  row.querySelector('[style*="text-decoration-line"]');
+                if (!strike) {
+                  strike = row.querySelector(
+                    'span[style*="text-decoration"]'
+                  );
+                }
+                if (strike && strike !== pe && !pe.contains(strike)) {
+                  var ct = strike.innerText || strike.textContent || '';
+                  var cm = String(ct).match(
+                    /(\d{1,3}(?:,\d{3})*(?:\.\d{2})?)/
+                  );
+                  if (cm) {
+                    var cv = parseFloat(cm[1].replace(/,/g, ''));
+                    if (!isNaN(cv) && cv > sale && cv <= 100000) {
+                      compare = cv;
+                    }
+                  }
+                }
+                if (compare == null) {
+                  var block = row.innerText || '';
+                  var nosave = block.replace(/\bsave\s*\d{1,3}\s*%/gi, ' ');
+                  nosave = nosave.replace(/\b\d{1,3}\s*%\s*off\b/gi, ' ');
+                  var re = /(\d{1,3}(?:,\d{3})*(?:\.\d{2})?)/g;
+                  var nums = [];
+                  var mm;
+                  while ((mm = re.exec(nosave)) !== null) {
+                    var v = parseFloat(mm[1].replace(/,/g, ''));
+                    if (v >= 5 && v <= 100000) nums.push(v);
+                  }
+                  if (nums.length) {
+                    var mx = Math.max.apply(null, nums);
+                    if (mx > sale * 1.02) compare = mx;
+                  }
+                }
+              }
+              var out = { sale: sale };
+              if (compare != null) out.compare = compare;
+              return out;
+            }
+            var hf = homeFluffPdpRow();
+            if (hf && hf.sale != null) return hf;
             var root =
               document.querySelector('.desktop.module.block-price product-price') ||
               document.querySelector('.module.block-price product-price') ||
@@ -1111,6 +1591,7 @@ class ForensicAuditEngine:
               )
                 continue;
               if (/(get|take|receive|up\s+to)\s*$/i.test(head)) continue;
+              if (/^\s*%/.test(tail)) continue;
               if (/^\s*(off|discount|rebate|back)\b/i.test(tail)) continue;
               if (/\b(save|discount)\s+\$?\s*$/i.test(head)) continue;
               var v = parseFloat(mm[1].replace(/,/g, ''));
@@ -1165,6 +1646,181 @@ class ForensicAuditEngine:
                 except (TypeError, ValueError):
                     pass
             return out if out else None
+        except Exception:
+            return None
+
+    async def _extract_woocommerce_variations_pricing(self, page) -> dict[str, Any] | None:
+        """
+        WooCommerce 可变商品：variations_form 内嵌 JSON —— 现价、划线价、各变体库存汇总。
+        """
+        script = r"""() => {
+          const form = document.querySelector(
+            'form.variations_form[data-product_variations]'
+          );
+          if (!form) return null;
+          try {
+            const raw = form.getAttribute('data-product_variations');
+            if (!raw) return null;
+            const vars = JSON.parse(raw);
+            if (!Array.isArray(vars) || vars.length === 0) return null;
+            let minSale = null;
+            let maxReg = null;
+            let inStock = 0;
+            let outOfStock = 0;
+            for (let i = 0; i < vars.length; i++) {
+              const v = vars[i];
+              const dp = v.display_price;
+              const dr = v.display_regular_price;
+              if (typeof dp === 'number' && !isNaN(dp) && dp >= 5 && dp <= 100000) {
+                minSale = minSale == null ? dp : Math.min(minSale, dp);
+              }
+              if (typeof dr === 'number' && !isNaN(dr) && dr >= 5 && dr <= 100000) {
+                maxReg = maxReg == null ? dr : Math.max(maxReg, dr);
+              }
+              if (v.is_in_stock === true) inStock++;
+              else if (v.is_in_stock === false) outOfStock++;
+            }
+            if (minSale == null) return null;
+            const out = { price: minSale };
+            if (maxReg != null && maxReg > minSale * 1.009) {
+              out.msrp = maxReg;
+            }
+            if (inStock > 0 && outOfStock === 0) {
+              out.availability = 'IN_STOCK';
+            } else if (outOfStock > 0 && inStock === 0) {
+              out.availability = 'OUT_OF_STOCK';
+            } else if (inStock > 0 && outOfStock > 0) {
+              out.availability = 'LIMITED';
+            }
+            return out;
+          } catch (e) {
+            return null;
+          }
+        }"""
+        try:
+            raw = await page.evaluate(script)
+            if not raw or not isinstance(raw, dict):
+                return None
+            out: dict[str, Any] = {}
+            p = raw.get("price")
+            if p is not None:
+                try:
+                    pf = float(p)
+                    if 5.0 <= pf <= 100000.0:
+                        out["price"] = pf
+                except (TypeError, ValueError):
+                    pass
+            m = raw.get("msrp")
+            if m is not None:
+                try:
+                    mf = float(m)
+                    if mf > 0:
+                        out["msrp"] = mf
+                except (TypeError, ValueError):
+                    pass
+            av = raw.get("availability")
+            if isinstance(av, str) and av.strip():
+                out["availability"] = av.strip()[:160]
+            return out if out else None
+        except Exception:
+            return None
+
+    async def _extract_woocommerce_summary_sale_regular(self, page) -> dict[str, Any] | None:
+        """
+        摘要区 p.price：促销模板 ins（现价）+ del（划线原价），或「From $a - $b」区间价。
+        """
+        script = r"""() => {
+          const root = document.querySelector(
+            '.summary.entry-summary, div.product div.summary'
+          );
+          if (!root) return null;
+          const pe = root.querySelector('p.price');
+          if (!pe) return null;
+          function numFrom(el) {
+            if (!el) return null;
+            const t = el.innerText || el.textContent || '';
+            const m = t.match(/(\d{1,3}(?:,\d{3})*(?:\.\d{2})?)/);
+            if (!m) return null;
+            const v = parseFloat(m[1].replace(/,/g, ''));
+            if (v >= 5 && v <= 100000) return v;
+            return null;
+          }
+          const delEl = pe.querySelector(
+            'del .woocommerce-Price-amount, del span.amount, del span[class*="Price"]'
+          );
+          const insEl = pe.querySelector(
+            'ins .woocommerce-Price-amount, ins span.amount, ins span[class*="Price"]'
+          );
+          const reg = numFrom(delEl);
+          const sale = numFrom(insEl);
+          if (reg != null && sale != null && reg > sale * 1.009) {
+            return { price: sale, msrp: reg, old_price: reg };
+          }
+          if (sale != null) {
+            return { price: sale, msrp: null, old_price: null };
+          }
+          const amounts = pe.querySelectorAll(
+            '.woocommerce-Price-amount bdi, .woocommerce-Price-amount'
+          );
+          const nums = [];
+          for (let i = 0; i < amounts.length; i++) {
+            const n = numFrom(amounts[i]);
+            if (n != null) nums.push(n);
+          }
+          if (nums.length === 0) return null;
+          let lo = nums[0];
+          let hi = nums[0];
+          for (let j = 1; j < nums.length; j++) {
+            if (nums[j] < lo) lo = nums[j];
+            if (nums[j] > hi) hi = nums[j];
+          }
+          if (hi > lo * 1.02) {
+            return { price: lo, msrp: hi, old_price: hi };
+          }
+          return { price: lo, msrp: null, old_price: null };
+        }"""
+        try:
+            raw = await page.evaluate(script)
+            if not raw or not isinstance(raw, dict):
+                return None
+            out: dict[str, Any] = {}
+            for key in ("price", "msrp", "old_price"):
+                v = raw.get(key)
+                if v is None:
+                    continue
+                try:
+                    f = float(v)
+                    if key == "price":
+                        if 5.0 <= f <= 100000.0:
+                            out[key] = f
+                    elif f > 0:
+                        out[key] = f
+                except (TypeError, ValueError):
+                    pass
+            return out if out else None
+        except Exception:
+            return None
+
+    async def _extract_woocommerce_stock_line(self, page) -> str | None:
+        """WooCommerce 常见 `p.stock.in-stock` / `out-of-stock` 文案。"""
+        script = r"""() => {
+          const el =
+            document.querySelector('p.stock') ||
+            document.querySelector('.product_meta .stock');
+          if (!el) return null;
+          const cls = String(el.className || '').toLowerCase();
+          const t = (el.textContent || '').toLowerCase();
+          if (cls.includes('out-of-stock') || t.includes('out of stock'))
+            return 'OUT_OF_STOCK';
+          if (cls.includes('available-on-backorder') || t.includes('backorder'))
+            return 'PRE_ORDER';
+          if (cls.includes('in-stock') || (t.includes('in stock') && !t.includes('out')))
+            return 'IN_STOCK';
+          return null;
+        }"""
+        try:
+            s = await page.evaluate(script)
+            return str(s).strip()[:160] if s else None
         except Exception:
             return None
 
@@ -1380,18 +2036,33 @@ class ForensicAuditEngine:
             },
             "Sleep & Beyond": {
                 "price_selector": ".summary p.price",
+                "price_selectors_fallback": [
+                    ".entry-summary .price",
+                    ".entry-summary p.price",
+                    "div.product p.price",
+                    "div.product .price",
+                    ".woocommerce-Price-amount.amount",
+                    "p.price .woocommerce-Price-amount",
+                    ".product .summary .price",
+                    "[itemprop='price']",
+                    "ins .woocommerce-Price-amount",
+                ],
                 "image_selector": ".woocommerce-product-gallery__image img.wp-post-image",
-                "wait_for": ".product_title",
+                # WooCommerce：标题类名常为 product_title；价格在 entry-summary 较晚渲染
+                "wait_for": ".product_title, .entry-summary .price, h1.product_title",
             },
             "FluffCo": {
-                "price_selector": "product-price .final.price-field",
+                "price_selector": ".pdp-info .pdp-price",
                 "price_selectors_fallback": [
+                    ".pdp-price",
+                    "[class*='pdp-price']",
+                    "product-price .final.price-field",
                     ".desktop.module.block-price product-price",
                     "product-price",
                     ".product-single__price",
                 ],
-                "image_selector": ".product-single__photo--featured img",
-                "wait_for": "product-price, .desktop.module.block-price",
+                "image_selector": ".pdp-gallery img",
+                "wait_for": ".pdp-price, h1.pdp-h1, h1",
             },
         }
 
@@ -1402,15 +2073,21 @@ class ForensicAuditEngine:
         for fb in config.get("price_selectors_fallback") or []:
             if fb and fb not in selector_chain:
                 selector_chain.append(fb)
-        proxy_url = os.getenv("PROXY_URL")
-        proxy_settings = {"server": proxy_url} if proxy_url else None
+        proxy_server = resolve_playwright_proxy_server()
+        proxy_settings = {"server": proxy_server} if proxy_server else None
+        if proxy_server:
+            print(f"🌐 Playwright 代理已启用: {format_proxy_for_log(proxy_server)}")
+        else:
+            print(
+                "🌐 Playwright 未检测到代理（未设置 PROXY_URL / HTTPS_PROXY / HTTP_PROXY）"
+            )
 
         goto_timeout = 30000
         wait_until = "domcontentloaded"
 
         async with async_playwright() as p:
             browser = await p.chromium.launch(**self._chromium_launch_options(proxy_settings))
-            context = await browser.new_context()
+            context = await browser.new_context(**playwright_fetch_site_new_context_kwargs())
             page = await context.new_page()
 
             try:
@@ -1427,6 +2104,17 @@ class ForensicAuditEngine:
                 if response.status == 404:
                     data["status"] = 404
                     return data
+
+                if response.status in (401, 403):
+                    data["status"] = response.status
+                    print(
+                        "⚠️ HTTP %s：与旧版 sb_batch_scanner 一致，仍尝试解析页面正文（错误页通常无价格）。"
+                        % response.status
+                    )
+                    if proxy_server:
+                        print(
+                            "（代理已启用；若正文仍是拦截页，可换节点或 PLAYWRIGHT_CHROME_CHANNEL=chrome / HEADED=1。）"
+                        )
 
                 if await self._likely_bot_or_challenge_page(page):
                     print(
@@ -1463,7 +2151,10 @@ class ForensicAuditEngine:
                             data["msrp"] = mf
                             data["old_price"] = mf
                     if anchor.get("availability") and not data.get("availability"):
-                        data["availability"] = str(anchor["availability"]).strip()[:160]
+                        av0 = str(anchor["availability"]).strip()
+                        # JSON-LD 图中常有无关节点的 OutOfStock，勿单独采信缺货
+                        if av0.upper() != "OUT_OF_STOCK":
+                            data["availability"] = av0[:160]
 
                 # Shopify meta.compare_at_price：即使 JSON-LD 已写入现价也要执行，否则 FluffCo 等仅有售价、无 schema 划线价。
                 shop = await self._extract_shopify_variant_pricing(page)
@@ -1488,8 +2179,60 @@ class ForensicAuditEngine:
                                 data["old_price"] = mf
                         except (TypeError, ValueError):
                             pass
+                    av_shop = shop.get("availability")
+                    if isinstance(av_shop, str) and av_shop.strip():
+                        data["availability"] = str(av_shop).strip()[:160]
 
-                # FluffCo：<product-price> 内 .compare / .final.price-field，优先覆盖缺失的划线价
+                # Sleep & Beyond：变体 JSON（价+库存）+ 摘要区 del/ins（划线价）+ p.stock（补库存）
+                if self.brand == "Sleep & Beyond":
+                    woo = await self._extract_woocommerce_variations_pricing(page)
+                    if woo:
+                        wp = woo.get("price")
+                        if wp is not None:
+                            data["price"] = float(wp)
+                        wm = woo.get("msrp")
+                        if wm is not None:
+                            try:
+                                wf = float(wm)
+                                sp = float(data.get("price") or 0)
+                                if wf > sp > 0:
+                                    data["msrp"] = wf
+                                    data["old_price"] = wf
+                            except (TypeError, ValueError):
+                                pass
+                        wav = woo.get("availability")
+                        if isinstance(wav, str) and wav.strip():
+                            data["availability"] = wav.strip()[:160]
+
+                    summ = await self._extract_woocommerce_summary_sale_regular(page)
+                    if summ:
+                        sf = summ.get("price")
+                        if sf is not None:
+                            try:
+                                pf = float(sf)
+                                if 5.0 <= pf <= 100000.0:
+                                    data["price"] = pf
+                            except (TypeError, ValueError):
+                                pass
+                        sm = summ.get("msrp")
+                        sp_now = float(data.get("price") or 0)
+                        if sm is not None:
+                            try:
+                                mf = float(sm)
+                                if mf > sp_now > 0:
+                                    data["msrp"] = mf
+                                    data["old_price"] = float(
+                                        summ.get("old_price") or mf
+                                    )
+                            except (TypeError, ValueError):
+                                pass
+
+                    if not data.get("availability"):
+                        st_line = await self._extract_woocommerce_stock_line(page)
+                        if st_line:
+                            data["availability"] = st_line[:160]
+
+                # FluffCo：PDP 行内 .pdp-price + 同排数字，或旧 <product-price> 结构
                 if self.brand == "FluffCo":
                     fc = await self._extract_fluffco_product_price_dom(page)
                     if fc:
@@ -1543,8 +2286,10 @@ class ForensicAuditEngine:
                                     data["price"] = psf
                                     data["msrp"] = plf
                                     data["old_price"] = plf
-                        elif data["price"] == 0.0 and 5.0 <= psf <= 100000.0:
-                            data["price"] = psf
+                        elif pl is None and 5.0 <= psf <= 100000.0:
+                            # 无划线价时：摘要栏单价须能覆盖错误的 schema 锚定（SB 常见）
+                            if data["price"] == 0.0 or self.brand == "Sleep & Beyond":
+                                data["price"] = psf
 
                 if data["price"] == 0.0:
                     dom_ok = False
@@ -1588,11 +2333,93 @@ class ForensicAuditEngine:
                             )
                     except Exception:
                         pass
+                elif self.brand == "FluffCo":
+                    # React PDP：叠放徽章 + 多帧轮播。勿用 og:image 兜底——本站常为第三方截图非商品图。
+                    # 优先选「inset:0 且非 opacity:0」的当前主帧；再退回第二张（首张多为徽章）。
+                    try:
+                        try:
+                            await page.wait_for_selector(
+                                ".pdp-gallery [style*='aspect-ratio'] img",
+                                timeout=12000,
+                            )
+                        except Exception:
+                            pass
+                        src = await page.evaluate(r"""() => {
+                          function srcUrl(im) {
+                            const u = im.currentSrc || im.src || im.getAttribute('src');
+                            if (!u || !/^https?:\/\//i.test(String(u).trim())) return null;
+                            return String(u).trim();
+                          }
+                          /** URL / 路径含奖章素材（与是否 540 大图无关） */
+                          function isBadgeAsset(u) {
+                            if (!u) return true;
+                            const low = String(u).toLowerCase();
+                            return (
+                              /badge|best-list|best_list|apt-therapy|apt_therapy|apttherapy|the-best-list|pillows.for.back/i.test(
+                                low
+                              )
+                            );
+                          }
+                          function isHiddenSlide(im) {
+                            const st = im.getAttribute('style') || '';
+                            return /opacity:\\s*0(?:\\s|;|,|$)/.test(st);
+                          }
+                          function pickHero(imgs) {
+                            for (let i = 0; i < imgs.length; i++) {
+                              const im = imgs[i];
+                              const st = im.getAttribute('style') || '';
+                              if (!/inset:\\s*0(?:px)?/i.test(st)) continue;
+                              if (isHiddenSlide(im)) continue;
+                              const u = srcUrl(im);
+                              if (u && !isBadgeAsset(u)) return u;
+                            }
+                            for (let j = 0; j < imgs.length; j++) {
+                              const u = srcUrl(imgs[j]);
+                              if (u && !isBadgeAsset(u)) return u;
+                            }
+                            return null;
+                          }
+                          const g = document.querySelector('.pdp-gallery');
+                          if (!g) return null;
+                          const heroBox = g.querySelector('[style*="aspect-ratio"]');
+                          if (heroBox) {
+                            const imgs = Array.from(heroBox.querySelectorAll('img'));
+                            const u = pickHero(imgs);
+                            if (u) return u;
+                          }
+                          const anyImgs = Array.from(
+                            g.querySelectorAll('img:not(button img)')
+                          );
+                          return pickHero(anyImgs);
+                        }""")
+                        if src:
+                            data["original_image"] = src
+                    except Exception:
+                        pass
                 elif config.get("image_selector"):
                     try:
-                        data["original_image"] = await page.evaluate(
-                            "() => document.querySelector(\"meta[property='og:image']\")?.content"
+                        sel = config["image_selector"]
+                        src = await page.evaluate(
+                            """(selector) => {
+                              const el = document.querySelector(selector);
+                              if (!el) return null;
+                              const tag = el.tagName ? el.tagName.toUpperCase() : '';
+                              if (tag === 'META')
+                                return el.content || null;
+                              const u =
+                                el.currentSrc ||
+                                el.src ||
+                                el.getAttribute('src');
+                              return u || null;
+                            }""",
+                            sel,
                         )
+                        if src:
+                            data["original_image"] = str(src).strip()
+                        if not data.get("original_image"):
+                            data["original_image"] = await page.evaluate(
+                                "() => document.querySelector('meta[property=\"og:image\"]')?.content"
+                            )
                     except Exception:
                         pass
 
@@ -1612,15 +2439,43 @@ class ForensicAuditEngine:
                     if promo.get("promo_text_snippet"):
                         data["promo_text_snippet"] = promo["promo_text_snippet"]
                 self.augment_promo_from_plain_text(data.get("raw_text") or "", data)
-                apply_brand_site_coupon_fallback(self.brand, data)
+                sanitize_coupon_for_persistence(data)
+                if data.get("coupon_code"):
+                    data["coupon_code"] = await finalize_coupon_for_store(
+                        url, data["coupon_code"]
+                    )
 
                 extras = await self._extract_json_ld_extras(page)
                 if extras:
                     av = extras.get("availability")
                     if av and not data.get("availability"):
-                        data["availability"] = str(av).strip()[:160]
+                        avx = str(av).strip()
+                        if avx.upper() != "OUT_OF_STOCK":
+                            data["availability"] = avx[:160]
                     # 不再用全局 AggregateOffer.highPrice 填 MSRP：易与「跨规格最低价」现价错配；
                     # 划线价仅来自锚定 JSON-LD、Shopify 同 variant 的 compare_at，或将来显式 DOM 配对逻辑。
+
+                if self.brand == "FluffCo":
+                    fc_av = await self._extract_fluffco_availability_dom(page)
+                    if fc_av:
+                        prev_u = (data.get("availability") or "").strip().upper()
+                        if fc_av == "OUT_OF_STOCK":
+                            data["availability"] = fc_av
+                        elif fc_av == "LIMITED":
+                            if "OUT" not in prev_u:
+                                data["availability"] = fc_av
+                        elif fc_av == "IN_STOCK" and not data.get(
+                            "availability"
+                        ):
+                            data["availability"] = fc_av
+
+                ui_av = await self._reconcile_availability_with_buy_button(page)
+                if ui_av == "IN_STOCK":
+                    cur = (data.get("availability") or "").strip().upper()
+                    if cur == "OUT_OF_STOCK" or not data.get("availability"):
+                        data["availability"] = "IN_STOCK"
+                elif ui_av == "OUT_OF_STOCK":
+                    data["availability"] = "OUT_OF_STOCK"
 
             except Exception as e:
                 print(f"⚠️ 官网扫描受限: {e}")
@@ -1678,6 +2533,118 @@ class ForensicAuditEngine:
         if not content:
             raise RuntimeError("DeepSeek 返回空内容")
         return self._parse_llm_json_text(content)
+
+    @staticmethod
+    def _confidence_from_density(signal_density: int) -> float:
+        """样本越多置信越高；密度为 0 时保留极小正值以便排序。"""
+        if signal_density <= 0:
+            return 0.05
+        return round(min(1.0, signal_density / 30.0), 4)
+
+    async def call_ai_brand_intel_batch(self, platform_blocks: list) -> list[dict]:
+        """按平台批量抽取 sentiment / tags / verdict_summary → 写入 brand_intelligence。"""
+        trimmed = []
+        for b in platform_blocks or []:
+            ev = (b.get("evidence_text") or "").strip()
+            if not ev:
+                continue
+            trimmed.append(
+                {
+                    "source_platform": b.get("source_platform") or "Unknown",
+                    "signal_density": int(b.get("signal_density") or 0),
+                    "evidence_excerpt": ev[:3200],
+                }
+            )
+        if not trimmed:
+            return []
+
+        prompt = """
+You are a consumer mattress research analyst. For EACH platform object in the JSON input, read only the evidence_excerpt.
+Return a single JSON object with key "items" — an array with one entry per input platform (same order as input.platforms):
+- source_platform: exact copy from input
+- sentiment_score: float 0.0 (very negative consensus in snippets) to 1.0 (very positive)
+- key_issue_tags: array of 2 to 8 short labels, Title_Case or descriptors like "Edge_Support", "Off-gassing", "Shipping_Delay"
+- verdict_summary: one paragraph, max 85 words, neutral forensic tone; describe themes only, no URLs or invented facts
+
+If snippets are thin or contradictory, use sentiment near 0.45–0.55 and include tag "Thin_Signal".
+"""
+        ctx = json.dumps(
+            {
+                "brand": self.brand,
+                "model": self.model,
+                "platforms": trimmed,
+            },
+            ensure_ascii=False,
+        )
+        try:
+            response = self.ai_client.models.generate_content(
+                model=GEMINI_MODEL_ID,
+                contents=[prompt.strip(), ctx],
+                config=types.GenerateContentConfig(
+                    response_mime_type="application/json"
+                ),
+            )
+            parsed = json.loads(response.text)
+            items = parsed.get("items") or []
+            out = []
+            density_map = {x["source_platform"]: x["signal_density"] for x in trimmed}
+            for it in items:
+                plat = (it.get("source_platform") or "").strip()
+                if plat not in density_map:
+                    continue
+                tags = it.get("key_issue_tags") or []
+                if isinstance(tags, str):
+                    tags = [tags]
+                tags = [str(t).strip() for t in tags if str(t).strip()][:12]
+                ss_raw = it.get("sentiment_score")
+                try:
+                    ss = float(ss_raw if ss_raw is not None else 0.5)
+                except (TypeError, ValueError):
+                    ss = 0.5
+                ss = max(0.0, min(1.0, ss))
+                out.append(
+                    {
+                        "source_platform": plat,
+                        "sentiment_score": ss,
+                        "key_issue_tags": tags,
+                        "verdict_summary": (it.get("verdict_summary") or "").strip()[:2000],
+                        "signal_density": density_map[plat],
+                    }
+                )
+            return out
+        except Exception as e:
+            print(f"⚠️ brand_intel LLM 解析失败: {e}")
+            return []
+
+    async def _persist_brand_intelligence(self, platform_blocks: list) -> None:
+        rows = await self.call_ai_brand_intel_batch(platform_blocks)
+        if not rows:
+            return
+        now = datetime.now(UTC).isoformat()
+        for row in rows:
+            dens = int(row.get("signal_density") or 0)
+            conf = self._confidence_from_density(dens)
+            payload = {
+                "brand_slug": self.brand_slug,
+                "product_slug": self.slug,
+                "source_platform": row["source_platform"],
+                "sentiment_score": row.get("sentiment_score", 0.5),
+                "key_issue_tags": row.get("key_issue_tags") or [],
+                "verdict_summary": row.get("verdict_summary") or "",
+                "signal_density": dens,
+                "confidence_score": conf,
+                "updated_at": now,
+                "collected_at": now,
+            }
+            try:
+                self.supabase.table("brand_intelligence").upsert(
+                    payload,
+                    on_conflict="brand_slug,product_slug,source_platform",
+                ).execute()
+            except Exception as ex:
+                print(
+                    f"⚠️ brand_intelligence upsert 失败 ({row.get('source_platform')}): {ex}"
+                )
 
     async def execute_and_sync(self, url):
         # 1. 采集数据
@@ -1743,7 +2710,7 @@ class ForensicAuditEngine:
         except Exception:
             pass
 
-        social_proof, serp_review_count = await self.intel.fetch_social_proof(
+        social_proof, serp_review_count, platform_blocks = await self.intel.fetch_social_proof(
             f"{self.brand} {self.model}",
             product_id=existing_id,
             supabase_client=self.supabase if existing_id else None,
@@ -1888,17 +2855,26 @@ class ForensicAuditEngine:
             
             if res.data:
                 product_uuid = res.data[0]['id']
+                dc_raw = report.get("detected_coupon")
+                dc_n = normalize_coupon_token(dc_raw) if dc_raw else None
+                if dc_n and coupon_token_is_plausible(dc_n):
+                    dc_n = await finalize_coupon_for_store(url, dc_n)
+                else:
+                    dc_n = None
                 offer_row = {
                     "product_id": product_uuid,
                     "site_name": self.brand,
                     "price": site_data['price'],
                     "offer_url": url,
-                    "coupon_code": report.get('detected_coupon'),
                     "promo_text": report.get('promo_text') or "Best Offer Detected",
                     "is_primary": True,
                     "status": "active",
                     "last_checked_at": datetime.now(UTC).isoformat(),
                 }
+                if dc_n:
+                    offer_row["coupon_code"] = dc_n[:80]
+                else:
+                    offer_row["coupon_code"] = None
                 op_old = site_data.get("old_price")
                 if op_old:
                     try:
@@ -1912,6 +2888,11 @@ class ForensicAuditEngine:
                 self.supabase.table("product_offers").upsert(
                     offer_row, on_conflict="product_id, site_name"
                 ).execute()
+
+                try:
+                    await self._persist_brand_intelligence(platform_blocks)
+                except Exception as bi_err:
+                    print(f"⚠️ brand_intelligence 流水线异常: {bi_err}")
 
                 print(
                     f"✅ 审计存证已锁定: {self.slug} | LLM: {audit_llm_label} | "

@@ -1,185 +1,113 @@
-import { getAutomatedRegistry } from "@/lib/registry"
-import { previewTextForJournalCard } from "@/lib/journal-card-blurb"
 import Link from "next/link"
 import {
-    History,
+    BookOpen,
     FlaskConical,
-    ClipboardCheck,
-    ArrowRight,
-    ChevronRight,
+    Scale,
+    GitCompare,
+    Database,
     FileText,
+    ArrowRight,
     Activity
 } from "lucide-react"
+import type { Metadata } from "next"
 
-export const metadata = {
-    title: "The Sleep Journal | Lab-Verified Observations",
+export const metadata: Metadata = {
+    title: "Technical Docs · Protocol Library",
     description:
-        "Chronological documentation of mattress performance audits and biological sleep data analysis."
+        "Index of SleepChoice Guide audit protocols: methodology, lab scoring, disclosure, comparison tools, and data interfaces.",
+    alternates: { canonical: "/docs" }
 }
 
-// 强制动态渲染，确保日志实时更新
-export const dynamic = "force-dynamic"
-
-export default async function JournalIndex() {
-    // 获取数据
-    const registryData = await getAutomatedRegistry()
-    const products = Object.values(registryData || {})
-
-    const currentAuditDate = new Date().toLocaleDateString("en-US", {
-        year: "numeric",
-        month: "short"
-    })
+export default function TechnicalDocsPage() {
+    const sections = [
+        {
+            href: "/methodology",
+            title: "Audit Methodology",
+            desc: "How audits are scored, data sources, and known limitations.",
+            icon: BookOpen
+        },
+        {
+            href: "/lab",
+            title: "Testing Protocols",
+            desc: "Live lab metrics and how registry scores align to protocols.",
+            icon: FlaskConical
+        },
+        {
+            href: "/disclosure",
+            title: "Full Disclosure",
+            desc: "Affiliate and algorithmic transparency for this facility.",
+            icon: Scale
+        },
+        {
+            href: "/compare",
+            title: "Audit Comparison",
+            desc: "Side-by-side profiles from the verified registry index.",
+            icon: GitCompare
+        },
+        {
+            href: "/registry",
+            title: "Verified Registry",
+            desc: "Searchable archive of registry mattress dossiers (review-synthesized intelligence).",
+            icon: Database
+        },
+        {
+            href: "/journal",
+            title: "Sleep Journal",
+            desc: "Chronological observation logs and forensic narratives.",
+            icon: FileText
+        }
+    ]
 
     return (
-        <main className="relative min-h-screen bg-white pt-24 pb-20 overflow-x-hidden font-sans selection:bg-blue-600 selection:text-white">
-            {/* 1. 全局背景装饰：移除 styled-jsx，改用 Tailwind 原生动画类 */}
-            <div className="fixed inset-0 pointer-events-none z-0">
-                {/* 模拟实验室网格背景 */}
-                <div
-                    className="absolute inset-0 opacity-[0.03]"
-                    style={{
-                        backgroundImage:
-                            "radial-gradient(#000 1px, transparent 1px)",
-                        backgroundSize: "24px 24px"
-                    }}
-                />
-                {/* 扫描线动画：利用 tailwind.config 中的 scan 动画或手动指定 */}
-                <div className="absolute top-0 left-0 w-full h-[1px] bg-blue-600/30 animate-[scan_10s_linear_infinite]" />
-            </div>
-
-            <div className="container mx-auto px-6 relative z-10 max-w-6xl">
-                {/* --- Header: 临床档案风格 --- */}
-                <header className="max-w-4xl mb-24 border-l-4 border-slate-950 pl-8">
-                    <div className="flex items-center gap-3 text-blue-600 font-black text-[10px] uppercase tracking-[0.4em] mb-6">
-                        <Activity className="w-4 h-4 animate-pulse" />
-                        Live_Feed: Observation_Stream
+        <main className="min-h-screen bg-[#fdfdfd] pt-28 pb-24 font-sans selection:bg-blue-600 selection:text-white md:pt-32">
+            <div className="container mx-auto max-w-5xl px-6">
+                <header className="mb-16 border-l-4 border-slate-950 pl-8">
+                    <div className="mb-6 flex items-center gap-3 text-[10px] font-black uppercase tracking-[0.35em] text-blue-600">
+                        <Activity className="h-4 w-4 animate-pulse" />
+                        Technical Documentation
                     </div>
-                    <h1 className="text-6xl md:text-8xl font-[1000] tracking-tighter uppercase leading-[0.85] mb-8 italic">
-                        The Sleep <br />
-                        <span className="text-blue-600 not-italic">
-                            Journal_
-                        </span>
+                    <h1 className="mb-6 text-4xl font-[1000] uppercase tracking-tighter text-slate-950 md:text-6xl">
+                        Protocol{" "}
+                        <span className="text-blue-700 not-italic">Library</span>
                     </h1>
-
-                    <div className="flex flex-wrap items-center gap-6 py-4 border-t border-slate-100">
-                        <div className="flex items-center gap-2 text-[9px] font-black uppercase tracking-widest text-slate-400">
-                            <FileText className="w-3 h-3" />
-                            Volume_2026_Q1
-                        </div>
-                        <div className="px-3 py-1 bg-blue-50 text-blue-600 text-[9px] font-black uppercase tracking-widest border border-blue-100">
-                            Last_Entry_Sync: {currentAuditDate}
-                        </div>
-                    </div>
+                    <p className="max-w-2xl text-sm font-medium leading-relaxed text-slate-600">
+                        Central index for methodology, operational disclosure,
+                        and interfaces used by the SleepChoice Guide intelligence
+                        unit. Use these routes as the canonical reference for how
+                        scores and observations are produced.
+                    </p>
                 </header>
 
-                {/* --- Journal Grid: 模块化档案列表 --- */}
-                <div className="grid lg:grid-cols-2 gap-x-20 gap-y-24">
-                    {products.length === 0 ? (
-                        <div className="col-span-full py-40 border-2 border-dashed border-slate-100 flex flex-col items-center justify-center">
-                            <span className="animate-pulse font-mono text-[10px] uppercase tracking-[0.5em] text-slate-300">
-                                [ PENDING_DATA_UPLINK... ]
-                            </span>
-                        </div>
-                    ) : (
-                        products.map((p, idx) => {
-                            const journalSegment = encodeURIComponent(
-                                (p.slug && String(p.slug).trim()) || String(p.id)
-                            )
-                            return (
+                <ul className="grid gap-6 sm:grid-cols-2">
+                    {sections.map(({ href, title, desc, icon: Icon }) => (
+                        <li key={href}>
                             <Link
-                                href={`/journal/${journalSegment}`}
-                                key={p.id}
-                                className="group relative flex flex-col items-start"
+                                href={href}
+                                className="group flex h-full flex-col rounded-2xl border border-slate-200 bg-white p-8 shadow-sm transition-all hover:border-blue-600 hover:shadow-md"
                             >
-                                {/* 背景交互块：增加深度感 */}
-                                <div className="absolute -inset-8 bg-slate-50/0 group-hover:bg-slate-50/80 -z-10 transition-all duration-500 rounded-sm" />
-
-                                {/* 编号与分类：垂直排列在侧边 */}
-                                <div className="absolute -left-12 top-0 hidden xl:flex flex-col items-center gap-4">
-                                    <span className="text-[10px] font-black text-slate-200 group-hover:text-blue-200 transition-colors uppercase vertical-text tracking-widest">
-                                        ENTRY_{idx + 1}
+                                <div className="mb-4 flex items-center gap-3">
+                                    <span className="flex h-11 w-11 items-center justify-center rounded-xl border border-slate-100 bg-slate-50 text-blue-700 transition-colors group-hover:border-blue-200 group-hover:bg-blue-50">
+                                        <Icon className="h-5 w-5" strokeWidth={2} />
                                     </span>
-                                    <div className="w-[1px] h-12 bg-slate-100 group-hover:bg-blue-100" />
-                                </div>
-
-                                {/* 验证状态 */}
-                                <div className="flex items-center gap-3 mb-6">
-                                    <div className="flex -space-x-1">
-                                        <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                                        <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping" />
-                                    </div>
-                                    <span className="text-[9px] font-black text-emerald-600 uppercase tracking-[0.3em]">
-                                        Peer_Reviewed_Protocol
+                                    <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">
+                                        Route
                                     </span>
                                 </div>
-
-                                {/* 主内容标题 */}
-                                <h2 className="text-3xl md:text-4xl font-[1000] uppercase tracking-tighter leading-[0.95] mb-5 group-hover:italic transition-all">
-                                    {p.brand} <br />
-                                    <span className="text-slate-400 group-hover:text-blue-600">
-                                        {p.name}
-                                    </span>
+                                <h2 className="mb-3 text-lg font-[1000] uppercase tracking-tight text-slate-950">
+                                    {title}
                                 </h2>
-
-                                <p className="text-sm font-medium leading-relaxed text-slate-600 mb-8 line-clamp-4 normal-case tracking-tight">
-                                    {previewTextForJournalCard(p)}
+                                <p className="mb-6 flex-grow text-sm leading-relaxed text-slate-600">
+                                    {desc}
                                 </p>
-
-                                {/* 交互组件：查看详情 */}
-                                <div className="flex items-center justify-between w-full pr-4 border-b border-slate-100 pb-4 group-hover:border-blue-200 transition-colors">
-                                    <span className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-950">
-                                        Read_Full_Observation
-                                    </span>
-                                    <ChevronRight className="w-4 h-4 translate-x-0 group-hover:translate-x-2 transition-transform text-blue-600" />
-                                </div>
+                                <span className="inline-flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-blue-700">
+                                    Open
+                                    <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
+                                </span>
                             </Link>
-                        )
-                        })
-                    )}
-                </div>
-
-                {/* --- Footer: 底部导流区 --- */}
-                <footer className="mt-40 pt-20 border-t-8 border-slate-950 flex flex-col md:flex-row justify-between items-start gap-12">
-                    <div className="max-w-md">
-                        <div className="flex items-center gap-3 mb-6">
-                            <FlaskConical className="w-6 h-6 text-blue-600" />
-                            <h3 className="text-xl font-black uppercase italic tracking-tighter">
-                                Scientific_Integrity
-                            </h3>
-                        </div>
-                        <p className="text-[10px] font-bold text-slate-500 uppercase leading-relaxed tracking-widest">
-                            The Sleep Journal is an open-source documentation
-                            project. Sensor data is pulled from decentralized
-                            nodes to ensure no single manufacturer can influence
-                            observation logs.
-                        </p>
-                    </div>
-
-                    <Link
-                        href="/registry"
-                        className="group flex flex-col items-end text-right"
-                    >
-                        <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2">
-                            Global_Registry
-                        </span>
-                        <div className="text-3xl font-black uppercase italic leading-none group-hover:text-blue-600 transition-colors">
-                            Access_Archive <br />
-                            <span className="text-sm not-italic font-bold text-slate-950 underline underline-offset-8 decoration-4">
-                                View_All_Records_→
-                            </span>
-                        </div>
-                    </Link>
-                </footer>
+                        </li>
+                    ))}
+                </ul>
             </div>
-
-            {/* 隐藏的辅助类（确保 Tailwind 包含动画） */}
-            <style
-                dangerouslySetInnerHTML={{
-                    __html: `
-                .vertical-text { writing-mode: vertical-rl; text-orientation: mixed; }
-            `
-                }}
-            />
         </main>
     )
 }

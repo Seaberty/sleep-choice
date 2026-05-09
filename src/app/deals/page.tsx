@@ -2,11 +2,13 @@ import { getAutomatedRegistry } from "@/lib/registry"
 import { passesDealFilter } from "@/lib/deals-utils"
 import { DealsVault } from "@/app/deals/deals-vault"
 import { Timer, ShieldCheck, Zap, Activity } from "lucide-react"
+import type { Metadata } from "next"
 
-export const metadata = {
-    title: "Savings Vault | Live Mattress Price Tracker 2026",
+export const metadata: Metadata = {
+    title: "Savings Vault · Arbitrage Feed",
     description:
-        "Independent lab-verified price monitoring. Tactical data on current mattress discounts and liquidated stock."
+        "Real-time retail arbitrage surveillance on registry-indexed mattresses (scores from aggregated review + listing intelligence): deals & coupons tracked against our audit narrative.",
+    alternates: { canonical: "/deals" }
 }
 
 export const dynamic = "force-dynamic"
@@ -65,6 +67,11 @@ export default async function DealsPage() {
                         <br />
                         Vault.
                     </h1>
+                    <p className="mb-8 max-w-3xl text-sm font-medium leading-relaxed text-slate-600 normal-case tracking-tight">
+                        Real-time arbitrage surveillance on verified audit
+                        listings: discounts, coupons, and tactical savings indexed
+                        against the same forensic dossiers as the registry.
+                    </p>
 
                     <div className="flex flex-wrap items-center gap-8 py-6 border-y border-slate-100 font-mono">
                         <div className="flex items-center gap-2 text-[10px] font-bold text-slate-400 uppercase tracking-widest tabular-nums">
@@ -91,8 +98,8 @@ export default async function DealsPage() {
                                 </h4>
                             </div>
                             <p className="text-[11px] font-bold text-slate-500 uppercase leading-loose tracking-widest">
-                                The laboratory utilizes affiliate tracking to
-                                sustain computing power. When you secure a
+                                SleepChoice utilizes affiliate tracking to
+                                sustain computing pipelines. When you secure a
                                 deal, a referral token is generated. This
                                 incurs zero cost to the end-user while
                                 maintaining our independence from

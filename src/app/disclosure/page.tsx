@@ -1,27 +1,71 @@
-import Link from "next/link"
+import type { Metadata } from "next"
 import { APP_PROTOCOL } from "@/lib/constants"
 import {
     ShieldCheck,
     Cpu,
     CheckCircle2,
     Binary,
-    Lock,
     Scale,
-    ArrowRight,
     Activity,
-    Fingerprint,
     Database
 } from "lucide-react"
 
-export const metadata = {
-    title: "Algorithmic Transparency & Disclosure | SleepChoice Guide",
+/** FAQ 文案与首屏/§02 段落一致，便于富摘要与答案引擎引用 */
+const DISCLOSURE_FAQ_JSONLD = {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    mainEntity: [
+        {
+            "@type": "Question",
+            name: "Does SleepChoice Guide operate a physical mattress laboratory?",
+            acceptedAnswer: {
+                "@type": "Answer",
+                text: "We do not operate a physical test laboratory. Audits aggregate and model third-party owner reviews, retailer listings, and published certifications—no in-house bench measurements on inventory we own."
+            }
+        },
+        {
+            "@type": "Question",
+            name: 'What does "lab" or "lab-verified" mean on this site?',
+            acceptedAnswer: {
+                "@type": "Answer",
+                text: 'When we say "lab" or "lab-verified," we mean structured forensic scoring against certifications, listing specs, and aggregated owner-review corpora—not bench testing of units on our premises. Indices are computed by our registry pipeline from AI-synthesized third-party intelligence.'
+            }
+        },
+        {
+            "@type": "Question",
+            name: "How is SleepChoice Guide funded?",
+            acceptedAnswer: {
+                "@type": "Answer",
+                text: "Operational costs are sustained in part by referral yields (affiliate commissions). These yields fund computational overhead while keeping listed prices unchanged for users at checkout."
+            }
+        },
+        {
+            "@type": "Question",
+            name: "Does the scoring system use affiliate commission data?",
+            acceptedAnswer: {
+                "@type": "Answer",
+                text: "Our AI does not know which brands pay higher commissions. The scoring engine only sees specifications and consumer feedback logs."
+            }
+        }
+    ]
+} as const
+
+export const metadata: Metadata = {
+    title: "Algorithmic Transparency & Disclosure",
     description:
-        "Transparency regarding our AI-driven testing methodology, data aggregation protocols, and affiliate relationships."
+        "Transparency regarding our AI-driven testing methodology, data aggregation protocols, and affiliate relationships.",
+    alternates: { canonical: "/disclosure" }
 }
 
 export default function DisclosurePage() {
     return (
         <main className="min-h-screen bg-white pt-32 pb-20 font-sans selection:bg-blue-600 selection:text-white">
+            <script
+                type="application/ld+json"
+                dangerouslySetInnerHTML={{
+                    __html: JSON.stringify(DISCLOSURE_FAQ_JSONLD)
+                }}
+            />
             <div className="container mx-auto px-6 relative z-10 max-w-5xl">
                 {/* --- Header: 算法审计页头 --- */}
                 <header className="mb-24 border-b-8 border-slate-950 pb-12">
@@ -62,12 +106,13 @@ export default function DisclosurePage() {
                         elsewhere on this site, we mean{" "}
                         <strong className="text-slate-950">
                             structured forensic scoring against documented
-                            certification data and owner-verified field logs
+                            certifications, retailer listings, and aggregated
+                            owner-review text from major platforms
                         </strong>
-                        — not an on-site wet lab photograph of every mattress.
-                        Physical SKUs where cited are purchased or sampled under
-                        our independence rules where applicable; numerical index
-                        outputs are produced here via our registry pipeline.
+                        — not bench measurements performed on inventory we hold.
+                        SleepChoice does not operate a physical QA lab or claim
+                        unit-by-unit testing; numerical indices are produced by
+                        our registry pipeline from third-party-sourced signals.
                     </p>
                 </header>
 

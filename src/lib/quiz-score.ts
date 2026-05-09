@@ -16,7 +16,17 @@ export type QuizBudget =
     | "over_4000"
     | "unsure"
 
+/** 用户首要选购的睡眠产品类型（与 `quizShelf` 对齐用于加权） */
+export type QuizProductFocus =
+    | "mattress"
+    | "pillow"
+    | "topper"
+    | "bedding_lifestyle"
+    | "any"
+
 export interface QuizAnswers {
+    /** 缺省视为床垫，兼容旧版 quiz URL */
+    product_focus?: QuizProductFocus
     sleep_position: QuizSleepPosition
     firmness: QuizFirmness
     body_type: QuizBodyType
@@ -123,6 +133,28 @@ export function quizAnswersToWeights(answers: QuizAnswers): ScoreWeights {
             break
     }
 
+    switch (answers.product_focus ?? "mattress") {
+        case "pillow":
+            w.pressure += 0.12
+            w.cooling += 0.06
+            w.durability -= 0.06
+            break
+        case "topper":
+            w.pressure += 0.12
+            w.support += 0.02
+            break
+        case "bedding_lifestyle":
+            w.cooling += 0.1
+            w.pressure += 0.04
+            w.support -= 0.04
+            break
+        case "any":
+            break
+        case "mattress":
+        default:
+            break
+    }
+
     return normalizeWeights(w)
 }
 
@@ -226,6 +258,7 @@ function normalizeQuizPayload(
     const body_type = o.body_type as QuizBodyType
     const sleep_issues = o.sleep_issues as QuizSleepIssue
     const budgetRaw = o.budget as QuizBudget | undefined
+    const focusRaw = o.product_focus as QuizProductFocus | undefined
 
     const positions: QuizSleepPosition[] = [
         "back",
@@ -256,7 +289,18 @@ function normalizeQuizPayload(
     const safeBudget =
         budgetRaw && budgets.includes(budgetRaw) ? budgetRaw : undefined
 
+    const focuses: QuizProductFocus[] = [
+        "mattress",
+        "pillow",
+        "topper",
+        "bedding_lifestyle",
+        "any"
+    ]
+    const product_focus =
+        focusRaw && focuses.includes(focusRaw) ? focusRaw : "mattress"
+
     return {
+        product_focus,
         sleep_position,
         firmness,
         body_type,

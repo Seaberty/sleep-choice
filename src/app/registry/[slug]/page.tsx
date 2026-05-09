@@ -2,7 +2,11 @@ import { supabase } from "@/lib/supabase"
 import { APP_PROTOCOL } from "@/lib/constants"
 import { buildRegistryProductJsonLd } from "@/lib/product-jsonld"
 import { productGoLink, APPROVED_AFFILIATE_BRANDS } from "@/lib/go-redirect"
+import { AddToCompareButton } from "@/components/compare/add-to-compare-button"
+import { withImageCacheBust } from "@/lib/utils"
+import { getBrandIntelligenceByProductSlug } from "@/lib/brand-intelligence"
 import { notFound } from "next/navigation"
+import Link from "next/link"
 import { Metadata } from "next"
 import Image from "next/image"
 import React, { useMemo } from "react"
@@ -19,7 +23,8 @@ import {
     Plus,
     Minus,
     AlertCircle,
-    ChevronRight
+    ChevronRight,
+    Radio
 } from "lucide-react"
 
 // --- 类型定义 (根据 Supabase 表结构) ---
@@ -141,6 +146,9 @@ export async function generateMetadata({
         keywords:
             product.seo_keywords ||
             `${product.brand}, ${product.model}, mattress audit, lab test`,
+        alternates: {
+            canonical: `/registry/${slug}`
+        },
         openGraph: {
             title: title,
             description: description,
@@ -339,6 +347,8 @@ export default async function ProductAuditPage({
 
     if (error || !rawProduct) notFound()
 
+    const brandIntel = await getBrandIntelligenceByProductSlug(slug)
+
     const product = rawProduct as Product
 
     // 1. 获取数据库原始联表数据
@@ -482,15 +492,21 @@ export default async function ProductAuditPage({
                             </div>
                         </div>
                     </div>
-                    <div className="text-[9px] font-black text-slate-400 uppercase tracking-widest group">
-                        Protocol:{" "}
-                        <a
-                            href="/methodology"
-                            className="text-blue-600 hover:bg-blue-600 hover:text-white px-1 transition-colors border-b border-blue-600/30"
-                        >
-                            {product.protocol_version || APP_PROTOCOL}
-                            <ExternalLink className="w-2 h-2 inline-block ml-1 mb-0.5" />
-                        </a>
+                    <div className="flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-6 md:justify-end">
+                        <AddToCompareButton
+                            slug={slug}
+                            productTitle={`${product.brand} ${product.model}`}
+                        />
+                        <div className="text-[9px] font-black text-slate-400 uppercase tracking-widest group">
+                            Protocol:{" "}
+                            <a
+                                href="/methodology"
+                                className="text-blue-600 hover:bg-blue-600 hover:text-white px-1 transition-colors border-b border-blue-600/30"
+                            >
+                                {product.protocol_version || APP_PROTOCOL}
+                                <ExternalLink className="w-2 h-2 inline-block ml-1 mb-0.5" />
+                            </a>
+                        </div>
                     </div>
                 </header>
 
@@ -503,7 +519,10 @@ export default async function ProductAuditPage({
                                 {product.image_url ? (
                                     <div className="relative w-full h-full overflow-hidden">
                                         <Image
-                                            src={product.image_url}
+                                            src={withImageCacheBust(
+                                                product.image_url,
+                                                product.last_audited_at
+                                            )}
                                             alt={
                                                 product.model || "Product Image"
                                             }
@@ -695,6 +714,61 @@ export default async function ProductAuditPage({
                                 <ShieldCheck className="absolute right-[-10%] bottom-[-20%] w-40 h-40 opacity-10 rotate-12 pointer-events-none" />
                             </div>
 
+                            {brandIntel.length > 0 ? (
+                                <div className="mt-10 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+                                    <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+                                        <div className="flex items-center gap-2">
+                                            <Radio className="h-4 w-4 text-blue-600" />
+                                            <span className="text-[10px] font-black uppercase tracking-[0.25em] text-slate-400">
+                                                Cross_Platform_Signals
+                                            </span>
+                                        </div>
+                                        <Link
+                                            href="/intelligence"
+                                            className="text-[10px] font-black uppercase tracking-widest text-blue-600 hover:underline"
+                                        >
+                                            Intelligence Center →
+                                        </Link>
+                                    </div>
+                                    <ul className="space-y-5">
+                                        {brandIntel.map(
+                                            (intel: (typeof brandIntel)[number]) => (
+                                            <li
+                                                key={intel.id}
+                                                className="border-l-2 border-blue-500/30 pl-4"
+                                            >
+                                                <div className="mb-1 flex flex-wrap items-baseline gap-2">
+                                                    <span className="rounded bg-slate-950 px-2 py-0.5 text-[9px] font-black uppercase tracking-wider text-white">
+                                                        {intel.source_platform}
+                                                    </span>
+                                                    <span className="font-mono text-[10px] text-slate-400">
+                                                        sentiment{" "}
+                                                        {intel.sentiment_score.toFixed(2)} · n=
+                                                        {intel.signal_density} · conf{" "}
+                                                        {intel.confidence_score.toFixed(2)}
+                                                    </span>
+                                                </div>
+                                                <p className="text-[13px] leading-relaxed text-slate-600">
+                                                    {intel.verdict_summary}
+                                                </p>
+                                                {intel.key_issue_tags?.length ? (
+                                                    <div className="mt-2 flex flex-wrap gap-1.5">
+                                                        {intel.key_issue_tags.map((t: string) => (
+                                                            <span
+                                                                key={`${intel.id}-${t}`}
+                                                                className="text-[9px] font-bold uppercase tracking-tight text-slate-500"
+                                                            >
+                                                                [{t.replace(/_/g, " ")}]
+                                                            </span>
+                                                        ))}
+                                                    </div>
+                                                ) : null}
+                                            </li>
+                                        ))}
+                                    </ul>
+                                </div>
+                            ) : null}
+
                             {/* 深度审计日志区域 - 优化了间距与水印 */}
                             <div className="mt-16 p-8 border border-slate-100 bg-slate-50/50 relative overflow-hidden group/log">
                                 {/* 背景防伪水印 */}
@@ -771,14 +845,14 @@ export default async function ProductAuditPage({
                                                 <span className="text-blue-600 font-bold">
                                                     Methodology:
                                                 </span>{" "}
-                                                This audit utilizes
-                                                high-fidelity neural analysis to
-                                                synthesize unbiased consumer
-                                                feedback, technical material
-                                                specifications, and comparative
-                                                laboratory benchmarks. Data
-                                                integrity is maintained via
-                                                multi-cluster cross-referencing.
+                                                This audit utilizes neural
+                                                synthesis of aggregated consumer
+                                                feedback, published material
+                                                specs, and category benchmarks
+                                                from public listings—not
+                                                measurements performed on units we
+                                                stock. Integrity relies on
+                                                multi-source cross-referencing.
                                             </p>
                                         </div>
                                     </div>
@@ -896,11 +970,11 @@ export default async function ProductAuditPage({
                                     </h5>
                                     <p className="text-[9px] text-slate-400 leading-relaxed uppercase">
                                         Raw intelligence is gathered from
-                                        verified purchase channels, independent
-                                        review clusters, and manufacturer data
-                                        sheets. Our system filters for
-                                        "Review_Bumping" and
-                                        "Incentivized_Bias".
+                                        aggregated marketplace reviews, retailer
+                                        listings, and manufacturer-published spec
+                                        sheets—not units tested in our facility.
+                                        Models flag patterns consistent with
+                                        review stacking and incentivized bias.
                                     </p>
                                 </div>
                                 <div className="space-y-4">
@@ -908,9 +982,10 @@ export default async function ProductAuditPage({
                                         Audit_Integrity
                                     </h5>
                                     <p className="text-[9px] text-slate-400 leading-relaxed uppercase">
-                                        Sleep Intel Labs operates independently.
-                                        Our scoring algorithm is unaffected by
-                                        affiliate partnerships. Log ID{" "}
+                                        SleepChoice Guide operates editorially
+                                        independently. Scoring pipelines do not
+                                        ingest affiliate commission rates as a
+                                        feature. Log ID{" "}
                                         {product.id
                                             .split("-")[0]
                                             .toUpperCase()}
@@ -924,7 +999,7 @@ export default async function ProductAuditPage({
                                             Status: Final_Report_Verified
                                         </div>
                                         <div className="text-[8px] text-slate-300 font-mono mt-1">
-                                            © 2026 SLEEP_INTEL_LABS /
+                                            © 2026 SLEEPCHOICE_GUIDE /
                                             ALL_RIGHTS_RESERVED
                                         </div>
                                     </div>

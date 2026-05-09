@@ -12,8 +12,9 @@ import {
     TrendingUp
 } from "lucide-react"
 import Image from "next/image"
-import { cn } from "@/lib/utils"
+import { cn, withImageCacheBust } from "@/lib/utils"
 import { ProductData } from "@/types/product"
+import { AddToCompareButton } from "@/components/compare/add-to-compare-button"
 import { outboundDealLink } from "@/lib/go-redirect"
 
 export function ProductCard({
@@ -92,7 +93,12 @@ export function ProductCard({
                 {data.image_url && !imageError ? (
                     <Image
                         // 关键点 1: 对 URL 进行编码，处理 & 等特殊字符
-                        src={data.image_url || "/placeholder-product.png"}
+                        src={
+                            withImageCacheBust(
+                                data.image_url || "/placeholder-product.png",
+                                data.last_audited_at
+                            ) || "/placeholder-product.png"
+                        }
                         alt={data.name || "Product Image"}
                         // 关键点 2: 使用 fill 模式填充父容器
                         fill
@@ -177,13 +183,23 @@ export function ProductCard({
 
                 {/* --- 转化底座 --- */}
                 <div className="mt-auto pt-6 border-t border-slate-50">
-                    <div className="flex items-center justify-between mb-4 px-1">
+                    <div className="flex flex-wrap items-center justify-between gap-3 mb-4 px-1">
                         <div className="flex items-center gap-1.5 text-[9px] font-black text-slate-400 uppercase tracking-widest">
                             <Clock className="w-3 h-3" />
                             UPDATED: JAN 2026
                         </div>
-                        <div className="flex items-center gap-1 text-emerald-600 text-[10px] font-black tracking-tighter">
-                            <BadgeCheck className="w-3 h-3" /> VERIFIED_DATA
+                        <div className="flex items-center gap-2 flex-wrap justify-end">
+                            <AddToCompareButton
+                                slug={data.slug}
+                                productTitle={
+                                    data.name || data.model || data.slug
+                                }
+                                variant="compact"
+                            />
+                            <div className="flex items-center gap-1 text-emerald-600 text-[10px] font-black tracking-tighter">
+                                <BadgeCheck className="w-3 h-3" />{" "}
+                                VERIFIED_DATA
+                            </div>
                         </div>
                     </div>
 

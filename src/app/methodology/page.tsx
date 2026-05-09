@@ -26,7 +26,7 @@ export default function MethodologyPage() {
         "@type": "Article",
         headline: "How We Audit Mattresses | Scored-Matrix™ Methodology 2026",
         description:
-            "Deep dive into our AI-driven neural audit protocol for objective sleep surface evaluation.",
+            "How we turn aggregated marketplace reviews and listing data into scored mattress intelligence—without in-house bench testing.",
         author: {
             "@type": "Organization",
             name: "SleepChoice Intelligence Unit",
@@ -39,7 +39,7 @@ export default function MethodologyPage() {
             icon: <Network className="w-6 h-6" />,
             title: "Neural Sentiment Mapping",
             score: "Support Score",
-            desc: "Instead of limited lab samples, we deploy NLP engines across 10,000+ verified owner datasets to extract precise 'Pressure-Point' metadata and spinal alignment feedback.",
+            desc: "NLP engines ingest large-scale owner-review text from retail ecosystems—not bench foam cores—to extract pressure-relief and alignment narratives tied to each SKU.",
             details: [
                 "Cross-channel data triangulation",
                 "Deep-learning sentiment extraction",
@@ -63,7 +63,7 @@ export default function MethodologyPage() {
             icon: <Binary className="w-6 h-6" />,
             title: "Material Safety Integrity",
             score: "Safety Audit",
-            desc: "We aggregate and verify certification logs (CertiPUR-US, OEKO-TEX) and cross-reference them with chemical off-gassing reports and owner allergy alerts.",
+            desc: "We aggregate published certification claims (CertiPUR-US, OEKO-TEX, etc.) and cross-reference them with owner-reported odor/allergy signals from reviews—not VOC chamber tests we run.",
             details: [
                 "VOC emission pattern analysis",
                 "Certification validity verification",
@@ -111,12 +111,14 @@ export default function MethodologyPage() {
                 </h1>
 
                 <p className="text-xl md:text-2xl text-slate-500 font-bold leading-tight max-w-3xl border-l-4 border-slate-100 pl-8">
-                    We've replaced subjective testing with{" "}
+                    We don&apos;t run warehouse bench tests on inventory we own.
+                    Instead we apply{" "}
                     <span className="text-slate-950">
                         high-dimensional data auditing
-                    </span>
-                    . No marketing samples. No bias. Just the cold, hard
-                    metadata of 10,000+ real sleep experiences.
+                    </span>{" "}
+                    to aggregated marketplace reviews and listing metadata—the
+                    cold metadata trail behind tens of thousands of owner
+                    narratives.
                 </p>
             </header>
 
@@ -125,8 +127,8 @@ export default function MethodologyPage() {
                 {[
                     {
                         icon: <SearchCode className="w-6 h-6" />,
-                        title: "Zero Sample Bias",
-                        desc: "Brands can't send us 'golden' samples. We audit real products purchased by real people."
+                        title: "Corpus-First Signal",
+                        desc: "No showroom votes or sponsored samples—scores distill massive owner-review corpora and retailer-facing specs, not units staged for us."
                     },
                     {
                         icon: <Database className="w-6 h-6" />,
@@ -220,13 +222,13 @@ export default function MethodologyPage() {
                             </span>
                         </h2>
                         <p className="text-slate-400 font-bold leading-relaxed mb-10 text-lg">
-                            We don't need a 2,000 sq ft warehouse to know if a
-                            mattress sags. Our infrastructure is built on{" "}
+                            Forensic value lives in{" "}
                             <span className="text-white">
-                                high-performance computing clusters
+                                aggregated review corpora and listing deltas
                             </span>
-                            that process millions of data points across the
-                            global mattress retail ecosystem.
+                            —not mattresses sitting on our loading dock. Compute
+                            clusters normalize NLP embeddings and retailer feeds
+                            across the global sleep-product ecosystem.
                         </p>
                         <div className="grid grid-cols-1 gap-4 mb-10">
                             {[

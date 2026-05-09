@@ -16,9 +16,10 @@ import {
 } from "lucide-react"
 
 export const metadata: Metadata = {
-    title: "Official Registry Archive | SleepChoice Guide Laboratory",
+    title: "Official Registry Archive",
     description:
-        "Independent laboratory-verified database of mattress performance indexed for 2026."
+        "Registry of AI-synthesized mattress intelligence from aggregated reviews and retail listings—not independent bench verification of each unit.",
+    alternates: { canonical: "/registry" }
 }
 
 export const dynamic = "force-dynamic"

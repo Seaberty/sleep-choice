@@ -101,7 +101,7 @@ export function SiteFooter() {
                                     <span className="text-slate-900 font-bold">
                                         biometric audit logs
                                     </span>{" "}
-                                    and real-time market arbitrage alerts.
+                                    and real-time arbitrage surveillance signals.
                                 </p>
 
                                 <form
@@ -195,6 +195,12 @@ export function SiteFooter() {
                                     <ArrowRight className="w-3 h-3 opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all" />
                                 </Link>
                                 <Link
+                                    href="/intelligence"
+                                    className="hover:text-blue-600"
+                                >
+                                    Intelligence Center
+                                </Link>
+                                <Link
                                     href="/lab"
                                     className="hover:text-blue-600"
                                 >
@@ -204,7 +210,7 @@ export function SiteFooter() {
                                     href="/deals"
                                     className="text-emerald-600 hover:text-emerald-700 flex items-center gap-2"
                                 >
-                                    Arbitrage Alerts{" "}
+                                    Real-time Arbitrage{" "}
                                     <span className="w-1 h-1 bg-emerald-500 rounded-full animate-pulse shadow-[0_0_8px_rgba(16,185,129,0.8)]" />
                                 </Link>
                                 <Link
@@ -212,6 +218,12 @@ export function SiteFooter() {
                                     className="hover:text-blue-600"
                                 >
                                     Technical Docs
+                                </Link>
+                                <Link
+                                    href="/journal"
+                                    className="hover:text-blue-600"
+                                >
+                                    Sleep Journal
                                 </Link>
                             </nav>
                         </div>
@@ -233,7 +245,7 @@ export function SiteFooter() {
                                     className="hover:text-blue-600 transition-colors flex items-center gap-2"
                                 >
                                     <span className="w-1 h-1 bg-slate-300 rounded-full"></span>
-                                    Neural_Match_AI
+                                    Match_Engine
                                 </Link>
                                 <Link
                                     href="/compare"
@@ -268,9 +280,10 @@ export function SiteFooter() {
                                     Integrity Shield
                                 </div>
                                 <p className="text-[11px] text-slate-400 leading-relaxed font-bold italic relative z-10">
-                                    "0% Brand Sponsorship. We purchase every
-                                    unit at full retail to ensure unbiased audit
-                                    logs."
+                                    "No brand-paid editorial. Indices fuse
+                                    third-party reviews + listing intelligence—we
+                                    do not claim independent bench testing of each
+                                    SKU."
                                 </p>
                                 <div className="pt-2 border-t border-white/10 relative z-10">
                                     <div className="text-[8px] text-slate-500 font-mono tracking-tighter">
@@ -301,7 +314,7 @@ export function SiteFooter() {
                                 [PROTOCOL_{APP_PROTOCOL}]
                             </span>
                             <strong>
-                                SleepChoiceGuide (Intelligence Unit)
+                                SleepChoice Guide (Intelligence Unit)
                             </strong>{" "}
                             operates via the{" "}
                             <span className="text-slate-900 font-bold">

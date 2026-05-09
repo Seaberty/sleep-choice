@@ -2,6 +2,27 @@ import type { Offer, ProductData } from "@/types/product"
 
 const PLACEHOLDER_PROMO_TEXT = new Set(["", "check latest price"])
 
+/**
+ * 仅当库里有爬虫写入的 `promo_discount_percent`（官网可见的叠加折扣）时才用于折算；
+ * 不按品牌猜测默认百分比。
+ */
+export function siteWideStackPercent(_brand: string | undefined, dbPromoPercent: unknown): number {
+    const d = Number(dbPromoPercent)
+    if (Number.isFinite(d) && d > 0 && d < 100) return d
+    return 0
+}
+
+/** PDP 标价再叠站点券后的估算支付价（用于货架主价展示） */
+export function merchantPriceAfterSiteStack(
+    merchantPrice: number,
+    brand: string | undefined,
+    dbPromoPercent: unknown
+): number {
+    const pct = siteWideStackPercent(brand, dbPromoPercent)
+    if (pct <= 0 || !Number.isFinite(merchantPrice)) return merchantPrice
+    return Math.round(merchantPrice * (1 - pct / 100) * 100) / 100
+}
+
 export function isPlaceholderPromoText(text: string | undefined): boolean {
     const t = (text ?? "").trim().toLowerCase()
     return PLACEHOLDER_PROMO_TEXT.has(t)

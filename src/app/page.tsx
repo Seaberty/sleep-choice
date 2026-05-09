@@ -18,9 +18,21 @@ import { ProductCard } from "@/components/product-card"
 import { getAutomatedRegistry } from "@/lib/registry"
 import { cn } from "@/lib/utils"
 import { APP_PROTOCOL } from "@/lib/constants"
+import type { Metadata } from "next"
 
 // 2026 顶级白帽策略：极致的实时性与动态缓存控制
 export const revalidate = 0
+
+/** 首页避免与根 layout 的 title.template 二次拼接 */
+export const metadata: Metadata = {
+    title: {
+        absolute:
+            "SleepChoice Guide | Bio-Performance Registry & Sleep Forensics"
+    },
+    description:
+        "Sleep product audit intelligence: scores fused from major review ecosystems and retail data via NLP—no warehouse samples or on-site lab runs.",
+    alternates: { canonical: "/" }
+}
 
 export default async function HomePage() {
     const productList = await getAutomatedRegistry()
@@ -34,22 +46,38 @@ export default async function HomePage() {
                 dangerouslySetInnerHTML={{
                     __html: JSON.stringify({
                         "@context": "https://schema.org",
-                        "@type": "MedicalOrganization",
-                        name: "SleepChoice Intelligence Unit",
-                        url: "https://sleepchoiceguide.com",
-                        description:
-                            "Clinical-grade sleep material forensics and biometric support audits.",
-                        knowsAbout: [
-                            "Biometrics",
-                            "Sleep Science",
-                            "Material Safety"
-                        ],
-                        potentialAction: {
-                            "@type": "SearchAction",
-                            target:
-                                "https://sleepchoiceguide.com/registry?q={search_term_string}",
-                            "query-input": "required name=search_term_string"
-                        }
+                        "@graph": [
+                            {
+                                "@type": "Organization",
+                                "@id": "https://sleepchoiceguide.com/#organization",
+                                name: "SleepChoice Intelligence Unit",
+                                url: "https://sleepchoiceguide.com",
+                                logo: "https://sleepchoiceguide.com/logo.png",
+                                description:
+                                    "Independent sleep-product audit intelligence: aggregated third-party reviews and listing signals modeled into registry scores—we do not operate a physical test lab or purchase units for bench QA.",
+                                knowsAbout: [
+                                    "Sleep Science",
+                                    "Material Forensics",
+                                    "Sleep Technology Benchmarking"
+                                ]
+                            },
+                            {
+                                "@type": "WebSite",
+                                "@id": "https://sleepchoiceguide.com/#website",
+                                url: "https://sleepchoiceguide.com",
+                                name: "SleepChoice Guide",
+                                publisher: {
+                                    "@id": "https://sleepchoiceguide.com/#organization"
+                                },
+                                potentialAction: {
+                                    "@type": "SearchAction",
+                                    target:
+                                        "https://sleepchoiceguide.com/registry?q={search_term_string}",
+                                    "query-input":
+                                        "required name=search_term_string"
+                                }
+                            }
+                        ]
                     })
                 }}
             />
@@ -63,7 +91,7 @@ export default async function HomePage() {
                         {[
                             {
                                 icon: <Beaker />,
-                                label: "Lab Protocol",
+                                label: "Audit Protocol",
                                 detail: "SCG-01-2026",
                                 color: "text-blue-600",
                                 bg: "bg-blue-50"

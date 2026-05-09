@@ -3,7 +3,7 @@
  * (availability, hasMerchantReturnPolicy, shippingDetails) for Google Search Console.
  */
 
-const SITE_ORIGIN = "https://sleepchoiceguide.com"
+import { SITE_ORIGIN } from "@/lib/site-origin"
 
 function stripSummaryTimestamp(log: string): string {
     return log.replace(/\[T-.*?\]\s+/g, "").trim()

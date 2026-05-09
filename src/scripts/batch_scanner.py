@@ -35,7 +35,12 @@ from typing import Any
 from dotenv import load_dotenv
 from supabase import Client, create_client
 
-from forensic_engine import ForensicAuditEngine
+from forensic_engine import (
+    ForensicAuditEngine,
+    coupon_token_is_plausible,
+    finalize_coupon_for_store,
+    normalize_coupon_token,
+)
 
 _ROOT = Path(__file__).resolve().parents[2]
 _ENV = _ROOT / ".env.local"
@@ -84,58 +89,55 @@ SAATVA_TARGETS: list[dict[str, str]] = [
 ]
 
 SB_TARGETS: list[dict[str, str]] = [
-    {"model": "MyTravel Pillow", "url": "https://sleepandbeyond.com/product/mytravel-pillow/"},
-    {"model": "MyWoolly Pillow", "url": "https://sleepandbeyond.com/product/mywoolly-pillow/"},
-    {"model": "MyMerino Pillow", "url": "https://sleepandbeyond.com/product/mymerino-pillow/"},
-    {"model": "MyMerino Comforter", "url": "https://sleepandbeyond.com/product/mymerino-comforter/"},
-    {"model": "MyComforter", "url": "https://sleepandbeyond.com/product/mycomforter/"},
-    {"model": "MyTopper", "url": "https://sleepandbeyond.com/product/mytopper/"},
-    {"model": "MyMerino Topper", "url": "https://sleepandbeyond.com/product/mymerino-topper/"},
-    {"model": "MyProtector", "url": "https://sleepandbeyond.com/product/myprotector/"},
+    # {"model": "MyTravel Pillow", "url": "https://sleepandbeyond.com/product/mytravel-pillow/"},
+    # {"model": "MyWoolly Pillow", "url": "https://sleepandbeyond.com/product/mywoolly-pillow/"},
+    # {"model": "MyMerino Pillow", "url": "https://sleepandbeyond.com/product/mymerino-pillow/"},
+    # {"model": "MyMerino Comforter", "url": "https://sleepandbeyond.com/product/mymerino-comforter/"},
+    # {"model": "MyComforter", "url": "https://sleepandbeyond.com/product/mycomforter/"},
+    # {"model": "MyTopper", "url": "https://sleepandbeyond.com/product/mytopper/"},
+    # {"model": "MyMerino Topper", "url": "https://sleepandbeyond.com/product/mymerino-topper/"},
+    # {"model": "MyProtector", "url": "https://sleepandbeyond.com/product/myprotector/"},
     {"model": "mySheet Set", "url": "https://sleepandbeyond.com/product/mysheet-set/"},
     {"model": "myPad", "url": "https://sleepandbeyond.com/product/mypad/"},
 ]
 
+# 官网主域已迁至 https://home.fluff.co/（React PDP：.pdp-price / 划线兄弟节点）
 FLUFFCO_TARGETS: list[dict[str, str]] = [
     {
         "model": "Down Feather Pillow",
-        "url": "https://fluff.co/products/down-feather-pillow?variant=35113578889377",
+        "url": "https://home.fluff.co/products/down-feather-pillow?variant=35113578889377",
     },
     {
         "model": "Down Alternative Pillow",
-        "url": "https://fluff.co/products/down-alternative-pillow?variant=35113580527777",
+        "url": "https://home.fluff.co/products/down-alternative-pillow?variant=35113580527777",
     },
     {
         "model": "Down Blended Comforter",
-        "url": "https://fluff.co/products/down-blended-comforter-1?variant=39752258519201",
+        "url": "https://home.fluff.co/products/down-blended-comforter?variant=39752258519201",
     },
     {
         "model": "Down Alternative Comforter",
-        "url": "https://fluff.co/products/down-alternative-comforter?variant=40396635078817",
+        "url": "https://home.fluff.co/products/down-alternative-comforter?variant=40396635078817",
     },
     {
         "model": "Hotel Lounge Robe",
-        "url": "https://fluff.co/products/hotel-lounge-robe?variant=39752183447713",
+        "url": "https://home.fluff.co/products/hotel-lounge-robe?variant=39752183447713",
     },
     {
         "model": "Hotel Waffle Robe",
-        "url": "https://fluff.co/products/hotel-waffle-robe?variant=49119638749478",
+        "url": "https://home.fluff.co/products/hotel-waffle-robe?variant=49119638749478",
     },
     {
         "model": "Hotel Towel",
-        "url": "https://fluff.co/products/hotel-towel?variant=40808608858273",
+        "url": "https://home.fluff.co/products/hotel-towel?variant=40808608858273",
     },
     {
         "model": "Silk Pillowcase",
-        "url": "https://fluff.co/products/silk-pillowcase?variant=35113585016865",
-    },
-    {
-        "model": "2x Hotel Pillows & Pillowcase Set",
-        "url": "https://fluff.co/products/2x-hotel-pillows-pillowcase-set-down-alternative?variant=44681905733926",
+        "url": "https://home.fluff.co/products/silk-pillowcase?variant=35113585016865",
     },
     {
         "model": "Pillow & Comforter Kit",
-        "url": "https://fluff.co/products/pillow-comforter-kit?variant=35113586032705",
+        "url": "https://home.fluff.co/products/pillow-comforter-kit?variant=35113586032705",
     },
 ]
 
@@ -238,6 +240,15 @@ class IntelBatchScanner:
                     update_payload["image_url"] = hosted
                 elif existing_record.get("image_url"):
                     update_payload["image_url"] = existing_record["image_url"]
+                    print(
+                        "⚠️ 图片上传 Storage 失败，已保留库内旧 image_url；"
+                        "请查看上方「图片下载/转储」报错（常为网络或非图片 Content-Type）。"
+                    )
+                else:
+                    print(
+                        "⚠️ 图片上传 Storage 失败且库内无旧 image_url，"
+                        "前端可能仍无图；请检查上方转储报错。"
+                    )
 
             if new_site_data.get("msrp"):
                 update_payload["msrp"] = new_site_data["msrp"]
@@ -295,9 +306,20 @@ class IntelBatchScanner:
                         po["availability"] = str(
                             new_site_data["availability"]
                         ).strip()[:160]
-                    cc = new_site_data.get("coupon_code")
-                    if isinstance(cc, str) and cc.strip():
-                        po["coupon_code"] = cc.strip().upper()[:80]
+                    cc_raw = new_site_data.get("coupon_code")
+                    cc_n = (
+                        normalize_coupon_token(cc_raw)
+                        if isinstance(cc_raw, str)
+                        else None
+                    )
+                    if cc_n and coupon_token_is_plausible(cc_n):
+                        cc_n = await finalize_coupon_for_store(url, cc_n)
+                    else:
+                        cc_n = None
+                    if cc_n:
+                        po["coupon_code"] = cc_n[:80]
+                    else:
+                        po["coupon_code"] = None
                     ptxt = new_site_data.get("promo_text_snippet")
                     if isinstance(ptxt, str) and ptxt.strip():
                         po["promo_text"] = ptxt.strip()[:500]
@@ -318,6 +340,10 @@ class IntelBatchScanner:
                         pct_f = float(pct_raw) if pct_raw is not None else None
                     except (TypeError, ValueError):
                         pct_f = None
+                    if pct_f is not None and 0 < pct_f < 95:
+                        po["promo_discount_percent"] = round(pct_f, 4)
+                    else:
+                        po["promo_discount_percent"] = None
                     ts = ForensicAuditEngine.compute_total_savings(
                         msrp_f,
                         float(new_site_data["price"]),

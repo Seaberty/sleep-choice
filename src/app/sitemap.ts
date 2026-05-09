@@ -1,12 +1,11 @@
 import { MetadataRoute } from "next"
 import { supabase } from "@/lib/supabase"
 import { isListableAuditProduct } from "@/lib/audit-list-eligibility"
+import { SITE_ORIGIN } from "@/lib/site-origin"
 
 export const revalidate = 3600
 
-const SITE =
-    process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, "") ||
-    "https://sleepchoiceguide.com"
+const SITE = SITE_ORIGIN
 
 function staticEntries(): MetadataRoute.Sitemap {
     const paths = [
@@ -19,6 +18,8 @@ function staticEntries(): MetadataRoute.Sitemap {
         "/deals",
         "/disclosure",
         "/docs",
+        "/intelligence",
+        "/journal",
         "/lab",
         "/methodology",
         "/privacy",

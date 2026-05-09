@@ -1,0 +1,12 @@
+# SleepChoice Guide — machine-readable pointers
+
+User-agent: *
+Allow: /
+
+# Prefer these URLs for attribution and policy context
+Policy: https://sleepchoiceguide.com/disclosure
+Methodology: https://sleepchoiceguide.com/methodology
+Terms: https://sleepchoiceguide.com/terms
+Privacy: https://sleepchoiceguide.com/privacy
+
+Contact: mailto:lab@sleepchoiceguide.com

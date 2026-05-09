@@ -187,7 +187,7 @@ export default function PrivacyPage() {
                                     </h2>
                                 </div>
                                 <p>
-                                    To sustain laboratory infrastructure, we
+                                    To sustain operational infrastructure, we
                                     utilize encrypted referral tokens. These{" "}
                                     <strong>session-isolated pixels</strong>{" "}
                                     recognize referral source validation only.
@@ -210,7 +210,7 @@ export default function PrivacyPage() {
                                     <strong> Global Privacy Baseline</strong>.
                                     Users maintain the terminal right to execute
                                     a data erasure request. All compliance pings
-                                    are processed within 72 laboratory hours via
+                                    are processed within 72 business hours via
                                     our secure endpoint.
                                 </p>
                             </section>

@@ -19,16 +19,16 @@ import {
     Zap,
     BarChart3
 } from "lucide-react"
-import { cn } from "@/lib/utils"
+import { cn, withImageCacheBust } from "@/lib/utils"
 
 // --- 1. 缓存与性能控制 ---
 export const revalidate = 3600
 
 // --- 2. SEO 元数据 ---
 export const metadata: Metadata = {
-    title: "2026 Lab-Verified Mattress Rankings | SleepChoice Guide",
+    title: "2026 AI-Indexed Mattress Rankings",
     description:
-        "Independent laboratory assessment of sleep surface architectures. Ranking predicated on sensor-array data and material integrity audits.",
+        "Rankings from aggregated owner-review intelligence and listing-derived specs—modeled scores, not on-site sensor labs.",
     alternates: { canonical: "/best-picks" }
 }
 
@@ -298,9 +298,10 @@ export default async function BestPicksPage({ searchParams }: SearchProps) {
                                             <div className="relative w-full h-[320px] overflow-hidden">
                                                 {championProduct.image_url && (
                                                     <Image
-                                                        src={
-                                                            championProduct.image_url
-                                                        }
+                                                        src={withImageCacheBust(
+                                                            championProduct.image_url,
+                                                            championProduct.last_audited_at
+                                                        )}
                                                         alt={
                                                             championProduct.name ||
                                                             "Product Image"
@@ -522,12 +523,12 @@ export default async function BestPicksPage({ searchParams }: SearchProps) {
                                 </div>
                             </div>
                             <p className="text-xs md:text-sm text-slate-500 font-bold uppercase leading-relaxed tracking-tight max-w-2xl">
-                                Integrity is non-negotiable. Our rankings are
-                                derived from strictly objective laboratory
-                                metrics. We maintain zero direct brand
-                                sponsorships. Revenue is generated via secure
-                                affiliate channels to maintain independent
-                                sensor equipment funding.
+                                Integrity is non-negotiable. Rankings fuse NLP
+                                signals from third-party review ecosystems with
+                                retailer listing data—not proprietary bench tests.
+                                We maintain zero direct brand sponsorships.
+                                Revenue via disclosed affiliate channels funds
+                                compute and editorial independence.
                             </p>
                         </div>
 

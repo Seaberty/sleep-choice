@@ -20,7 +20,7 @@ export function Hero() {
                     <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-100 border border-blue-200 mb-6">
                         <Microscope className="w-3.5 h-3.5 text-blue-600" />
                         <span className="text-[10px] font-bold uppercase tracking-widest text-blue-600">
-                            Lab_Verified_Analysis
+                            Review_Aggregate_Audit_Index
                         </span>
                     </div>
 
@@ -29,9 +29,10 @@ export function Hero() {
                         <span className="text-blue-600">Perfect Night.</span>
                     </h1>
                     <p className="text-xl text-slate-600 mb-8 leading-relaxed max-w-xl">
-                        Deconstructing sleep technology through forensic
-                        material analysis. We test the data so you don't have
-                        to.
+                        Forensic intelligence built from owner reviews, retailer
+                        specs, and channel narratives—aggregated and scored by AI.
+                        We stress-test the evidence trail, not mattresses on our
+                        bench.
                     </p>
 
                     <div className="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start">

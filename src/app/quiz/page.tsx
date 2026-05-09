@@ -30,6 +30,37 @@ export default function QuizPage() {
 
     const questions = [
         {
+            id: "product_focus",
+            question: "ROUTING: PRIMARY_SLEEP_SKU_CLASS",
+            options: [
+                {
+                    value: "mattress",
+                    label: "Mattress / Primary Surface",
+                    desc: "Full mattress or hybrid chassis audit match"
+                },
+                {
+                    value: "pillow",
+                    label: "Pillow / Cervical Layer",
+                    desc: "Head-neck loft, cooling fill, pressure relief"
+                },
+                {
+                    value: "topper",
+                    label: "Topper · Protector Stack",
+                    desc: "Transition layers over existing mattress"
+                },
+                {
+                    value: "bedding_lifestyle",
+                    label: "Bedding · Lifestyle Thermal",
+                    desc: "Robes, weaves, ambient sleep-adjacent SKUs"
+                },
+                {
+                    value: "any",
+                    label: "Full Catalog Pass",
+                    desc: "No shelf bias — lab scores + tags only"
+                }
+            ]
+        },
+        {
             id: "sleep_position",
             question: "EXEC: SLEEP_AXIS_DETERMINATION",
             options: [

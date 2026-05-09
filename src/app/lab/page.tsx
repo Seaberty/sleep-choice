@@ -1,10 +1,12 @@
 import { getSiteHeaderMetrics } from "@/lib/site-metrics"
 import LabPageClient from "./lab-client"
+import type { Metadata } from "next"
 
-export const metadata = {
-    title: "Testing Protocols | SleepChoice Laboratory",
+export const metadata: Metadata = {
+    title: "Testing Protocols",
     description:
-        "How we score mattresses in the verified registry: methodology overview aligned to live index metrics."
+        "Live index metrics from aggregated review intelligence—see methodology for how scores are modeled without bench hardware.",
+    alternates: { canonical: "/lab" }
 }
 
 export default async function LabPage() {

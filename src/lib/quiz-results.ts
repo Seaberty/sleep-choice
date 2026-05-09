@@ -11,6 +11,8 @@ import type { QuizAnswers } from "@/lib/quiz-score"
 
 const BASE_MATCH = 10
 const CRITICAL_BONUS = 20
+/** 用户选购侧重点与 registry `quizShelf` 一致时的加权 */
+const SHELF_FOCUS_BONUS = 22
 
 export type QuizShelf = "mattress" | "pillow" | "lifestyle" | "other"
 
@@ -160,6 +162,21 @@ function sleepIssueTag(i: QuizAnswers["sleep_issues"]): string | null {
     }
 }
 
+function shelfFocusMatchesProduct(
+    answers: QuizAnswers,
+    p: ProductData
+): boolean {
+    const focus = answers.product_focus ?? "mattress"
+    if (focus === "any") return false
+    const shelf = quizShelf(p)
+    return (
+        (focus === "mattress" && shelf === "mattress") ||
+        (focus === "pillow" && shelf === "pillow") ||
+        (focus === "topper" && shelf === "other") ||
+        (focus === "bedding_lifestyle" && shelf === "lifestyle")
+    )
+}
+
 /** 用户答案 → 与产品 tags 对齐的 token（含 critical 加码） */
 export function answersToMatchTokens(answers: QuizAnswers): MatchToken[] {
     const tokens: MatchToken[] = []
@@ -189,6 +206,29 @@ export function answersToMatchTokens(answers: QuizAnswers): MatchToken[] {
 }
 
 export function buildDiagnosis(answers: QuizAnswers): QuizDiagnosis {
+    const focus = answers.product_focus ?? "mattress"
+    if (focus === "pillow") {
+        return {
+            headline:
+                "Cervical stack optimization — loft and thermal layers prioritized.",
+            body: "Matching lifts pillow-layer tags and pressure relief vectors; audit cooling scores weigh heavily for head/neutral spine alignment."
+        }
+    }
+    if (focus === "topper") {
+        return {
+            headline:
+                "Surface correction layer — transition depth over chassis stiffness.",
+            body: "Tag engine favors topper/protector-class SKUs and pressure-forward audits compatible with your existing mattress chassis."
+        }
+    }
+    if (focus === "bedding_lifestyle") {
+        return {
+            headline:
+                "Thermal comfort envelope — breathable lifestyle SKUs weighted.",
+            body: "Registry routing prioritizes lifestyle-layer tags (thermal regulation, breathable weave) alongside audit-verified materials."
+        }
+    }
+
     const hot = answers.sleep_issues === "hot"
     const side = answers.sleep_position === "side"
     const backPain = answers.sleep_issues === "back_pain"
@@ -238,7 +278,7 @@ export function buildDiagnosis(answers: QuizAnswers): QuizDiagnosis {
     return {
         headline:
             "Balanced biometric signature — universal calibration acceptable.",
-        body: "Mixed-tag weighting with laboratory overall score as tiebreaker; expand Supabase `quiz_tags` for tighter brand control."
+            body: "Mixed-tag weighting with composite registry score as tiebreaker; expand Supabase `quiz_tags` for tighter brand control."
     }
 }
 
@@ -261,6 +301,10 @@ export function calculateQuizResults(
         }
         const rating = Number(p.rating) || Number(p.audit_scores?.overall) || 0
         weight += Math.min(18, rating * 1.8)
+
+        if (shelfFocusMatchesProduct(answers, p)) {
+            weight += SHELF_FOCUS_BONUS
+        }
 
         return { p, weight }
     })
@@ -285,17 +329,44 @@ export function calculateQuizResults(
 
     const mattressPool = byShelf("mattress")
     const pillowPool = byShelf("pillow")
+    const topperPool = byShelf("other")
     const lifestylePool = byShelf("lifestyle")
 
+    const focus = answers.product_focus ?? "mattress"
+
     const hero =
-        mattressPool[0]?.p ??
-        ranked.find((p) => quizShelf(p) === "mattress") ??
-        ranked[0] ??
-        null
+        focus === "pillow"
+            ? pillowPool[0]?.p ??
+              ranked.find((p) => quizShelf(p) === "pillow") ??
+              ranked[0] ??
+              null
+            : focus === "topper"
+              ? topperPool[0]?.p ??
+                ranked.find((p) => quizShelf(p) === "other") ??
+                mattressPool[0]?.p ??
+                ranked[0] ??
+                null
+              : focus === "bedding_lifestyle"
+                ? lifestylePool[0]?.p ??
+                  ranked.find((p) => quizShelf(p) === "lifestyle") ??
+                  ranked[0] ??
+                  null
+                : focus === "any"
+                  ? ranked[0] ?? null
+                  : mattressPool[0]?.p ??
+                    ranked.find((p) => quizShelf(p) === "mattress") ??
+                    ranked[0] ??
+                    null
 
-    const essentials = pillowPool.slice(0, 2).map((s) => s.p)
+    /** 枕头侧重时 Hero 已占首位，Essentials 跳过重复 */
+    const essentials =
+        focus === "pillow"
+            ? pillowPool.slice(1, 3).map((s) => s.p)
+            : pillowPool.slice(0, 2).map((s) => s.p)
 
-    const lifestyle = lifestylePool[0]?.p ?? null
+    const lifestylePick =
+        lifestylePool.find((s) => s.p.slug !== hero?.slug) ?? lifestylePool[0]
+    const lifestyle = lifestylePick?.p ?? null
 
     return {
         diagnosis,
