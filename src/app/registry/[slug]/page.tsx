@@ -5,6 +5,10 @@ import { productGoLink, APPROVED_AFFILIATE_BRANDS } from "@/lib/go-redirect"
 import { AddToCompareButton } from "@/components/compare/add-to-compare-button"
 import { withImageCacheBust } from "@/lib/utils"
 import { getBrandIntelligenceByProductSlug } from "@/lib/brand-intelligence"
+import {
+    formatShelfPriceUsd,
+    merchantPriceAfterSiteStack
+} from "@/lib/deals-utils"
 import { notFound } from "next/navigation"
 import Link from "next/link"
 import { Metadata } from "next"
@@ -38,7 +42,8 @@ interface AuditScores {
 
 interface Offer {
     merchant: string
-    price: string | number
+    /** Stack-adjusted shelf price (aligned with registry merge / cards) */
+    price: number
     link: string
 }
 
@@ -338,7 +343,8 @@ export default async function ProductAuditPage({
             price,
             offer_url,
             is_primary,
-            status
+            status,
+            promo_discount_percent
         )
     `
         )
@@ -353,15 +359,19 @@ export default async function ProductAuditPage({
 
     // 1. 获取数据库原始联表数据
     const dbOffers = (rawProduct as any).product_offers || []
-    // 2. 转换为页面使用的 Offer 格式，并按价格排序
+    // 2. 栈后价（与 mergeAuditProductRow / 卡片一致），再按价格从低到高排序
     const offers: Offer[] = dbOffers
-        .filter((o: any) => o.status === "active") // 只显示激活状态的
+        .filter((o: any) => o.status === "active")
         .map((o: any) => ({
             merchant: o.site_name,
-            price: o.price,
-            link: o.offer_url // 👈 这里成功获取到了跳转 URL
+            price: merchantPriceAfterSiteStack(
+                Number(o.price),
+                product.brand,
+                o.promo_discount_percent
+            ),
+            link: o.offer_url
         }))
-        .sort((a: any, b: any) => Number(a.price) - Number(b.price)) // 价格从低到高排序
+        .sort((a: Offer, b: Offer) => Number(a.price) - Number(b.price))
 
     // --- 数据解析 ---
     const scores = safeParse<AuditScores>(product.audit_scores, {
@@ -388,18 +398,7 @@ export default async function ProductAuditPage({
         keywords: product.seo_keywords || "General, Audit, Hardware"
     }
 
-    // --- 计算低价索引 ---
-    const minPriceIndex =
-        offers.length > 0
-            ? offers.reduce(
-                  (minIdx, curr, idx, arr) =>
-                      parseFloat(String(curr.price)) <
-                      parseFloat(String(arr[minIdx].price))
-                          ? idx
-                          : minIdx,
-                  0
-              )
-            : -1
+    const minPriceIndex = offers.length > 0 ? 0 : -1
 
     const radarData = [
         { subject: "SUPPORT", A: scores.support },
@@ -412,10 +411,13 @@ export default async function ProductAuditPage({
     const hasListingImage = Boolean(
         product.image_url && String(product.image_url).trim()
     )
-    const lowPriceNum =
+    const lowPriceNumRaw =
         offers.length > 0 && minPriceIndex >= 0
             ? Number(offers[minPriceIndex].price)
             : Number(product.price)
+    const lowPriceNum = Number.isFinite(lowPriceNumRaw)
+        ? Math.round(lowPriceNumRaw)
+        : lowPriceNumRaw
     const hasOfferForLd = Number.isFinite(lowPriceNum) && lowPriceNum > 0
     const rcForLd =
         typeof product.review_count === "number" ? product.review_count : 0
@@ -426,12 +428,12 @@ export default async function ProductAuditPage({
         .filter((n) => Number.isFinite(n) && n > 0)
     const highPriceNum =
         offerPricesPositive.length > 0
-            ? Math.max(...offerPricesPositive)
+            ? Math.round(Math.max(...offerPricesPositive))
             : lowPriceNum
     const offerPriceDisplay =
         offers.length > 0 && minPriceIndex >= 0
-            ? offers[minPriceIndex].price
-            : product.price
+            ? Math.round(Number(offers[minPriceIndex].price))
+            : Math.round(Number(product.price))
 
     const productJsonLd = buildRegistryProductJsonLd({
         slug,
@@ -1101,7 +1103,11 @@ export default async function ProductAuditPage({
                                                                       : "text-slate-950 group-hover:text-white"
                                                             }`}
                                                         >
-                                                            ${offer.price}
+                                                            {formatShelfPriceUsd(
+                                                                Number(
+                                                                    offer.price
+                                                                )
+                                                            )}
                                                         </span>
                                                     </div>
                                                     <div className="flex items-center gap-2">

@@ -16,6 +16,7 @@ import { cn, withImageCacheBust } from "@/lib/utils"
 import { ProductData } from "@/types/product"
 import { AddToCompareButton } from "@/components/compare/add-to-compare-button"
 import { outboundDealLink } from "@/lib/go-redirect"
+import { formatShelfPriceUsd } from "@/lib/deals-utils"
 
 export function ProductCard({
     data,
@@ -219,7 +220,7 @@ export function ProductCard({
                             </div>
                             <div className="text-2xl font-[1000] italic leading-none tracking-tighter">
                                 {displayPrice > 0
-                                    ? `$${displayPrice}`
+                                    ? formatShelfPriceUsd(Number(displayPrice))
                                     : "CHECK PRICE"}
                             </div>
                         </div>

@@ -3,7 +3,10 @@
 import { useMemo, useState } from "react"
 import type { ProductData } from "@/types/product"
 import { outboundDealLink } from "@/lib/go-redirect"
-import { effectiveSavingsPercent } from "@/lib/deals-utils"
+import {
+    effectiveSavingsPercent,
+    formatShelfPriceUsd
+} from "@/lib/deals-utils"
 import { StockBar } from "@/app/deals/stock-bar"
 import {
     ArrowUpRight,
@@ -220,11 +223,15 @@ export function DealsVault({ products }: Props) {
 
                                     <div className="flex items-end gap-3 mb-8">
                                         <div className="text-5xl font-mono font-bold tracking-tighter text-slate-950 tabular-nums leading-none">
-                                            ${offer.price}
+                                            {formatShelfPriceUsd(
+                                                Number(offer.price)
+                                            )}
                                         </div>
                                         {offer.oldPrice ? (
                                             <div className="text-lg font-bold text-slate-200 line-through mb-1 italic decoration-emerald-500/50">
-                                                ${offer.oldPrice}
+                                                {formatShelfPriceUsd(
+                                                    Number(offer.oldPrice)
+                                                )}
                                             </div>
                                         ) : null}
                                     </div>
@@ -235,8 +242,15 @@ export function DealsVault({ products }: Props) {
                                                 <>
                                                     <div className="flex items-center gap-2 text-[10px] font-black text-emerald-600 uppercase">
                                                         <TrendingDown className="w-3.5 h-3.5" />
-                                                        Price_Drop: -$
-                                                        {savingsAmount}
+                                                        Price_Drop:{" "}
+                                                        {typeof savingsAmount ===
+                                                            "number" &&
+                                                        savingsAmount > 0
+                                                            ? "-" +
+                                                              formatShelfPriceUsd(
+                                                                  savingsAmount
+                                                              )
+                                                            : null}
                                                     </div>
                                                     <div className="text-[8px] font-mono font-bold text-slate-300 uppercase tracking-tighter">
                                                         Audit_ID:{" "}

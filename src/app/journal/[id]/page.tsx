@@ -16,6 +16,7 @@ import {
 } from "lucide-react"
 import { productIntroDescriptionForJsonLd } from "@/lib/product-jsonld"
 import { outboundDealLink } from "@/lib/go-redirect"
+import { formatShelfPriceUsd } from "@/lib/deals-utils"
 import type { AuditScores } from "@/types/product"
 
 type Props = {
@@ -209,11 +210,9 @@ export default async function JournalEntry({ params }: Props) {
                                             Reference_Price
                                         </div>
                                         <div className="font-mono text-2xl font-bold tabular-nums">
-                                            {new Intl.NumberFormat("en-US", {
-                                                style: "currency",
-                                                currency: "USD",
-                                                maximumFractionDigits: 0
-                                            }).format(p.price)}
+                                            {formatShelfPriceUsd(
+                                                Number(p.price)
+                                            )}
                                         </div>
                                         {primaryOffer?.site ? (
                                             <div className="mt-1 text-[9px] font-bold uppercase tracking-wider text-slate-500">

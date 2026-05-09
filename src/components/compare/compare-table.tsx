@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation"
 import { ExternalLink, X } from "lucide-react"
 import type { AuditScores, ProductData } from "@/types/product"
 import { outboundDealLink } from "@/lib/go-redirect"
+import { formatShelfPriceUsd } from "@/lib/deals-utils"
 import { withImageCacheBust } from "@/lib/utils"
 import {
     compareHref,
@@ -159,7 +160,9 @@ export function CompareTable({ products }: { products: ProductData[] }) {
                                     key={`${p.slug}-price`}
                                     className="px-4 py-3 text-lg font-black tabular-nums text-slate-950"
                                 >
-                                    {num > 0 ? `$${Math.round(num)}` : "—"}
+                                    {num > 0
+                                        ? formatShelfPriceUsd(num) || "—"
+                                        : "—"}
                                 </td>
                             )
                         })}
@@ -202,7 +205,8 @@ export function CompareTable({ products }: { products: ProductData[] }) {
                             )
                             const priceLabel =
                                 priceNum > 0 && Number.isFinite(priceNum)
-                                    ? `$${Math.round(priceNum)}`
+                                    ? formatShelfPriceUsd(priceNum) ||
+                                      "Current price"
                                     : "Current price"
                             const siteLabel =
                                 primary?.site?.trim() || "Official store"

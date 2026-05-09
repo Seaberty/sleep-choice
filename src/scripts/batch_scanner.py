@@ -89,14 +89,14 @@ SAATVA_TARGETS: list[dict[str, str]] = [
 ]
 
 SB_TARGETS: list[dict[str, str]] = [
-    # {"model": "MyTravel Pillow", "url": "https://sleepandbeyond.com/product/mytravel-pillow/"},
-    # {"model": "MyWoolly Pillow", "url": "https://sleepandbeyond.com/product/mywoolly-pillow/"},
-    # {"model": "MyMerino Pillow", "url": "https://sleepandbeyond.com/product/mymerino-pillow/"},
-    # {"model": "MyMerino Comforter", "url": "https://sleepandbeyond.com/product/mymerino-comforter/"},
-    # {"model": "MyComforter", "url": "https://sleepandbeyond.com/product/mycomforter/"},
-    # {"model": "MyTopper", "url": "https://sleepandbeyond.com/product/mytopper/"},
-    # {"model": "MyMerino Topper", "url": "https://sleepandbeyond.com/product/mymerino-topper/"},
-    # {"model": "MyProtector", "url": "https://sleepandbeyond.com/product/myprotector/"},
+    {"model": "MyTravel Pillow", "url": "https://sleepandbeyond.com/product/mytravel-pillow/"},
+    {"model": "MyWoolly Pillow", "url": "https://sleepandbeyond.com/product/mywoolly-pillow/"},
+    {"model": "MyMerino Pillow", "url": "https://sleepandbeyond.com/product/mymerino-pillow/"},
+    {"model": "MyMerino Comforter", "url": "https://sleepandbeyond.com/product/mymerino-comforter/"},
+    {"model": "MyComforter", "url": "https://sleepandbeyond.com/product/mycomforter/"},
+    {"model": "MyTopper", "url": "https://sleepandbeyond.com/product/mytopper/"},
+    {"model": "MyMerino Topper", "url": "https://sleepandbeyond.com/product/mymerino-topper/"},
+    {"model": "MyProtector", "url": "https://sleepandbeyond.com/product/myprotector/"},
     {"model": "mySheet Set", "url": "https://sleepandbeyond.com/product/mysheet-set/"},
     {"model": "myPad", "url": "https://sleepandbeyond.com/product/mypad/"},
 ]

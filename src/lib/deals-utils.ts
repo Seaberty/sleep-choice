@@ -23,6 +23,12 @@ export function merchantPriceAfterSiteStack(
     return Math.round(merchantPrice * (1 - pct / 100) * 100) / 100
 }
 
+/** Whole-dollar USD label — aligned across cards, compare matrix, deals vault, audit PDP */
+export function formatShelfPriceUsd(amount: number): string {
+    if (!Number.isFinite(amount) || amount <= 0) return ""
+    return `$${Math.round(amount)}`
+}
+
 export function isPlaceholderPromoText(text: string | undefined): boolean {
     const t = (text ?? "").trim().toLowerCase()
     return PLACEHOLDER_PROMO_TEXT.has(t)
