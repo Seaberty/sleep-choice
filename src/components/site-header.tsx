@@ -74,7 +74,7 @@ export function SiteHeader({ metrics }: { metrics: SiteHeaderMetrics }) {
                         exit={{ height: 0, opacity: 0 }}
                         className="bg-[#050505] border-b border-white/[0.05] py-2 hidden lg:block"
                     >
-                        <div className="container mx-auto px-6 flex justify-between items-center text-[9px] font-bold text-slate-500 uppercase tracking-[0.25em]">
+                        <div className="container mx-auto px-4 sm:px-6 flex justify-between items-center text-[9px] font-bold text-slate-500 uppercase tracking-[0.25em]">
                             <div className="flex items-center gap-6">
                                 <span className="flex items-center gap-2 text-blue-500 cursor-default">
                                     <Activity className="w-3 h-3 animate-pulse" />

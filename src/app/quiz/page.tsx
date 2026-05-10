@@ -212,7 +212,7 @@ export default function QuizPage() {
     const isComplete = Object.keys(answers).length === questions.length
 
     return (
-        <main className="relative min-h-screen bg-white pt-[120px] pb-24 overflow-x-hidden font-sans text-slate-900">
+        <main className="relative min-h-screen bg-white pt-24 pb-16 sm:pt-32 sm:pb-24 md:pt-[120px] overflow-x-clip font-sans text-slate-900">
             {/* 1. 背景工业网格与动态扫描线 */}
             <div className="fixed inset-0 pointer-events-none z-0">
                 <div
@@ -234,7 +234,7 @@ export default function QuizPage() {
                 />
             </div>
 
-            <div className="container mx-auto px-6 relative z-10 max-w-7xl">
+            <div className="container mx-auto px-4 sm:px-6 relative z-10 max-w-7xl">
                 {isAnalyzing ? (
                     /* --- 2. 分析加载状态：极具视觉冲击力的审计中动画 --- */
                     <div className="max-w-xl mx-auto py-20 text-center space-y-12">
@@ -272,20 +272,20 @@ export default function QuizPage() {
                 ) : (
                     <>
                         {/* --- 3. Header Unit --- */}
-                        <header className="max-w-4xl mx-auto mb-16 border-l-4 border-blue-600 pl-8">
+                        <header className="max-w-4xl mx-auto mb-12 sm:mb-16 border-l-4 border-blue-600 pl-4 sm:pl-8">
                             <div className="flex items-center gap-3 text-blue-600 font-black text-[9px] uppercase tracking-[0.4em] mb-4">
                                 <Activity className="w-4 h-4" />
                                 {`MATCH_ENGINE_${APP_PROTOCOL} // ACTIVE_SESSION`}
                             </div>
-                            <h1 className="text-5xl md:text-8xl font-[1000] tracking-tighter uppercase leading-[0.8] mb-6 italic">
+                            <h1 className="text-[clamp(2rem,9vw,5rem)] md:text-8xl font-[1000] tracking-tighter uppercase leading-[0.85] sm:leading-[0.8] mb-6 italic">
                                 System <br />
                                 <span className="text-blue-600 not-italic">
                                     Calibration
                                 </span>
                             </h1>
-                            <div className="flex items-center gap-4 py-3 border-y border-slate-100">
-                                <Fingerprint className="w-4 h-4 text-slate-400" />
-                                <p className="text-[10px] font-mono font-bold text-slate-400 uppercase tracking-widest">
+                            <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 py-3 border-y border-slate-100">
+                                <Fingerprint className="w-4 h-4 shrink-0 text-slate-400" />
+                                <p className="text-[10px] font-mono font-bold text-slate-400 uppercase tracking-widest leading-snug">
                                     Match_Target:{" "}
                                     <span className="text-slate-600">
                                         Live audit_products registry — brands &

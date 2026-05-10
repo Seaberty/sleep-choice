@@ -114,7 +114,7 @@ export default async function JournalEntry({ params }: Props) {
 
     return (
         <main className="min-h-screen bg-white pt-28 pb-24 font-sans selection:bg-blue-600 selection:text-white md:pt-32">
-            <div className="container mx-auto max-w-7xl px-6">
+            <div className="container mx-auto max-w-7xl px-4 sm:px-6">
                 <nav className="mb-10 flex flex-wrap items-center justify-between gap-4 border-b border-slate-200 pb-6">
                     <Link
                         href="/journal"

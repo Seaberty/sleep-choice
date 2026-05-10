@@ -70,7 +70,7 @@ export default function CalculatorPage() {
                 <div className="absolute inset-0 bg-gradient-to-b from-white/20 via-transparent to-transparent pointer-events-none" />
             </div>
 
-            <div className="container mx-auto px-6 relative z-10 max-w-7xl">
+            <div className="container mx-auto px-4 sm:px-6 relative z-10 max-w-7xl">
                 {/* 1. Header: 终端化处理 */}
                 <header className="max-w-4xl mb-16 border-l-4 border-blue-600 pl-8">
                     <div className="flex items-center gap-3 text-blue-600 font-black text-[9px] uppercase tracking-[0.4em] mb-4">

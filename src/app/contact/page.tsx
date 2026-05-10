@@ -86,7 +86,7 @@ export default function ContactPage() {
             {/* Header: 工业风大标题 */}
             <section className="relative overflow-hidden py-24 border-b border-slate-100">
                 <div className="absolute inset-0 bg-[radial-gradient(#e2e8f0_1px,transparent_1px)] [background-size:20px_20px] opacity-30" />
-                <div className="container mx-auto px-6 relative z-10 text-center">
+                <div className="container mx-auto px-4 sm:px-6 relative z-10 text-center">
                     <motion.div
                         initial={{ opacity: 0, y: 10 }}
                         animate={{ opacity: 1, y: 0 }}
@@ -107,7 +107,7 @@ export default function ContactPage() {
                 </div>
             </section>
 
-            <section className="container mx-auto px-6 -mt-10 relative z-20">
+            <section className="container mx-auto px-4 sm:px-6 -mt-10 relative z-20">
                 {/* Contact Methods Grid */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-24">
                     {CONTACT_CONFIG.methods.map((method, i) => {

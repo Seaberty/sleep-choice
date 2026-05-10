@@ -85,9 +85,9 @@ export default async function HomePage() {
             <Hero />
 
             {/* --- Section: Trust Signals (工业监控风格优化) --- */}
-            <section className="container mx-auto px-6 -mt-12 relative z-20">
-                <div className="rounded-[2.5rem] md:rounded-[3.5rem] bg-white border border-slate-200 p-8 md:p-12 shadow-[0_20px_50px_rgba(0,0,0,0.05)] backdrop-blur-xl">
-                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-8 md:gap-12">
+            <section className="container mx-auto px-4 sm:px-6 -mt-12 relative z-20">
+                <div className="rounded-[1.75rem] sm:rounded-[2.5rem] md:rounded-[3.5rem] bg-white border border-slate-200 p-5 sm:p-8 md:p-12 shadow-[0_20px_50px_rgba(0,0,0,0.05)] backdrop-blur-xl">
+                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-5 sm:gap-8 md:gap-12">
                         {[
                             {
                                 icon: <Beaker />,
@@ -151,14 +151,14 @@ export default async function HomePage() {
             </section>
 
             {/* --- Section: Recommendations (数据注册表感) --- */}
-            <section className="container mx-auto px-6 pt-24 md:pt-32">
+            <section className="container mx-auto px-4 sm:px-6 pt-24 md:pt-32">
                 <div className="flex flex-col lg:flex-row justify-between items-start lg:items-end mb-16 gap-8">
                     <div className="max-w-3xl">
                         <div className="inline-flex items-center gap-2 bg-slate-950 text-white px-4 py-2 rounded-lg text-[9px] font-black uppercase tracking-[0.25em] mb-6">
                             <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse" />
                             January 2026 Intelligence Feed
                         </div>
-                        <h2 className="text-5xl md:text-7xl font-[1000] tracking-tighter text-slate-900 mb-6 leading-[0.85]">
+                        <h2 className="text-3xl sm:text-5xl md:text-7xl font-[1000] tracking-tighter text-slate-900 mb-6 leading-[0.9] sm:leading-[0.85]">
                             Top-Tier <br />
                             <span className="text-blue-600 italic">
                                 Audit Registry.
@@ -171,7 +171,7 @@ export default async function HomePage() {
                     </div>
                     <Link
                         href="/best-picks"
-                        className="group flex items-center gap-4 px-10 py-5 bg-slate-950 text-white rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-blue-600 transition-all shadow-2xl active:scale-95"
+                        className="group flex w-full sm:w-auto shrink-0 items-center justify-center gap-4 px-8 py-4 sm:px-10 sm:py-5 bg-slate-950 text-white rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-blue-600 transition-all shadow-2xl active:scale-95"
                     >
                         Full Forensic List{" "}
                         <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-1" />
@@ -204,8 +204,8 @@ export default async function HomePage() {
             </section>
 
             {/* --- Section: Authority CTA (高转化 Match Engine) --- */}
-            <section className="container mx-auto px-6 py-24 md:py-32">
-                <div className="relative bg-slate-950 rounded-[3rem] p-12 md:p-24 text-white overflow-hidden group">
+            <section className="container mx-auto px-4 sm:px-6 py-16 sm:py-24 md:py-32">
+                <div className="relative bg-slate-950 rounded-3xl sm:rounded-[3rem] p-8 sm:p-12 md:p-24 text-white overflow-hidden group">
                     {/* 背景装饰：模拟数据流 */}
                     <div className="absolute inset-0 opacity-10 pointer-events-none">
                         <div className="absolute top-0 left-0 w-full h-full bg-[radial-gradient(circle_at_50%_50%,#2563eb,transparent_70%)] opacity-20" />
@@ -216,7 +216,7 @@ export default async function HomePage() {
                         <div className="mb-8 p-4 bg-blue-600/20 rounded-2xl border border-blue-500/30">
                             <Sparkles className="w-8 h-8 text-blue-400" />
                         </div>
-                        <h2 className="text-4xl md:text-6xl font-[1000] mb-8 tracking-tighter max-w-2xl leading-[1.1]">
+                        <h2 className="text-2xl sm:text-4xl md:text-6xl font-[1000] mb-8 tracking-tighter max-w-2xl leading-[1.15] sm:leading-[1.1] px-1">
                             Match Your Biometric Profile to the Perfect Support.
                         </h2>
                         <p className="text-slate-400 mb-12 max-w-lg text-lg font-medium italic">
@@ -226,7 +226,7 @@ export default async function HomePage() {
                         </p>
                         <Link
                             href="/quiz"
-                            className="group bg-white text-slate-950 px-12 py-6 rounded-2xl font-black text-lg uppercase tracking-widest transition-all hover:bg-blue-600 hover:text-white active:scale-95 shadow-2xl flex items-center gap-3"
+                            className="group bg-white text-slate-950 w-full sm:w-auto px-8 py-5 sm:px-12 sm:py-6 rounded-2xl font-black text-base sm:text-lg uppercase tracking-widest transition-all hover:bg-blue-600 hover:text-white active:scale-95 shadow-2xl flex items-center justify-center gap-3"
                         >
                             Launch Match Engine{" "}
                             <ArrowRight className="w-5 h-5 transition-transform group-hover:translate-x-1" />

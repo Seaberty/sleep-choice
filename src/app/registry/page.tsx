@@ -90,7 +90,7 @@ export default async function RegistryPage({ searchParams }: Props) {
     }
 
     return (
-        <main className="min-h-screen bg-white pt-32 pb-20 overflow-x-hidden font-sans selection:bg-blue-600 selection:text-white">
+        <main className="min-h-screen bg-white pt-28 pb-16 sm:pt-32 sm:pb-20 overflow-x-clip font-sans selection:bg-blue-600 selection:text-white">
             <script
                 type="application/ld+json"
                 dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
@@ -110,14 +110,14 @@ export default async function RegistryPage({ searchParams }: Props) {
                 <div className="absolute top-0 left-0 w-full h-[2px] bg-blue-600/20 animate-[scan_8s_linear_infinite]" />
             </div>
 
-            <div className="container mx-auto px-6 relative z-10">
+            <div className="container mx-auto px-4 sm:px-6 relative z-10">
                 {/* --- Header --- */}
-                <header className="max-w-5xl mb-16 border-l-8 border-blue-600 pl-8">
+                <header className="max-w-5xl mb-12 sm:mb-16 border-l-4 sm:border-l-8 border-blue-600 pl-4 sm:pl-8">
                     <div className="flex items-center gap-3 text-blue-600 font-black text-[10px] uppercase tracking-[0.4em] mb-4">
                         <Lock className="w-3 h-3" />
                         Access_Level: Public_Auditor_Node
                     </div>
-                    <h1 className="text-7xl md:text-9xl font-[1000] tracking-tighter uppercase leading-[0.8] mb-8 italic">
+                    <h1 className="text-[clamp(2.25rem,11vw,8rem)] md:text-9xl font-[1000] tracking-tighter uppercase leading-[0.85] sm:leading-[0.8] mb-6 sm:mb-8 italic">
                         The <br />
                         <span className="text-blue-600 not-italic">
                             Dossier_

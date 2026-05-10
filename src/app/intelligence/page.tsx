@@ -21,7 +21,7 @@ export default async function IntelligenceCenterPage() {
 
     return (
         <main className="min-h-screen bg-[#F8FAFC] text-slate-900">
-            <div className="container mx-auto max-w-4xl px-6 py-16 md:py-24">
+            <div className="container mx-auto max-w-4xl px-4 sm:px-6 py-16 md:py-24">
                 <div className="mb-12 space-y-4">
                     <p className="text-[10px] font-black uppercase tracking-[0.35em] text-slate-400">
                         Intelligence Center

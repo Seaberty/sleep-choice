@@ -55,9 +55,9 @@ export function SiteFooter() {
     }
 
     return (
-        <footer className="border-t border-slate-200 bg-[#fdfdfd] pt-20 md:pt-32 pb-12 font-sans overflow-hidden">
-            <div className="container mx-auto px-6">
-                <div className="grid grid-cols-1 lg:grid-cols-12 gap-16 mb-24">
+        <footer className="border-t border-slate-200 bg-[#fdfdfd] pt-14 sm:pt-20 md:pt-32 pb-10 sm:pb-12 font-sans overflow-x-clip">
+            <div className="container mx-auto px-4 sm:px-6">
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 sm:gap-16 mb-16 sm:mb-24">
                     {/* 1. Laboratory & Data Sync Area */}
                     <div className="lg:col-span-5 space-y-10">
                         <Link
@@ -80,7 +80,7 @@ export function SiteFooter() {
                             </div>
                         </Link>
 
-                        <div className="bg-white p-8 rounded-[2rem] border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.04)] relative overflow-hidden group/card">
+                        <div className="bg-white p-5 sm:p-8 rounded-[2rem] border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.04)] relative overflow-hidden group/card">
                             <div className="absolute top-0 right-0 p-4 opacity-[0.03] group-hover/card:opacity-10 transition-opacity pointer-events-none">
                                 <Cpu className="w-24 h-24 text-blue-600" />
                             </div>

@@ -66,7 +66,7 @@ export default function DisclosurePage() {
                     __html: JSON.stringify(DISCLOSURE_FAQ_JSONLD)
                 }}
             />
-            <div className="container mx-auto px-6 relative z-10 max-w-5xl">
+            <div className="container mx-auto px-4 sm:px-6 relative z-10 max-w-5xl">
                 {/* --- Header: 算法审计页头 --- */}
                 <header className="mb-24 border-b-8 border-slate-950 pb-12">
                     <div className="flex flex-wrap items-center justify-between gap-4 mb-10">

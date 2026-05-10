@@ -37,7 +37,7 @@ export default async function DealsPage() {
     })
 
     return (
-        <main className="relative min-h-screen bg-white pt-24 pb-20 overflow-x-hidden font-sans selection:bg-emerald-500 selection:text-white">
+        <main className="relative min-h-screen bg-white pt-20 pb-16 sm:pt-24 sm:pb-20 overflow-x-clip font-sans selection:bg-emerald-500 selection:text-white">
             <div className="fixed inset-0 pointer-events-none opacity-[0.02] z-0">
                 <div
                     className="absolute inset-0"
@@ -50,8 +50,8 @@ export default async function DealsPage() {
                 <div className="absolute top-0 left-0 w-full h-[1px] bg-emerald-500 animate-[scan_12s_linear_infinite]" />
             </div>
 
-            <div className="container mx-auto px-6 relative z-10">
-                <header className="max-w-5xl mb-16 border-l-8 border-emerald-500 pl-8">
+            <div className="container mx-auto px-4 sm:px-6 relative z-10">
+                <header className="max-w-5xl mb-12 sm:mb-16 border-l-4 sm:border-l-8 border-emerald-500 pl-4 sm:pl-8">
                     <div className="flex items-center gap-3 text-emerald-600 font-black text-[10px] uppercase tracking-[0.4em] mb-4">
                         <span className="relative flex h-2 w-2">
                             <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
@@ -59,7 +59,7 @@ export default async function DealsPage() {
                         </span>
                         Vault_Status: Monitoring_Retail_API
                     </div>
-                    <h1 className="text-6xl md:text-9xl font-[1000] tracking-tighter uppercase leading-[0.8] mb-8 italic">
+                    <h1 className="text-[clamp(2.25rem,12vw,8rem)] md:text-9xl font-[1000] tracking-tighter uppercase leading-[0.85] sm:leading-[0.8] mb-6 sm:mb-8 italic">
                         The <br />
                         <span className="text-emerald-500 not-italic tracking-[-0.05em]">
                             Savings_
@@ -87,8 +87,8 @@ export default async function DealsPage() {
 
                 <DealsVault products={products} />
 
-                <footer className="mt-40 grid md:grid-cols-2 gap-12 border-t-8 border-slate-950 pt-16">
-                    <div className="bg-slate-50 p-10 relative overflow-hidden group">
+                <footer className="mt-24 sm:mt-40 grid md:grid-cols-2 gap-8 sm:gap-12 border-t-4 sm:border-t-8 border-slate-950 pt-10 sm:pt-16">
+                    <div className="bg-slate-50 p-6 sm:p-10 relative overflow-hidden group">
                         <Zap className="absolute -bottom-4 -right-4 w-32 h-32 text-slate-100 -rotate-12 group-hover:text-emerald-500/10 transition-colors" />
                         <div className="relative z-10">
                             <div className="flex items-center gap-3 mb-6">
@@ -108,7 +108,7 @@ export default async function DealsPage() {
                         </div>
                     </div>
 
-                    <div className="flex flex-col justify-center border-2 border-slate-100 p-10">
+                    <div className="flex flex-col justify-center border-2 border-slate-100 p-6 sm:p-10">
                         <span className="text-[10px] font-black text-slate-300 uppercase tracking-widest mb-4">
                             Registry_Stats
                         </span>

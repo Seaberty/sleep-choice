@@ -119,7 +119,7 @@ export default async function BestPicksPage({ searchParams }: SearchProps) {
     }
 
     return (
-        <main className="relative min-h-screen bg-white pt-20 md:pt-32 pb-32 overflow-x-hidden font-sans">
+        <main className="relative min-h-screen bg-white pt-20 md:pt-32 pb-20 sm:pb-32 overflow-x-clip font-sans">
             <script
                 type="application/ld+json"
                 dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
@@ -141,9 +141,9 @@ export default async function BestPicksPage({ searchParams }: SearchProps) {
                 <div className="absolute top-0 left-0 w-full h-[1px] bg-blue-600/10" />
             </div>
 
-            <div className="container mx-auto px-5 md:px-6 relative z-10 max-w-7xl">
+            <div className="container mx-auto px-4 sm:px-6 relative z-10 max-w-7xl">
                 {/* --- 1. Header: 系统级终端标题 --- */}
-                <header className="max-w-6xl mb-16 md:mb-28 border-l-4 border-blue-600 pl-6 md:pl-10">
+                <header className="max-w-6xl mb-12 sm:mb-16 md:mb-28 border-l-4 border-blue-600 pl-4 sm:pl-6 md:pl-10">
                     <div className="flex items-center gap-3 text-blue-600 font-black text-[9px] uppercase tracking-[0.4em] mb-6">
                         <Cpu className="w-4 h-4 animate-pulse" />
                         Audit_Registry_v26.1 // Verified_Selection

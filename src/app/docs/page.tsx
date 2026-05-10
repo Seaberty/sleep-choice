@@ -60,7 +60,7 @@ export default function TechnicalDocsPage() {
 
     return (
         <main className="min-h-screen bg-[#fdfdfd] pt-28 pb-24 font-sans selection:bg-blue-600 selection:text-white md:pt-32">
-            <div className="container mx-auto max-w-5xl px-6">
+            <div className="container mx-auto max-w-5xl px-4 sm:px-6">
                 <header className="mb-16 border-l-4 border-slate-950 pl-8">
                     <div className="mb-6 flex items-center gap-3 text-[10px] font-black uppercase tracking-[0.35em] text-blue-600">
                         <Activity className="h-4 w-4 animate-pulse" />

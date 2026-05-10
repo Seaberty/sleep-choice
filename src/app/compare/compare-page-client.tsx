@@ -60,7 +60,7 @@ export function ComparePageClient({ initialSlugs, products }: Props) {
 
     if (initialSlugs.length < 2) {
         return (
-            <section className="max-w-xl mx-auto py-16 px-6 text-center border border-dashed border-slate-200 rounded-3xl bg-slate-50/50">
+            <section className="max-w-xl mx-auto py-16 px-4 sm:px-6 text-center border border-dashed border-slate-200 rounded-3xl bg-slate-50/50">
                 <CompareHeader />
                 <p className="text-sm text-slate-600 mb-8 leading-relaxed">
                     Select at least two audited products. Open any{" "}
@@ -92,7 +92,7 @@ export function ComparePageClient({ initialSlugs, products }: Props) {
 
     if (products.length < 2) {
         return (
-            <section className="max-w-xl mx-auto py-16 px-6 text-center border border-rose-100 rounded-3xl bg-rose-50/40">
+            <section className="max-w-xl mx-auto py-16 px-4 sm:px-6 text-center border border-rose-100 rounded-3xl bg-rose-50/40">
                 <CompareHeader />
                 <p className="text-sm text-slate-600 mb-6">
                     Some slugs may be invalid or removed from the registry.
@@ -122,7 +122,7 @@ function CompareHeader() {
             <p className="text-[9px] font-black uppercase tracking-[0.35em] text-blue-600 mb-3">
                 Forensic_compare
             </p>
-            <h1 className="text-4xl md:text-5xl font-[1000] uppercase italic tracking-tighter text-slate-950">
+            <h1 className="text-3xl sm:text-4xl md:text-5xl font-[1000] uppercase italic tracking-tighter text-slate-950">
                 Side-by-side matrix
             </h1>
             <p className="mt-4 max-w-2xl text-sm text-slate-600 leading-relaxed">

@@ -116,10 +116,13 @@
 }
 
 @layer base {
+    html {
+        overflow-x: clip;
+    }
     * {
         @apply border-border;
     }
     body {
-        @apply bg-background text-foreground;
+        @apply bg-background text-foreground overflow-x-clip;
     }
 }

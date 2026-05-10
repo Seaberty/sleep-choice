@@ -28,7 +28,7 @@ export default function AboutPage() {
                 <div className="absolute inset-0 bg-[linear-gradient(to_right,#8080800a_1px,transparent_1px),linear-gradient(to_bottom,#8080800a_1px,transparent_1px)] [background-size:30px_30px]" />
                 <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_-20%,#3b82f615,transparent_50%)]" />
 
-                <div className="container relative z-10 mx-auto px-6">
+                <div className="container relative z-10 mx-auto px-4 sm:px-6">
                     <div className="flex flex-col items-center text-center">
                         <motion.div
                             initial={{ opacity: 0, scale: 0.9 }}
@@ -46,7 +46,7 @@ export default function AboutPage() {
                             initial={{ opacity: 0, y: 20 }}
                             animate={{ opacity: 1, y: 0 }}
                             transition={{ delay: 0.1 }}
-                            className="mb-8 text-6xl font-[1000] leading-[0.85] tracking-[-0.06em] text-slate-950 md:text-[10rem] uppercase"
+                            className="mb-8 text-[clamp(2.25rem,11vw,6rem)] font-[1000] leading-[0.9] sm:leading-[0.85] tracking-[-0.06em] text-slate-950 md:text-[10rem] uppercase"
                         >
                             Deciphering <br />
                             <span className="text-blue-600">Sleep_Data.</span>
@@ -56,7 +56,7 @@ export default function AboutPage() {
                             initial={{ opacity: 0 }}
                             animate={{ opacity: 1 }}
                             transition={{ delay: 0.2 }}
-                            className="max-w-2xl border-l-2 border-blue-600 pl-8 text-left"
+                            className="max-w-2xl border-l-2 border-blue-600 pl-4 sm:pl-8 text-left"
                         >
                             <p className="text-lg font-bold italic leading-relaxed text-slate-500 md:text-xl">
                                 "Marketing claims are{" "}
@@ -77,7 +77,7 @@ export default function AboutPage() {
             </section>
 
             {/* 2. Intelligence Framework (Industrial Cards) */}
-            <section className="container mx-auto px-6 py-24">
+            <section className="container mx-auto px-4 sm:px-6 py-24">
                 <div className="mb-20 flex flex-col items-end justify-between gap-6 border-b-4 border-slate-950 pb-12 md:flex-row">
                     <div className="max-w-xl">
                         <div className="flex items-center gap-2 text-blue-600 mb-3 font-black text-[10px] uppercase tracking-[0.3em]">
@@ -175,7 +175,7 @@ export default function AboutPage() {
             </section>
 
             {/* 3. The Black Box (Intelligence Dossier) */}
-            <section className="container mx-auto px-6">
+            <section className="container mx-auto px-4 sm:px-6">
                 <div className="relative overflow-hidden bg-slate-950 px-8 py-20 text-white md:px-20 border-y-8 border-blue-600 rounded-[3rem]">
                     <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')] opacity-10 pointer-events-none" />
 
@@ -260,7 +260,7 @@ export default function AboutPage() {
             </section>
 
             {/* 4. Global HQ Section */}
-            <section className="container mx-auto px-6 py-32 text-center">
+            <section className="container mx-auto px-4 sm:px-6 py-32 text-center">
                 <div className="mx-auto max-w-2xl">
                     <div className="mb-8 inline-flex items-center gap-4 px-6 py-2 border border-slate-200 rounded-full bg-white shadow-sm">
                         <MapPin className="h-4 w-4 text-blue-600" />

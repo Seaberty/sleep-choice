@@ -22,8 +22,8 @@ export default async function ComparePage({
         slugs.length >= 2 ? await getProductsForCompare(slugs) : []
 
     return (
-        <main className="min-h-screen bg-white pt-28 pb-32 md:pt-36 md:pb-40">
-            <div className="container mx-auto px-6 max-w-7xl">
+        <main className="min-h-screen bg-white overflow-x-clip pt-24 pb-24 sm:pt-28 sm:pb-32 md:pt-36 md:pb-40">
+            <div className="container mx-auto px-4 sm:px-6 max-w-7xl">
                 <Suspense
                     fallback={
                         <div className="font-mono text-[10px] font-black uppercase tracking-widest text-slate-400 py-20 text-center">

@@ -9,8 +9,8 @@ export function Hero() {
     const featuredProductSlug = "saatva-hd"
 
     return (
-        <section className="bg-slate-50 py-20 px-4 text-center lg:text-left lg:py-32 overflow-hidden">
-            <div className="container mx-auto grid lg:grid-cols-2 gap-12 items-center">
+        <section className="bg-slate-50 py-16 sm:py-20 text-center lg:text-left lg:py-32 overflow-hidden">
+            <div className="container mx-auto grid lg:grid-cols-2 gap-10 lg:gap-12 items-center px-4 sm:px-6">
                 <motion.div
                     initial={{ opacity: 0, x: -20 }}
                     animate={{ opacity: 1, x: 0 }}
@@ -24,11 +24,11 @@ export function Hero() {
                         </span>
                     </div>
 
-                    <h1 className="text-5xl font-extrabold tracking-tight text-slate-900 lg:text-7xl mb-6 leading-[1.1]">
+                    <h1 className="text-4xl font-extrabold tracking-tight text-slate-900 sm:text-5xl lg:text-7xl mb-6 leading-[1.1]">
                         Find Your{" "}
                         <span className="text-blue-600">Perfect Night.</span>
                     </h1>
-                    <p className="text-xl text-slate-600 mb-8 leading-relaxed max-w-xl">
+                    <p className="text-base text-slate-600 sm:text-xl mb-8 leading-relaxed max-w-xl">
                         Forensic intelligence built from owner reviews, retailer
                         specs, and channel narratives—aggregated and scored by AI.
                         We stress-test the evidence trail, not mattresses on our

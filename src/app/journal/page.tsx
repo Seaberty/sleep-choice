@@ -41,7 +41,7 @@ export default async function JournalIndexPage() {
                 <div className="absolute top-0 left-0 w-full h-[1px] bg-blue-600/30 animate-[scan_10s_linear_infinite]" />
             </div>
 
-            <div className="container mx-auto px-6 relative z-10 max-w-6xl">
+            <div className="container mx-auto px-4 sm:px-6 relative z-10 max-w-6xl">
                 <header className="max-w-4xl mb-24 border-l-4 border-slate-950 pl-8">
                     <div className="flex items-center gap-3 text-blue-600 font-black text-[10px] uppercase tracking-[0.4em] mb-6">
                         <Activity className="w-4 h-4 animate-pulse" />

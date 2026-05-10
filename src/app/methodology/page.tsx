@@ -86,7 +86,7 @@ export default function MethodologyPage() {
     ]
 
     return (
-        <main className="min-h-screen bg-[#fdfdfd] pt-32 pb-24 font-sans overflow-x-hidden">
+        <main className="min-h-screen bg-[#fdfdfd] pt-24 sm:pt-32 pb-16 sm:pb-24 font-sans overflow-x-clip">
             <script
                 type="application/ld+json"
                 dangerouslySetInnerHTML={{
@@ -95,7 +95,7 @@ export default function MethodologyPage() {
             />
 
             {/* Hero Section */}
-            <header className="container mx-auto px-6 max-w-5xl mb-24">
+            <header className="container mx-auto px-4 sm:px-6 max-w-5xl mb-16 sm:mb-24">
                 <motion.div
                     initial={{ opacity: 0, x: -20 }}
                     animate={{ opacity: 1, x: 0 }}
@@ -123,7 +123,7 @@ export default function MethodologyPage() {
             </header>
 
             {/* Core Principles: 工业感卡片 */}
-            <section className="container mx-auto px-6 max-w-5xl mb-32 grid md:grid-cols-3 gap-6">
+            <section className="container mx-auto px-4 sm:px-6 max-w-5xl mb-20 sm:mb-32 grid md:grid-cols-3 gap-6">
                 {[
                     {
                         icon: <SearchCode className="w-6 h-6" />,
@@ -143,7 +143,7 @@ export default function MethodologyPage() {
                 ].map((principle, i) => (
                     <div
                         key={i}
-                        className="p-10 bg-white border border-slate-200 rounded-[2.5rem] shadow-sm hover:border-blue-500 transition-colors group"
+                        className="p-6 sm:p-10 bg-white border border-slate-200 rounded-[2.5rem] shadow-sm hover:border-blue-500 transition-colors group"
                     >
                         <div className="text-slate-900 mb-8 group-hover:scale-110 transition-transform">
                             {principle.icon}
@@ -159,7 +159,7 @@ export default function MethodologyPage() {
             </section>
 
             {/* Protocols: 深度审计列表 */}
-            <section className="container mx-auto px-6 max-w-5xl mb-32">
+            <section className="container mx-auto px-4 sm:px-6 max-w-5xl mb-20 sm:mb-32">
                 <h2 className="text-3xl font-black uppercase tracking-tighter mb-12 flex items-center gap-4">
                     <span className="bg-slate-950 text-white px-3 py-1 text-xs rounded">
                         SECTION_02
@@ -170,7 +170,7 @@ export default function MethodologyPage() {
                     {testingProtocols.map((protocol, index) => (
                         <div
                             key={index}
-                            className="p-8 md:p-12 bg-white border border-slate-200 rounded-[3rem] group hover:shadow-2xl hover:shadow-blue-500/5 transition-all"
+                            className="p-5 sm:p-8 md:p-12 bg-white border border-slate-200 rounded-3xl sm:rounded-[3rem] group hover:shadow-2xl hover:shadow-blue-500/5 transition-all"
                         >
                             <div className="flex flex-col md:flex-row md:items-start gap-10">
                                 <div className="p-5 bg-slate-950 text-white rounded-3xl w-fit">
@@ -209,8 +209,8 @@ export default function MethodologyPage() {
             </section>
 
             {/* Infrastructure Section: 算法设施 */}
-            <section className="container mx-auto px-6 max-w-5xl mb-32">
-                <div className="bg-slate-950 rounded-[3rem] p-10 md:p-20 text-white relative overflow-hidden">
+            <section className="container mx-auto px-4 sm:px-6 max-w-5xl mb-20 sm:mb-32">
+                <div className="bg-slate-950 rounded-3xl sm:rounded-[3rem] p-6 sm:p-10 md:p-20 text-white relative overflow-hidden">
                     <div className="absolute top-0 right-0 p-10 opacity-10 pointer-events-none">
                         <Binary className="w-64 h-64" />
                     </div>
@@ -260,7 +260,7 @@ export default function MethodologyPage() {
             </section>
 
             {/* Transparency Disclaimer */}
-            <section className="container mx-auto px-6 max-w-5xl">
+            <section className="container mx-auto px-4 sm:px-6 max-w-5xl">
                 <div className="bg-slate-50 rounded-[2.5rem] p-10 border-2 border-dashed border-slate-200 flex flex-col md:flex-row gap-8 items-center">
                     <AlertCircle className="w-12 h-12 text-amber-500 shrink-0" />
                     <div>

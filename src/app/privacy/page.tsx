@@ -68,7 +68,7 @@ export default function PrivacyPage() {
                 ))}
             </div>
 
-            <div className="container mx-auto px-6 relative z-10">
+            <div className="container mx-auto px-4 sm:px-6 relative z-10">
                 {/* 1. Header Area: 审计状态 */}
                 <div className="max-w-5xl mb-24">
                     <motion.div
