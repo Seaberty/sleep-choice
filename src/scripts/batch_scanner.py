@@ -18,7 +18,10 @@
 
 定时示例：
   0 6 * * * ... python batch_scanner.py                      # 每日增量
-  0 * * * * ... python batch_scanner.py --site-only          # 每小时仅官网情报
+  0 */4 * * * ... python batch_scanner.py --site-only        # 每 4h 官网情报（单次耗时长，勿盲目每小时）
+
+推广物料（JSON / Pinterest PNG / Reddit 草稿，不写社交 API）：
+  python promo_assets.py --output-dir ./promo_output
 """
 from __future__ import annotations
 

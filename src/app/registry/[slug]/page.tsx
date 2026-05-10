@@ -385,6 +385,16 @@ export default async function ProductAuditPage({
         product.technical_specs,
         {}
     )
+    const certRaw = (technicalSpecs.Certifications || "").trim()
+    const certPlaceholder = "Not stated in captured listing"
+    const certificationClaims =
+        certRaw && certRaw !== certPlaceholder ? certRaw : ""
+    const technicalSpecsForGrid = Object.fromEntries(
+        Object.entries(technicalSpecs).filter(([k]) => {
+            if (k === "Certifications" && certificationClaims) return false
+            return true
+        })
+    )
     const auditData = safeParse<any>(product.audit_data, {})
     const specsMatrix = auditData?.specs_matrix || {}
 
@@ -862,6 +872,24 @@ export default async function ProductAuditPage({
                             </div>
                         </section>
 
+                        {certificationClaims ? (
+                            <section className="rounded-2xl border border-blue-200 bg-blue-50/40 p-8 font-mono shadow-sm">
+                                <div className="mb-4 flex items-center gap-2 text-blue-700">
+                                    <ShieldCheck className="h-4 w-4 shrink-0" />
+                                    <h4 className="text-[10px] font-black uppercase tracking-[0.3em]">
+                                        Certifications_and_Listing_Claims
+                                    </h4>
+                                </div>
+                                <p className="text-[12px] font-medium leading-relaxed text-slate-800">
+                                    {certificationClaims}
+                                </p>
+                                <p className="mt-4 text-[9px] uppercase tracking-widest text-slate-500">
+                                    Synthesized from captured listing and public copy — verify
+                                    certificates and scope on the merchant before purchase.
+                                </p>
+                            </section>
+                        ) : null}
+
                         {/* 6. Technical Raw Dataset */}
                         <section className="pt-10 border-t border-slate-100 font-mono text-[10px]">
                             <h4 className="font-black uppercase tracking-[0.3em] text-slate-400 mb-8 flex items-center gap-2">
@@ -872,7 +900,7 @@ export default async function ProductAuditPage({
                             <div className="grid md:grid-cols-2 gap-x-12 gap-y-2">
                                 {" "}
                                 {/* 增加列间距，减少行间距 */}
-                                {Object.entries(technicalSpecs).map(
+                                {Object.entries(technicalSpecsForGrid).map(
                                     ([key, value]) => (
                                         <div
                                             key={key}

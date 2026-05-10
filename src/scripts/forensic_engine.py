@@ -2735,14 +2735,15 @@ If snippets are thin or contradictory, use sentiment near 0.45–0.55 and includ
         - seo_title: Create a high-CTR title (max 60 chars) including "Forensic Audit" and "Review".
         - seo_description: Max 155 chars. Focus on material integrity and audit results.
         - seo_keywords: 5-8 highly relevant comma-separated keywords (e.g., brand, model, mattress-type, spinal-alignment).
-        - technical_specs: USE THESE KEYS: "Construction", "Firmness", "Support_Core", "Comfort_Layer", "Trial", "Warranty".
+        - technical_specs: USE THESE KEYS: "Construction", "Firmness", "Support_Core", "Comfort_Layer", "Trial", "Warranty", "Certifications".
+        - Certifications: Comma-separated published claims traceable to the listing or brand copy (e.g. CertiPUR-US, OEKO-TEX, GOTS license ref if stated). Include specific IDs when the source text provides them. If no claim is found, use "Not stated in captured listing".
         - specs_matrix: DO NOT leave empty. Provide detailed mechanical evaluation for each key.
 
         RETURN JSON:
         {{
           "audit_scores": {{"overall": 0.0, "support": 0.0, "cooling": 0.0, "pressure": 0.0, "durability": 0.0}},
           "technical_specs": {{
-              "Construction": "", "Firmness": "", "Support_Core": "", "Comfort_Layer": "", "Trial": "", "Warranty": ""
+              "Construction": "", "Firmness": "", "Support_Core": "", "Comfort_Layer": "", "Trial": "", "Warranty": "", "Certifications": ""
           }},
           "specs_matrix": {{
               "Spinal_Alignment": "",
@@ -2792,6 +2793,10 @@ If snippets are thin or contradictory, use sentiment near 0.45–0.55 and includ
             clean_desc = report.get('seo_description', '').strip().replace('"', '')
             clean_title = report.get('seo_title', '').strip().replace('"', '')
             clean_keywords = report.get('seo_keywords', '').strip().lower()
+
+            tech_specs = report.get("technical_specs")
+            if isinstance(tech_specs, dict) and "Certifications" not in tech_specs:
+                tech_specs["Certifications"] = "Not stated in captured listing"
 
             # 我们将 specs_matrix 放入 audit_data 字段中
             msrp_val = site_data.get("msrp")
