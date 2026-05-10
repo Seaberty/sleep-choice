@@ -1,3 +1,4 @@
+import type { Viewport } from "next"
 import { Inter, JetBrains_Mono } from "next/font/google"
 import { SiteHeader } from "@/components/site-header"
 import { SiteFooter } from "@/components/site-footer"
@@ -22,6 +23,11 @@ const mono = JetBrains_Mono({
     variable: "--font-mono",
     display: "swap"
 })
+
+export const viewport: Viewport = {
+    width: "device-width",
+    initialScale: 1
+}
 
 export const metadata = {
     metadataBase: new URL("https://sleepchoiceguide.com"),

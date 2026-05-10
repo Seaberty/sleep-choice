@@ -271,7 +271,7 @@ const LayerStack = ({
     }, [product])
 
     return (
-        <div className="relative w-full py-10 px-6 bg-slate-50 border border-slate-200 overflow-hidden font-mono shadow-inner">
+        <div className="relative w-full py-8 sm:py-10 px-4 sm:px-6 bg-slate-50 border border-slate-200 overflow-hidden font-mono shadow-inner">
             <div className="absolute top-4 left-4 flex items-center gap-2">
                 <Layers className="w-3 h-3 text-blue-600" />
                 <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">
@@ -464,7 +464,7 @@ export default async function ProductAuditPage({
     })
 
     return (
-        <main className="min-h-screen bg-white text-slate-900 pb-20 pt-32 md:pt-44 font-sans selection:bg-blue-600 selection:text-white">
+        <main className="min-h-screen overflow-x-clip bg-white text-slate-900 pb-12 pt-28 sm:pb-20 sm:pt-32 md:pt-44 font-sans selection:bg-blue-600 selection:text-white">
             <script
                 type="application/ld+json"
                 dangerouslySetInnerHTML={{
@@ -472,9 +472,9 @@ export default async function ProductAuditPage({
                 }}
             />
 
-            <div className="container mx-auto px-6 max-w-6xl relative z-10">
+            <div className="container mx-auto px-4 sm:px-6 max-w-6xl relative z-10">
                 {/* [ Header ] */}
-                <header className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-16 pb-6 border-b border-slate-950 font-mono">
+                <header className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-10 sm:mb-16 pb-6 border-b border-slate-950 font-mono">
                     <div className="flex flex-wrap items-center gap-4">
                         <div className="flex items-center gap-2 px-3 py-1 bg-slate-950 text-white text-[9px] font-black uppercase tracking-tighter">
                             <Fingerprint className="w-3 h-3 text-blue-500" />
@@ -522,12 +522,12 @@ export default async function ProductAuditPage({
                     </div>
                 </header>
 
-                <div className="grid lg:grid-cols-12 gap-16 items-start">
-                    <div className="lg:col-span-8 space-y-20">
+                <div className="grid lg:grid-cols-12 gap-10 lg:gap-16 items-start">
+                    <div className="lg:col-span-8 space-y-12 md:space-y-20">
                         {/* 1. Main Image - 优化响应式与优先级 */}
                         <section className="relative group bg-slate-50 border border-slate-200 overflow-hidden">
                             <div className="absolute inset-0 bg-[linear-gradient(to_bottom,transparent_49%,rgba(37,99,235,0.05)_50%,transparent_51%)] bg-[length:100%_4px] animate-pulse z-20 pointer-events-none opacity-50" />
-                            <div className="relative aspect-video flex items-center justify-center p-12">
+                            <div className="relative aspect-video flex items-center justify-center p-4 sm:p-8 md:p-12">
                                 {product.image_url ? (
                                     <div className="relative w-full h-full overflow-hidden">
                                         <Image
@@ -557,13 +557,13 @@ export default async function ProductAuditPage({
 
                         {/* 2. Dashboard */}
                         <div>
-                            <h1 className="text-5xl md:text-7xl lg:text-[90px] font-[1000] uppercase italic tracking-[-0.06em] leading-[0.85] mb-10 text-slate-950">
+                            <h1 className="text-3xl sm:text-5xl md:text-7xl lg:text-[90px] font-[1000] uppercase italic tracking-[-0.06em] leading-[0.9] sm:leading-[0.85] mb-8 sm:mb-10 text-slate-950 break-words">
                                 {product.brand}{" "}
                                 <span className="text-blue-600 not-italic">
                                     {product.model}
                                 </span>
                             </h1>
-                            <div className="grid grid-cols-2 md:grid-cols-4 gap-6 border-t border-slate-100 pt-8">
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 sm:gap-6 border-t border-slate-100 pt-6 sm:pt-8">
                                 {radarData.slice(0, 4).map((m, i) => (
                                     <div key={i} className="space-y-1">
                                         <div className="text-[9px] font-black text-slate-400 uppercase tracking-widest">
@@ -580,8 +580,8 @@ export default async function ProductAuditPage({
                         </div>
 
                         {/* 3. Radar Chart */}
-                        <section className="bg-slate-950 p-6 md:p-10 border border-slate-800 shadow-2xl">
-                            <div className="h-[300px] md:h-[350px] w-full">
+                        <section className="bg-slate-950 p-4 sm:p-6 md:p-10 border border-slate-800 shadow-2xl">
+                            <div className="h-[240px] sm:h-[300px] md:h-[350px] w-full min-h-0">
                                 <AuditRadarChart data={radarData} />
                             </div>
                         </section>
@@ -591,7 +591,7 @@ export default async function ProductAuditPage({
                         {/* 4. Pros & Cons */}
                         <section className="grid md:grid-cols-2 gap-px bg-slate-200 border border-slate-200 font-mono shadow-sm">
                             {/* Performance_Gains (PROS) */}
-                            <div className="bg-white p-8 space-y-6">
+                            <div className="bg-white p-5 sm:p-8 space-y-6">
                                 <h4 className="flex items-center gap-2 text-[10px] font-black uppercase text-emerald-600 tracking-[0.2em]">
                                     <Plus className="w-3 h-3 shrink-0" />{" "}
                                     Performance_Gains
@@ -613,7 +613,7 @@ export default async function ProductAuditPage({
                             </div>
 
                             {/* System_Constraints (CONS) */}
-                            <div className="bg-white p-8 space-y-6">
+                            <div className="bg-white p-5 sm:p-8 space-y-6">
                                 <h4 className="flex items-center gap-2 text-[10px] font-black uppercase text-rose-500 tracking-[0.2em]">
                                     <Minus className="w-3 h-3 shrink-0" />{" "}
                                     System_Constraints
@@ -638,12 +638,12 @@ export default async function ProductAuditPage({
                         {/* 5. Forensic Analysis - 深度法医审计模块 */}
                         <section className="space-y-12 font-mono mt-20">
                             {/* 模块标题栏 */}
-                            <div className="flex items-center gap-4 text-slate-400">
-                                <Microscope className="w-5 h-5 text-blue-600" />
-                                <h4 className="text-[10px] font-black uppercase tracking-[0.3em] whitespace-nowrap">
+                            <div className="flex flex-wrap items-center gap-3 sm:gap-4 text-slate-400">
+                                <Microscope className="w-5 h-5 shrink-0 text-blue-600" />
+                                <h4 className="text-[10px] font-black uppercase tracking-[0.3em]">
                                     Forensic_Analysis_Notes
                                 </h4>
-                                <div className="flex-1 h-px bg-slate-100" />
+                                <div className="hidden min-[420px]:block flex-1 h-px min-w-[2rem] bg-slate-100" />
                             </div>
 
                             {/* 规格评估矩阵：增加高亮逻辑 */}
@@ -668,7 +668,7 @@ export default async function ProductAuditPage({
                                                 {/* 1. 标题层级：优化为 10px，增加间距 */}
                                                 <div className="flex items-center gap-3">
                                                     <span
-                                                        className={`font-black uppercase tracking-[0.25em] text-[10px] whitespace-nowrap ${
+                                                        className={`font-black uppercase tracking-[0.25em] text-[10px] break-words sm:whitespace-nowrap ${
                                                             isCore
                                                                 ? "text-blue-600"
                                                                 : "text-slate-400"
@@ -716,7 +716,7 @@ export default async function ProductAuditPage({
                             </div>
 
                             {/* 最终审计结论印章 */}
-                            <div className="bg-slate-950 p-8 border-l-[12px] border-blue-600 text-white font-bold text-xl uppercase tracking-tight shadow-[20px_20px_0px_0px_rgba(30,41,59,0.1)] relative overflow-hidden">
+                            <div className="bg-slate-950 p-5 sm:p-8 border-l-[8px] sm:border-l-[12px] border-blue-600 text-white font-bold text-base sm:text-xl uppercase tracking-tight shadow-[20px_20px_0px_0px_rgba(30,41,59,0.1)] relative overflow-hidden">
                                 <div className="relative z-10">
                                     <div className="text-[9px] opacity-40 mb-2 tracking-[0.4em]">
                                         Final_Auditor_Verdict
@@ -727,7 +727,7 @@ export default async function ProductAuditPage({
                             </div>
 
                             {brandIntel.length > 0 ? (
-                                <div className="mt-10 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+                                <div className="mt-10 rounded-2xl border border-slate-200 bg-white p-4 sm:p-6 shadow-sm">
                                     <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
                                         <div className="flex items-center gap-2">
                                             <Radio className="h-4 w-4 text-blue-600" />
@@ -782,7 +782,7 @@ export default async function ProductAuditPage({
                             ) : null}
 
                             {/* 深度审计日志区域 - 优化了间距与水印 */}
-                            <div className="mt-16 p-8 border border-slate-100 bg-slate-50/50 relative overflow-hidden group/log">
+                            <div className="mt-16 p-4 sm:p-8 border border-slate-100 bg-slate-50/50 relative overflow-hidden group/log">
                                 {/* 背景防伪水印 */}
                                 <div className="absolute -right-8 -bottom-8 opacity-[0.03] pointer-events-none rotate-12 transition-transform group-hover/log:scale-110 duration-1000">
                                     <ShieldAlert className="w-56 h-56 text-slate-900" />
@@ -790,14 +790,14 @@ export default async function ProductAuditPage({
 
                                 <div className="relative z-10">
                                     {/* 日志头部 */}
-                                    <div className="flex justify-between items-center mb-8">
+                                    <div className="flex flex-col gap-4 sm:flex-row sm:justify-between sm:items-center mb-8">
                                         <div className="flex items-center gap-2">
                                             <ShieldAlert className="w-4 h-4 text-blue-600" />
                                             <span className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">
                                                 Detailed_Audit_Log
                                             </span>
                                         </div>
-                                        <div className="flex items-center gap-4">
+                                        <div className="flex flex-wrap items-center gap-2 sm:gap-4">
                                             <span className="text-[8px] font-mono text-slate-300">
                                                 HASH_REF:{" "}
                                                 {product.id
@@ -813,7 +813,7 @@ export default async function ProductAuditPage({
                                     </div>
 
                                     {/* 日志正文：增加了 pb-6 确保不紧贴分割线 */}
-                                    <div className="text-[12px] leading-[1.8] text-slate-500 uppercase font-medium max-h-[350px] overflow-y-auto pr-4 custom-scrollbar pb-6">
+                                    <div className="text-[12px] leading-[1.8] text-slate-500 uppercase font-medium max-h-[280px] sm:max-h-[350px] overflow-y-auto pr-2 sm:pr-4 custom-scrollbar pb-6 break-words">
                                         {product.summary_log}
                                     </div>
 
@@ -873,7 +873,7 @@ export default async function ProductAuditPage({
                         </section>
 
                         {certificationClaims ? (
-                            <section className="rounded-2xl border border-blue-200 bg-blue-50/40 p-8 font-mono shadow-sm">
+                            <section className="rounded-2xl border border-blue-200 bg-blue-50/40 p-5 sm:p-8 font-mono shadow-sm">
                                 <div className="mb-4 flex items-center gap-2 text-blue-700">
                                     <ShieldCheck className="h-4 w-4 shrink-0" />
                                     <h4 className="text-[10px] font-black uppercase tracking-[0.3em]">
@@ -983,7 +983,7 @@ export default async function ProductAuditPage({
                                         <span className="text-[8px] font-bold text-slate-300 uppercase">
                                             Canonical:
                                         </span>
-                                        <span className="text-[8px] font-medium text-slate-400 truncate max-w-[200px]">
+                                        <span className="text-[8px] font-medium text-slate-400 break-all sm:truncate sm:max-w-[200px]">
                                             /{product.slug}
                                         </span>
                                     </div>
@@ -993,7 +993,7 @@ export default async function ProductAuditPage({
 
                         {/* 7. Methodology Transparency Footer */}
                         <footer className="mt-20 pt-10 border-t border-slate-950 font-mono">
-                            <div className="grid md:grid-cols-3 gap-8 items-start">
+                            <div className="grid md:grid-cols-3 gap-8 items-start text-left">
                                 <div className="space-y-4">
                                     <h5 className="text-[10px] font-black uppercase text-slate-950">
                                         Data_Sourcing
@@ -1023,8 +1023,8 @@ export default async function ProductAuditPage({
                                         version of the analysis.
                                     </p>
                                 </div>
-                                <div className="flex flex-col items-end justify-end h-full">
-                                    <div className="text-right">
+                                <div className="flex flex-col items-start md:items-end justify-end h-full">
+                                    <div className="text-left md:text-right">
                                         <div className="text-[10px] font-black text-blue-600 uppercase italic">
                                             Status: Final_Report_Verified
                                         </div>
@@ -1039,8 +1039,8 @@ export default async function ProductAuditPage({
                     </div>
 
                     {/* [ RIGHT SIDEBAR ] */}
-                    <aside className="lg:col-span-4 lg:sticky lg:top-40">
-                        <div className="border-[6px] border-slate-950 p-8 bg-white shadow-[20px_20px_0px_0px_rgba(37,99,235,1)]">
+                    <aside className="lg:col-span-4 lg:sticky lg:top-[calc(var(--header-height)+1.5rem)]">
+                        <div className="border-4 sm:border-[6px] border-slate-950 p-5 sm:p-8 bg-white shadow-[12px_12px_0px_0px_rgba(37,99,235,1)] sm:shadow-[20px_20px_0px_0px_rgba(37,99,235,1)]">
                             <div className="mb-8 pb-4 border-b border-slate-100">
                                 <p className="text-[9px] leading-relaxed text-slate-400 font-mono uppercase tracking-tighter italic">
                                     <span className="text-blue-600 font-bold not-italic">
@@ -1055,7 +1055,7 @@ export default async function ProductAuditPage({
                                 <div className="text-[10px] font-black text-slate-400 uppercase tracking-[0.4em] mb-4">
                                     Performance_Index
                                 </div>
-                                <div className="text-[110px] font-[1000] italic text-slate-950 leading-none tracking-tighter">
+                                <div className="text-[clamp(3.5rem,18vw,6.875rem)] font-[1000] italic text-slate-950 leading-none tracking-tighter tabular-nums">
                                     {scores.overall}
                                 </div>
                             </div>
