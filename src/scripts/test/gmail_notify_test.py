@@ -7,6 +7,11 @@ Uses the same variables as ``reddit_rss_monitor.py``:
     GMAIL_USER, GMAIL_PASS  (Google App Password)
     GMAIL_TO                  (optional; defaults to GMAIL_USER)
 
+When not ``--dry-run``, sends **one** message whose body is built with
+``format_alert_email_body`` (same layout as live Reddit alerts: title / link /
+summary / feed + ``[Detected Topic]`` / ``[Direct Link]`` / ``[Copy & Paste Audit Note]``
+with forensic snippets and ``{SCG}`` expanded from ``NEXT_PUBLIC_SITE_URL``).
+
 Run from repository root::
 
     python src/scripts/test/gmail_notify_test.py
@@ -26,7 +31,12 @@ _SCRIPTS_DIR = Path(__file__).resolve().parent.parent
 if str(_SCRIPTS_DIR) not in sys.path:
     sys.path.insert(0, str(_SCRIPTS_DIR))
 
-from reddit_rss_monitor import load_env, send_email  # noqa: E402
+from reddit_rss_monitor import (  # noqa: E402
+    format_alert_email_body,
+    load_env,
+    send_email,
+    sleepchoice_site_origin,
+)
 
 
 def _check_vars() -> tuple[str, str, str]:
@@ -59,16 +69,30 @@ def main() -> None:
 
     print(f"[ok] 已读取配置：发件人={user!r}，收件人={to_addr!r}", flush=True)
 
+    stamp = datetime.now().astimezone().strftime("%Y-%m-%d %H:%M:%S %Z")
+    origin = sleepchoice_site_origin()
+    print(f"[ok] 模板站点根 SCG = {origin!r}", flush=True)
+
     if args.dry_run:
         print("[dry-run] 未连接 SMTP，未发送邮件。", flush=True)
         return
 
-    stamp = datetime.now().astimezone().strftime("%Y-%m-%d %H:%M:%S %Z")
-    subject = "[sleep-choice] Gmail 测试邮件"
+    subject = "[sleep-choice] Reddit monitor 模板预览（gmail_notify_test）"
     body = (
-        "这是一封来自 sleep-choice 仓库脚本的连通性测试。\n\n"
-        f"发送时间（本地）：{stamp}\n"
-        "若收到此邮件，说明 GMAIL_USER / GMAIL_PASS / GMAIL_TO 配置可用。\n"
+        "本邮件为 gmail_notify_test.py 连通性测试，正文与 reddit_rss_monitor 告警邮件\n"
+        "使用同一套 format_alert_email_body 模板（含法医审计 Copy & Paste 块）。\n\n"
+        f"生成时间（本地）：{stamp}\n"
+        f"SCG 展开为：{origin}\n\n"
+        "--- 以下为模板正文（样例数据）---\n\n"
+        + format_alert_email_body(
+            title="[样例] /u/sleep-choice-bot on Saatva vs. lower back pain — worth it?",
+            link="https://www.reddit.com/r/Mattress/comments/EXAMPLE123/sample_thread/",
+            summary=(
+                "Synthetic preview row. Real alerts use live RSS title + summary + link."
+            ),
+            feed_url="https://www.reddit.com/r/Mattress/new/.rss",
+            matches=["Saatva", "back pain"],
+        )
     )
 
     try:
@@ -77,7 +101,7 @@ def main() -> None:
         print(f"[fail] 发送失败：{e}", file=sys.stderr)
         sys.exit(1)
 
-    print(f"[ok] 测试邮件已发送到 {to_addr!r}。", flush=True)
+    print(f"[ok] 模板测试邮件已发送到 {to_addr!r}。", flush=True)
 
 
 if __name__ == "__main__":

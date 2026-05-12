@@ -1,6 +1,10 @@
 {
     "last_updated": "2026-01-07T22:00:00Z",
     "version": "1.0.0",
+    "reddit_audit_slugs": {
+        "thermal": "",
+        "fluffco_value": ""
+    },
     "products": {
         "saatva-classic": {
             "id": "saatva-classic",
@@ -10,6 +14,13 @@
             "rating": 4.9,
             "tag": "Overall Best Pick",
             "isBestSeller": true,
+            "audit_scores": {
+                "overall": 9.2,
+                "support": 9.8,
+                "cooling": 8.5,
+                "pressure": 9.2,
+                "durability": 8.0
+            },
             "metrics": {
                 "support": 9.8,
                 "cooling": 8.5,
@@ -35,6 +46,18 @@
                     "url": "https://amazon.com/dp/example1"
                 }
             ]
+        },
+        "saatva-hd": {
+            "id": "saatva-hd",
+            "brand": "Saatva",
+            "name": "HD / RX Hybrid",
+            "audit_scores": {
+                "overall": 9.2,
+                "support": 9.8,
+                "cooling": 8.5,
+                "pressure": 9.2,
+                "durability": 8.0
+            }
         },
         "helix-midnight-luxe": {
             "id": "helix-midnight-luxe",

@@ -1077,33 +1077,45 @@ class ForensicAuditEngine:
             } catch (e) {}
           }
 
+          function pickHighestSale(arr) {
+            if (!arr || !arr.length) return null;
+            return arr.reduce(function(best, c) {
+              if (!best) return c;
+              if (c.sale > best.sale) return c;
+              if (c.sale < best.sale) return best;
+              var bm = best.msrp != null ? best.msrp : 0;
+              var cm = c.msrp != null ? c.msrp : 0;
+              if (cm > bm) return c;
+              return best;
+            }, null);
+          }
           function selectBest() {
             if (!candidates.length) return null;
             if (variantIdPin) {
               const pinnedList = candidates.filter(function(c) {
                 return c.meta && c.meta.pinned;
               });
-              if (pinnedList.length >= 1) return pinnedList[0];
-              const byId = candidates.find(function(c) {
+              if (pinnedList.length >= 1) return pickHighestSale(pinnedList);
+              const byIdMatches = candidates.filter(function(c) {
                 return String(c.label).indexOf(variantIdPin) !== -1;
               });
-              if (byId) return byId;
+              if (byIdMatches.length >= 1) return pickHighestSale(byIdMatches);
             }
             const lower = function(s) {
               return s.toLowerCase();
             };
             for (let pi = 0; pi < PREFERRED.length; pi++) {
               const pref = PREFERRED[pi];
-              const hit = candidates.find(function(c) {
+              const matches = candidates.filter(function(c) {
                 return lower(c.label).indexOf(lower(pref)) !== -1;
               });
-              if (hit) return hit;
+              if (matches.length >= 1) return pickHighestSale(matches);
             }
-            const nonBad = candidates.find(function(c) {
+            const nonBad = candidates.filter(function(c) {
               return !BAD.test(c.label);
             });
-            if (nonBad) return nonBad;
-            return candidates[0];
+            if (nonBad.length) return pickHighestSale(nonBad);
+            return pickHighestSale(candidates);
           }
 
           const best = selectBest();
@@ -1826,7 +1838,9 @@ class ForensicAuditEngine:
 
     async def _extract_promotional_intel(self, page):
         """
-        扫描含 OFF / SAVE / CODE 的文案节点与常见「隐式」来源，提取优惠码与百分比折扣。
+        扫描含 OFF / SAVE / CODE 的文案节点与常见「隐式」来源，提取优惠码。
+        不再从全页拼接文案中匹配任意「N% off」，以免全站大促横幅写入 promo_discount_percent；
+        叠折百分比见 extract_promo_discount_percent_strict / augment_promo_from_plain_text。
         """
         script = r"""() => {
           const KW = /(?:OFF|SAVE|CODE)/i;
@@ -1913,8 +1927,6 @@ class ForensicAuditEngine:
               }
             }
           }
-          var pctM = blob.match(/(\d{1,2})%\s*(?:off|discount|savings)/i);
-          if (pctM) out.discount_percent = parseInt(pctM[1], 10);
           return out;
         }"""
         try:
@@ -1925,14 +1937,6 @@ class ForensicAuditEngine:
             cc = raw.get("coupon_code")
             if isinstance(cc, str) and cc.strip():
                 out["coupon_code"] = cc.strip().upper()[:24]
-            dp = raw.get("discount_percent")
-            if dp is not None:
-                try:
-                    dpf = float(dp)
-                    if 0 < dpf <= 95:
-                        out["promo_discount_percent"] = dpf
-                except (TypeError, ValueError):
-                    pass
             sn = raw.get("promo_text_snippet")
             if isinstance(sn, str) and sn.strip():
                 out["promo_text_snippet"] = sn.strip()[:600]
@@ -1941,8 +1945,51 @@ class ForensicAuditEngine:
             return None
 
     @staticmethod
+    def _stack_percent_without_coupon_allowed() -> bool:
+        """为 true 时：无券也保留叠折百分比（默认 false，避免全站横幅误入库）。"""
+        v = (os.getenv("ALLOW_STACK_PERCENT_WITHOUT_COUPON") or "").strip().lower()
+        return v in ("1", "true", "yes", "on")
+
+    @staticmethod
+    def extract_promo_discount_percent_strict(raw_text: str) -> float | None:
+        """
+        仅从「叠折 / 用码」类短句取百分比；排除 UP TO、SITEWIDE、大促横幅等常见误报。
+        不再使用全文任意「30% OFF」。
+        """
+        if not raw_text or len(raw_text) < 8:
+            return None
+        bad_ctx = re.compile(
+            r"UP\s+TO|SITE(?:\s|-)?WIDE|SELECT\s+(?:ITEMS|STYLES)|MEMORIAL|"
+            r"BLACK\s*FRIDAY|CYBER\s*MONDAY|PREVIEW\s+SALE|BEST\s+PRICE\s+ENDS|"
+            r"SHOP\s+(?:THE\s+)?SALE|LIMITED\s+TIME\s+ONLY|\bENDS\s+\d",
+            re.I,
+        )
+        patterns = (
+            re.compile(r"extra\s+(\d{1,2})\s*%\s*off\b", re.I),
+            re.compile(
+                r"(\d{1,2})\s*%\s*off\s+with\s+(?:code|coupon|promo)\b", re.I
+            ),
+            re.compile(
+                r"(?:stack|combine)\s+.*?(\d{1,2})\s*%\s*(?:off|discount)\b", re.I
+            ),
+        )
+        for pat in patterns:
+            for m in pat.finditer(raw_text):
+                start = max(0, m.start() - 140)
+                win = raw_text[start : m.end() + 60]
+                if bad_ctx.search(win):
+                    continue
+                try:
+                    v = float(m.group(1))
+                    if 0 < v <= 95:
+                        return v
+                except (TypeError, ValueError, IndexError):
+                    continue
+        return None
+
+    @staticmethod
     def augment_promo_from_plain_text(raw_text: str, data: dict) -> None:
-        """从正文再扫一遍优惠码与百分比（补齐浏览器漏网）。"""
+        """从正文再扫一遍优惠码；叠折百分比仅用严格上下文（见 extract_promo_discount_percent_strict）。"""
         if not raw_text:
             return
         blob = raw_text.upper()
@@ -1965,14 +2012,61 @@ class ForensicAuditEngine:
                     if c2 and coupon_token_is_plausible(c2):
                         data["coupon_code"] = c2[:24]
         if data.get("promo_discount_percent") is None:
-            pm = re.search(r"(\d{1,2})%\s*(?:OFF|DISCOUNT)", blob)
-            if pm:
-                try:
-                    p = float(pm.group(1))
-                    if 0 < p <= 95:
-                        data["promo_discount_percent"] = p
-                except (TypeError, ValueError):
-                    pass
+            pct = ForensicAuditEngine.extract_promo_discount_percent_strict(raw_text)
+            if pct is not None:
+                data["promo_discount_percent"] = pct
+
+    @staticmethod
+    def reconcile_display_prices(data: dict[str, Any]) -> None:
+        """保证现价与划线价自洽：msrp/old_price 必须严格大于现价。"""
+        try:
+            p = float(data.get("price") or 0)
+        except (TypeError, ValueError):
+            return
+        if p <= 0:
+            return
+        for key in ("msrp", "old_price"):
+            raw = data.get(key)
+            if raw is None:
+                continue
+            try:
+                m = float(raw)
+            except (TypeError, ValueError):
+                continue
+            if m <= p:
+                data["msrp"] = None
+                data["old_price"] = None
+                return
+
+    @staticmethod
+    def apply_aggregate_high_as_msrp_if_plausible(
+        data: dict[str, Any], extras: dict[str, Any] | None
+    ) -> None:
+        """
+        在尚无可靠划线价时，用 JSON-LD 全局 AggregateOffer.highPrice 补 MSRP。
+        仅当 high/现价 比例在常见促销带内（避免「跨规格最低价 + 全站最高价」错配）。
+        """
+        if not extras or not isinstance(extras, dict):
+            return
+        hp = extras.get("highPrice")
+        if hp is None:
+            return
+        try:
+            hf = float(hp)
+            pf = float(data.get("price") or 0)
+        except (TypeError, ValueError):
+            return
+        if pf <= 0 or hf <= pf * 1.015 or hf > pf * 1.48:
+            return
+        cur = data.get("msrp")
+        try:
+            curf = float(cur) if cur is not None else None
+        except (TypeError, ValueError):
+            curf = None
+        if curf is not None and curf >= hf:
+            return
+        data["msrp"] = hf
+        data["old_price"] = hf
 
     @staticmethod
     def compute_total_savings(
@@ -1981,9 +2075,16 @@ class ForensicAuditEngine:
         promo_discount_percent: float | None = None,
     ):
         """
-        在已知 MSRP 与当前页价格时估算总优惠额。
-        若扫到额外百分比券（相对当前标价的再折扣），则有效支付价 = price * (1 - pct/100)，
-        total_savings = msrp - 有效支付价；否则 total_savings = msrp - price。
+        估算相对「官方划线 / MSRP」的总节省额。
+
+        爬虫写入的 price 在绝大多数 PDP 上已是「促销后货架价」；若再乘
+        promo_discount_percent，易与整站横幅、配件区误扫的 X% off 双算，
+        total_savings 会远大于页面主价区（如 Save $525）。
+
+        规则：
+        - 当 MSRP 明显高于现价（典型「划线 + 促销价」）时：total_savings = MSRP − price。
+        - 仅当 MSRP 与现价几乎同价（无可靠划线差）且扫到额外叠券比例时，才用
+          effective = price * (1 − pct/100) 再算 MSRP − effective（少数「标价即牌价」站点）。
         """
         if msrp is None or price is None:
             return None
@@ -1994,6 +2095,9 @@ class ForensicAuditEngine:
             return None
         if m <= 0 or p < 0:
             return None
+        # 约 0.3% 以上价差视为「已有划线→现价」的主促销，不再叠扫到的百分比
+        if m > p * 1.003:
+            return max(0.0, m - p)
         if promo_discount_percent is not None:
             try:
                 d = float(promo_discount_percent)
@@ -2130,8 +2234,21 @@ class ForensicAuditEngine:
                     except Exception:
                         pass
 
+                try:
+                    await page.wait_for_load_state("networkidle", timeout=22000)
+                except Exception:
+                    pass
+
                 if self.brand == "Saatva":
-                    await asyncio.sleep(0.85)
+                    try:
+                        await page.get_by_role(
+                            "button", name=re.compile(r"^\s*Queen\s*$", re.I)
+                        ).first.click(timeout=5000)
+                    except Exception:
+                        pass
+                    await asyncio.sleep(2.0)
+                else:
+                    await asyncio.sleep(0.75)
 
                 anchor = await self._extract_json_ld_anchor_commerce(page)
                 if anchor:
@@ -2160,7 +2277,7 @@ class ForensicAuditEngine:
                 shop = await self._extract_shopify_variant_pricing(page)
                 if shop:
                     sale_now = float(data.get("price") or 0)
-                    if shop.get("price") is not None and sale_now == 0.0:
+                    if shop.get("price") is not None:
                         try:
                             ps = float(shop["price"])
                             if 5.0 <= ps <= 100000.0:
@@ -2287,8 +2404,12 @@ class ForensicAuditEngine:
                                     data["msrp"] = plf
                                     data["old_price"] = plf
                         elif pl is None and 5.0 <= psf <= 100000.0:
-                            # 无划线价时：摘要栏单价须能覆盖错误的 schema 锚定（SB 常见）
-                            if data["price"] == 0.0 or self.brand == "Sleep & Beyond":
+                            # 无划线价时：摘要栏单价须能覆盖错误的 schema 锚定（SB / Saatva 等 React PDP 常见）
+                            if (
+                                data["price"] == 0.0
+                                or self.brand == "Sleep & Beyond"
+                                or self.brand == "Saatva"
+                            ):
                                 data["price"] = psf
 
                 if data["price"] == 0.0:
@@ -2444,6 +2565,11 @@ class ForensicAuditEngine:
                     data["coupon_code"] = await finalize_coupon_for_store(
                         url, data["coupon_code"]
                     )
+                if (
+                    not data.get("coupon_code")
+                    and not ForensicAuditEngine._stack_percent_without_coupon_allowed()
+                ):
+                    data["promo_discount_percent"] = None
 
                 extras = await self._extract_json_ld_extras(page)
                 if extras:
@@ -2452,8 +2578,9 @@ class ForensicAuditEngine:
                         avx = str(av).strip()
                         if avx.upper() != "OUT_OF_STOCK":
                             data["availability"] = avx[:160]
-                    # 不再用全局 AggregateOffer.highPrice 填 MSRP：易与「跨规格最低价」现价错配；
-                    # 划线价仅来自锚定 JSON-LD、Shopify 同 variant 的 compare_at，或将来显式 DOM 配对逻辑。
+                    self.apply_aggregate_high_as_msrp_if_plausible(data, extras)
+
+                self.reconcile_display_prices(data)
 
                 if self.brand == "FluffCo":
                     fc_av = await self._extract_fluffco_availability_dom(page)
