@@ -118,7 +118,7 @@ export default function ContactPage() {
                                 initial={{ opacity: 0, y: 20 }}
                                 animate={{ opacity: 1, y: 0 }}
                                 transition={{ delay: i * 0.1 }}
-                                className="group bg-white rounded-2xl p-8 border border-slate-200 shadow-sm hover:shadow-xl hover:border-blue-200 transition-all"
+                                className="group bg-white rounded-2xl p-6 border border-slate-200 shadow-sm hover:shadow-xl hover:border-blue-200 transition-all sm:p-8"
                             >
                                 <div
                                     className={cn(
@@ -134,7 +134,7 @@ export default function ContactPage() {
                                         {method.title}
                                     </h3>
                                 </div>
-                                <p className="text-slate-500 text-[11px] font-bold uppercase tracking-tight mb-8 leading-relaxed h-12">
+                                <p className="text-slate-500 text-[11px] font-bold uppercase tracking-tight mb-8 leading-relaxed min-h-0 sm:min-h-[3rem]">
                                     {method.description}
                                 </p>
                                 <a

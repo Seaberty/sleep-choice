@@ -225,7 +225,7 @@ export default async function RegistryPage({ searchParams }: Props) {
                                 <Link
                                     key={p.id}
                                     href={`/registry/${p.slug}`}
-                                    className="grid grid-cols-1 md:grid-cols-12 items-center p-8 md:p-10 hover:bg-slate-50 transition-all group border-l-0 hover:border-l-[12px] border-blue-600"
+                                    className="group grid grid-cols-1 items-center gap-y-6 border-l-0 border-blue-600 p-4 transition-all hover:bg-slate-50 hover:border-l-[8px] sm:p-6 md:grid-cols-12 md:gap-y-0 md:p-10 md:hover:border-l-[12px]"
                                 >
                                     <div className="col-span-5 mb-6 md:mb-0">
                                         <div className="flex items-center gap-6">
@@ -236,16 +236,16 @@ export default async function RegistryPage({ searchParams }: Props) {
                                                 <span className="text-[9px] font-black text-blue-600 uppercase tracking-[0.3em] mb-2 block">
                                                     {p.brand}
                                                 </span>
-                                                <h3 className="text-2xl md:text-4xl font-[1000] uppercase tracking-tighter text-slate-950 leading-none">
+                                                <h3 className="break-words text-xl font-[1000] uppercase leading-none tracking-tighter text-slate-950 sm:text-2xl md:text-4xl">
                                                     {p.model}
                                                 </h3>
                                             </div>
                                         </div>
                                     </div>
 
-                                    <div className="col-span-2 text-center mb-6 md:mb-0">
+                                    <div className="col-span-2 mb-6 text-center md:mb-0">
                                         <div className="relative inline-block">
-                                            <span className="text-4xl md:text-5xl font-mono font-bold italic tracking-tighter text-slate-950 group-hover:text-blue-600 transition-colors">
+                                            <span className="text-3xl font-mono font-bold italic tracking-tighter text-slate-950 transition-colors group-hover:text-blue-600 sm:text-4xl md:text-5xl">
                                                 {p.audit_scores?.overall?.toFixed(
                                                     1
                                                 ) || "0.0"}
@@ -263,8 +263,8 @@ export default async function RegistryPage({ searchParams }: Props) {
                                         })}
                                     </div>
 
-                                    <div className="col-span-2 text-right">
-                                        <span className="inline-flex items-center gap-3 text-[11px] font-black uppercase tracking-[0.2em] text-slate-950 border-b-4 border-slate-950 pb-1 group-hover:text-blue-600 group-hover:border-blue-600 transition-all">
+                                    <div className="col-span-2 text-right md:text-right">
+                                        <span className="inline-flex max-w-full flex-wrap items-center justify-end gap-2 border-b-4 border-slate-950 pb-1 text-[10px] font-black uppercase tracking-[0.15em] text-slate-950 transition-all group-hover:border-blue-600 group-hover:text-blue-600 sm:gap-3 sm:text-[11px] sm:tracking-[0.2em]">
                                             Open_Log{" "}
                                             <ArrowUpRight className="w-4 h-4" />
                                         </span>

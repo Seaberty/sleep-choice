@@ -72,7 +72,7 @@ export function AddToCompareButton({
         return (
             <div
                 className={cn(
-                    "flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 text-emerald-800 font-black uppercase tracking-widest",
+                    "flex max-w-full flex-wrap items-center gap-x-2 gap-y-1 rounded-xl border border-emerald-200 bg-emerald-50 text-emerald-800 font-black uppercase tracking-widest",
                     variant === "compact"
                         ? "text-[8px] px-2 py-1"
                         : "text-[9px] px-4 py-2.5"
@@ -102,7 +102,7 @@ export function AddToCompareButton({
                     : `Add ${productTitle} to forensic compare matrix`
             }
             className={cn(
-                "flex items-center gap-2 rounded-xl border font-black uppercase tracking-widest transition-colors",
+                "flex max-w-full flex-wrap items-center gap-x-2 gap-y-1 rounded-xl border font-black uppercase tracking-widest transition-colors",
                 variant === "compact"
                     ? "text-[8px] px-2 py-1 border-slate-200 bg-white text-slate-600 hover:border-blue-300 hover:text-blue-700"
                     : "text-[9px] px-4 py-2.5 border-slate-950 bg-white text-slate-950 hover:bg-blue-600 hover:text-white hover:border-blue-600 disabled:opacity-40 disabled:hover:bg-white disabled:hover:text-slate-950",

@@ -141,7 +141,7 @@ export function DealsVault({ products }: Props) {
                 Showing {filtered.length} of {products.length} listings
             </p>
 
-            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-10">
+            <div className="grid gap-6 sm:gap-8 md:grid-cols-2 lg:grid-cols-3 lg:gap-10">
                 {filtered.length === 0 ? (
                     <div className="col-span-full py-24 text-center border-4 border-dashed border-slate-100">
                         <p className="font-mono text-[11px] font-black text-slate-400 uppercase tracking-[0.4em]">
@@ -175,7 +175,7 @@ export function DealsVault({ products }: Props) {
                                 target="_blank"
                                 rel="nofollow noopener noreferrer"
                                 className={cn(
-                                    "group relative flex flex-col bg-white border-2 border-slate-950 outline-none transition-all duration-500",
+                                    "group relative flex min-w-0 flex-col overflow-hidden bg-white border-2 border-slate-950 outline-none transition-all duration-500",
                                     "hover:-translate-y-2 hover:shadow-[16px_16px_0px_0px_rgba(16,185,129,0.1)]",
                                     "focus-within:border-emerald-500 focus-within:ring-8 focus-within:ring-emerald-500/5 focus-within:shadow-[24px_24px_0px_0px_rgba(16,185,129,0.15)]"
                                 )}
@@ -186,13 +186,13 @@ export function DealsVault({ products }: Props) {
                                 </div>
 
                                 {showSavingsUi && (
-                                    <div className="absolute -top-3 -right-3 bg-emerald-500 text-white font-mono font-black text-xs px-4 py-2 rotate-3 z-20 shadow-lg group-focus-within:rotate-0 group-focus-within:scale-110 transition-all">
+                                    <div className="absolute right-2 top-2 z-20 rotate-2 bg-emerald-500 px-2 py-1 font-mono text-[10px] font-black text-white shadow-lg transition-all group-focus-within:rotate-0 group-focus-within:scale-105 sm:right-3 sm:top-3 sm:px-4 sm:py-2 sm:text-xs">
                                         SAVE_{effPct}%
                                     </div>
                                 )}
 
-                                <div className="p-8 flex-grow relative z-10">
-                                    <div className="mb-8">
+                                <div className="relative z-10 flex-grow p-4 sm:p-6 md:p-8">
+                                    <div className="mb-6 sm:mb-8">
                                         <div className="flex flex-wrap items-center gap-x-2 gap-y-1 mb-2">
                                             <BarChart className="w-3 h-3 text-emerald-500 shrink-0 group-focus-within:animate-pulse" />
                                             <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest italic group-focus-within:text-emerald-600 transition-colors">
@@ -208,7 +208,7 @@ export function DealsVault({ products }: Props) {
                                                     </span>
                                                 )}
                                         </div>
-                                        <h3 className="text-3xl font-[1000] uppercase tracking-tighter text-slate-950 leading-[0.85] group-hover:text-emerald-600 group-focus-within:text-emerald-600 transition-all">
+                                        <h3 className="break-words text-xl font-[1000] uppercase leading-[0.95] tracking-tighter text-slate-950 transition-all group-hover:text-emerald-600 group-focus-within:text-emerald-600 sm:text-2xl md:text-3xl md:leading-[0.85]">
                                             {p.name}
                                         </h3>
                                         {p.audit_data?.audit_variant ? (
@@ -221,14 +221,14 @@ export function DealsVault({ products }: Props) {
                                         ) : null}
                                     </div>
 
-                                    <div className="flex items-end gap-3 mb-8">
-                                        <div className="text-5xl font-mono font-bold tracking-tighter text-slate-950 tabular-nums leading-none">
+                                    <div className="mb-6 flex flex-wrap items-end gap-2 sm:mb-8 sm:gap-3">
+                                        <div className="min-w-0 font-mono text-2xl font-bold tabular-nums leading-none tracking-tighter text-slate-950 sm:text-4xl md:text-5xl">
                                             {formatShelfPriceUsd(
                                                 Number(offer.price)
                                             )}
                                         </div>
                                         {offer.oldPrice ? (
-                                            <div className="text-lg font-bold text-slate-200 line-through mb-1 italic decoration-emerald-500/50">
+                                            <div className="mb-0.5 text-base font-bold italic leading-none text-slate-200 line-through decoration-emerald-500/50 sm:text-lg">
                                                 {formatShelfPriceUsd(
                                                     Number(offer.oldPrice)
                                                 )}
@@ -236,8 +236,8 @@ export function DealsVault({ products }: Props) {
                                         ) : null}
                                     </div>
 
-                                    <div className="bg-slate-50 border-l-4 border-slate-950 group-focus-within:border-emerald-500 p-5 mb-8 transition-colors">
-                                        <div className="flex items-center justify-between mb-3">
+                                    <div className="mb-6 border-l-4 border-slate-950 bg-slate-50 p-4 transition-colors group-focus-within:border-emerald-500 sm:mb-8 sm:p-5">
+                                        <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                                             {showSavingsUi ? (
                                                 <>
                                                     <div className="flex items-center gap-2 text-[10px] font-black text-emerald-600 uppercase">
@@ -264,7 +264,7 @@ export function DealsVault({ products }: Props) {
                                                 </div>
                                             )}
                                         </div>
-                                        <p className="text-[10px] font-bold text-slate-600 uppercase leading-tight italic">
+                                        <p className="text-[10px] font-bold uppercase leading-snug italic text-slate-600 sm:leading-tight">
                                             &quot;
                                             {offer.promo_text ||
                                                 "Automated audit suggests this is a 6-month historical low."}
@@ -279,7 +279,7 @@ export function DealsVault({ products }: Props) {
                                     />
                                 </div>
 
-                                <div className="px-8 pb-4 h-0 group-focus-within:h-10 opacity-0 group-focus-within:opacity-100 transition-all duration-300 flex items-center justify-between">
+                                <div className="flex h-0 items-center justify-between px-4 pb-4 opacity-0 transition-all duration-300 group-focus-within:h-auto group-focus-within:min-h-[2.5rem] group-focus-within:opacity-100 sm:px-8">
                                     <div className="flex items-center gap-2">
                                         <Target className="w-4 h-4 text-emerald-500 animate-spin-slow" />
                                         <span className="text-[10px] font-black text-emerald-600 uppercase tracking-widest underline decoration-2 underline-offset-4">
@@ -293,12 +293,15 @@ export function DealsVault({ products }: Props) {
 
                                 <div
                                     className={cn(
-                                        "mt-auto flex items-center justify-between w-full p-6 text-white font-black uppercase tracking-[0.2em] text-[11px] transition-all",
-                                        "bg-slate-950 group-hover:bg-emerald-600 group-focus-within:bg-emerald-500"
+                                        "mt-auto flex w-full min-w-0 flex-col items-stretch justify-center gap-2 p-4 font-black uppercase tracking-[0.12em] text-white transition-all sm:flex-row sm:items-center sm:justify-between sm:p-6 sm:tracking-[0.2em]",
+                                        "bg-slate-950 text-[10px] sm:text-[11px]",
+                                        "group-hover:bg-emerald-600 group-focus-within:bg-emerald-500"
                                     )}
                                 >
-                                    EXECUTE_PURCHASE_SEQUENCE
-                                    <ArrowUpRight className="w-5 h-5 group-hover:rotate-45 group-focus-within:rotate-45 transition-transform duration-300" />
+                                    <span className="text-center sm:text-left">
+                                        EXECUTE_PURCHASE_SEQUENCE
+                                    </span>
+                                    <ArrowUpRight className="mx-auto h-5 w-5 shrink-0 transition-transform duration-300 group-hover:rotate-45 group-focus-within:rotate-45 sm:mx-0" />
                                 </div>
                             </a>
                         )

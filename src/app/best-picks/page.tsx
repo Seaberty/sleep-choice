@@ -205,7 +205,7 @@ export default async function BestPicksPage({ searchParams }: SearchProps) {
                 </header>
 
                 {quizActive && bundle && (
-                    <section className="mb-12 md:mb-16 max-w-5xl border-l-4 border-blue-600 bg-slate-50/80 px-6 py-8 md:px-12 md:py-10">
+                    <section className="mb-12 md:mb-16 max-w-5xl border-l-4 border-blue-600 bg-slate-50/80 px-4 py-6 sm:px-6 sm:py-8 md:px-12 md:py-10">
                         <div className="flex flex-col gap-6 md:flex-row md:items-start md:justify-between">
                             <div className="space-y-4 max-w-3xl">
                                 <span className="text-[10px] font-black uppercase tracking-[0.35em] text-blue-600">
@@ -259,15 +259,15 @@ export default async function BestPicksPage({ searchParams }: SearchProps) {
                         </div>
 
                         <div className="relative group">
-                            <div className="absolute -top-5 left-10 z-30 bg-blue-600 text-white px-8 py-3 font-black text-[11px] uppercase tracking-[0.3em] italic shadow-2xl skew-x-[-12deg]">
+                            <div className="absolute left-4 top-0 z-30 -translate-y-1/2 skew-x-[-12deg] bg-blue-600 px-4 py-2 font-black text-[9px] uppercase italic tracking-[0.25em] text-white shadow-2xl sm:left-10 sm:px-8 sm:py-3 sm:text-[11px] sm:tracking-[0.3em]">
                                 {quizActive
                                     ? "#01_Top_Audit_Pick"
                                     : "#01_Top_Recommendation"}
                             </div>
 
-                            <div className="border-[6px] border-blue-600 transition-all hover:shadow-[0_0_50px_rgba(37,99,235,0.15)] bg-white overflow-hidden">
+                            <div className="overflow-hidden border-4 border-blue-600 transition-all hover:shadow-[0_0_50px_rgba(37,99,235,0.15)] bg-white sm:border-[6px]">
                                 {quizActive && championProduct.brand && (
-                                    <div className="flex flex-wrap gap-2 border-b border-slate-100 bg-emerald-50/40 px-6 py-4 md:px-10">
+                                    <div className="flex flex-wrap gap-2 border-b border-slate-100 bg-emerald-50/40 px-4 py-3 sm:px-6 sm:py-4 md:px-10">
                                         {getMerchantTrustBadgesForBrand(
                                             championProduct.brand
                                         ).map((b) => (
@@ -282,7 +282,7 @@ export default async function BestPicksPage({ searchParams }: SearchProps) {
                                 )}
 
                                 <div className="grid lg:grid-cols-12 items-stretch">
-                                    <div className="lg:col-span-5 bg-slate-50 relative overflow-hidden border-b lg:border-b-0 lg:border-r border-slate-100 flex items-center justify-center p-12">
+                                    <div className="lg:col-span-5 relative flex items-center justify-center overflow-hidden border-b border-slate-100 bg-slate-50 p-6 sm:p-10 lg:border-b-0 lg:border-r lg:p-12">
                                         <div className="absolute inset-0 opacity-[0.03] pointer-events-none font-mono text-[10px] p-4 leading-none break-all">
                                             {Array.from({ length: 10 }).map(
                                                 (_, i) => (
@@ -295,7 +295,7 @@ export default async function BestPicksPage({ searchParams }: SearchProps) {
                                         </div>
 
                                         <div className="relative z-10 w-full h-full flex flex-col items-center justify-center">
-                                            <div className="relative w-full h-[320px] overflow-hidden">
+                                            <div className="relative h-[220px] w-full overflow-hidden sm:h-[280px] md:h-[320px]">
                                                 {championProduct.image_url && (
                                                     <Image
                                                         src={withImageCacheBust(
@@ -324,7 +324,7 @@ export default async function BestPicksPage({ searchParams }: SearchProps) {
                                             expertSnippet(
                                                 championProduct.audit_note
                                             ) && (
-                                                <div className="border-b border-slate-100 bg-blue-50/30 px-6 py-6 md:px-10 md:py-8">
+                                                <div className="border-b border-slate-100 bg-blue-50/30 px-4 py-5 sm:px-6 sm:py-6 md:px-10 md:py-8">
                                                     <span className="text-[9px] font-black uppercase tracking-[0.35em] text-blue-600 block mb-3">
                                                         Expert_Tip · audit_note
                                                     </span>
@@ -342,7 +342,7 @@ export default async function BestPicksPage({ searchParams }: SearchProps) {
                                                 </div>
                                             )}
 
-                                        <div className="[&_.aspect-video]:hidden [&_.p-7]:p-10 [&_h3]:text-4xl [&_h3]:md:text-5xl [&_.rounded-\[2rem\]]:rounded-none [&_.border]:border-0 flex-1">
+                                        <div className="[&_.aspect-video]:hidden flex-1 [&_.rounded-\[2rem\]]:rounded-none [&_.border]:border-0 [&_h3]:text-2xl [&_h3]:sm:text-3xl [&_h3]:md:text-4xl [&_h3]:lg:text-5xl [&_.p-7]:p-4 sm:[&_.p-7]:p-6 md:[&_.p-7]:p-10">
                                             <ProductCard
                                                 data={championProduct}
                                                 className="h-full !border-0 !shadow-none !translate-y-0"
@@ -406,7 +406,7 @@ export default async function BestPicksPage({ searchParams }: SearchProps) {
 
                 {/* --- 3. Scoring Protocol Grid --- */}
                 <section className="mb-20 md:mb-32">
-                    <div className="bg-slate-950 text-white p-10 md:p-20 relative overflow-hidden shadow-[20px_20px_0px_0px_rgba(37,99,235,0.1)]">
+                    <div className="bg-slate-950 p-6 text-white shadow-[20px_20px_0px_0px_rgba(37,99,235,0.1)] relative overflow-hidden sm:p-10 md:p-20">
                         <div className="absolute top-0 right-0 p-10 opacity-[0.03] rotate-12 pointer-events-none">
                             <Fingerprint className="w-64 h-64" />
                         </div>
@@ -427,7 +427,7 @@ export default async function BestPicksPage({ searchParams }: SearchProps) {
                                 </p>
                             </div>
 
-                            <div className="lg:col-span-8 grid grid-cols-2 sm:grid-cols-4 gap-8">
+                            <div className="lg:col-span-8 grid grid-cols-2 gap-6 sm:grid-cols-4 sm:gap-8">
                                 {[
                                     {
                                         label: "Spinal_Axis",
@@ -452,7 +452,7 @@ export default async function BestPicksPage({ searchParams }: SearchProps) {
                                 ].map((spec, i) => (
                                     <div
                                         key={i}
-                                        className="group border-l border-white/10 pl-6 hover:border-blue-500 transition-colors"
+                                        className="group border-l border-white/10 pl-3 hover:border-blue-500 transition-colors sm:pl-6"
                                     >
                                         <spec.icon className="w-5 h-5 text-blue-500 mb-6 group-hover:scale-110 transition-transform" />
                                         <span className="text-[8px] font-mono text-slate-500 uppercase font-black block mb-2">
@@ -490,11 +490,11 @@ export default async function BestPicksPage({ searchParams }: SearchProps) {
                         </div>
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-12 md:gap-16">
+                    <div className="grid grid-cols-1 gap-10 sm:gap-12 md:grid-cols-2 md:gap-14 lg:grid-cols-3 lg:gap-16">
                         {registryGridProducts.map((product, index) => (
                             <div key={product.id} className="relative group">
                                 {/* 索引数字：工业感圆形徽章 */}
-                                <div className="absolute -top-5 -left-5 z-20 bg-slate-950 text-white w-12 h-12 flex items-center justify-center font-mono font-bold text-sm shadow-xl border-4 border-white">
+                                <div className="absolute -top-3 -left-3 z-20 flex h-10 w-10 items-center justify-center border-2 border-white bg-slate-950 font-mono text-xs font-bold text-white shadow-xl sm:-top-5 sm:-left-5 sm:h-12 sm:w-12 sm:text-sm sm:border-4">
                                     {(index + 2).toString().padStart(2, "0")}
                                 </div>
                                 <div className="transition-transform duration-500 group-hover:-translate-y-2">
@@ -535,15 +535,17 @@ export default async function BestPicksPage({ searchParams }: SearchProps) {
                         <div className="lg:col-span-5">
                             <Link
                                 href="/quiz"
-                                className="block p-10 bg-blue-600 text-white group relative overflow-hidden transition-all hover:bg-blue-700 shadow-2xl"
+                                className="group relative block overflow-hidden bg-blue-600 p-6 text-white shadow-2xl transition-all hover:bg-blue-700 sm:p-10"
                             >
-                                <div className="relative z-10 flex flex-col gap-6">
-                                    <span className="text-[10px] font-black uppercase tracking-[0.4em] opacity-80 group-hover:translate-x-2 transition-transform">
+                                <div className="relative z-10 flex flex-col gap-4 sm:gap-6">
+                                    <span className="text-[10px] font-black uppercase tracking-[0.4em] opacity-80 transition-transform group-hover:translate-x-2">
                                         Personalized_Audit
                                     </span>
-                                    <div className="text-3xl md:text-5xl font-[1000] uppercase italic leading-none flex items-center justify-between">
+                                    <div className="flex flex-col items-start gap-4 sm:flex-row sm:items-center sm:justify-between">
+                                    <div className="text-2xl font-[1000] uppercase italic leading-none sm:text-3xl md:text-5xl">
                                         Execute <br /> Match
-                                        <ArrowRight className="w-12 h-12 group-hover:translate-x-4 transition-transform duration-500" />
+                                    </div>
+                                    <ArrowRight className="h-8 w-8 shrink-0 transition-transform duration-500 group-hover:translate-x-2 sm:h-12 sm:w-12 sm:group-hover:translate-x-4" />
                                     </div>
                                 </div>
                                 <Zap className="absolute -right-4 -bottom-4 w-32 h-32 opacity-10 group-hover:rotate-12 transition-transform" />
