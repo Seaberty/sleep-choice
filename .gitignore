@@ -44,6 +44,7 @@ yarn-error.log*
 next-env.d.ts
 
 # python
+processed_posts.json
 __pycache__/
 *.py[cod]
 src/scripts/promo_output/
