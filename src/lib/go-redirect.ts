@@ -4,7 +4,10 @@
  * → 最终链接 https://go.sleepchoiceguide.com/go/{slug}
  */
 
-/** 与 registry 详情页 getAffiliateLink 逻辑一致：经 /go 再按 DB site_name 套 CJ */
+/**
+ * 商品卡等「直链商户 URL」场景：命中品牌则改走 `/go/[slug]`，由 route 按 DB `site_name` 套 CJ。
+ * 审计详情页侧栏已统一经 `getAffiliateLink` → `/go/[slug]`。
+ */
 export const APPROVED_AFFILIATE_BRANDS = new Set([
     "Saatva",
     "FluffCo",

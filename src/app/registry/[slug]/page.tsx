@@ -1,7 +1,8 @@
 import { supabase } from "@/lib/supabase"
 import { APP_PROTOCOL } from "@/lib/constants"
 import { buildRegistryProductJsonLd } from "@/lib/product-jsonld"
-import { productGoLink, APPROVED_AFFILIATE_BRANDS } from "@/lib/go-redirect"
+import { productGoLink } from "@/lib/go-redirect"
+import { quizShelfFields } from "@/lib/quiz-results"
 import { AddToCompareButton } from "@/components/compare/add-to-compare-button"
 import { withImageCacheBust } from "@/lib/utils"
 import { getBrandIntelligenceByProductSlug } from "@/lib/brand-intelligence"
@@ -72,6 +73,8 @@ interface Product {
     offers: Offer[] | string
     /** Serper 舆情条数，用于结构化数据 ratingCount */
     review_count?: number
+    /** 与 registry 合并逻辑一致；用于解剖图货架与 quizShelf 对齐 */
+    category?: string | null
 }
 
 // --- 辅助解析函数 ---
@@ -87,27 +90,15 @@ const safeParse = <T,>(data: any, fallback: T): T => {
 }
 
 // --- Monetization helpers ---
+/** 与 `/go/[slug]` 一致：由服务端解析 product_offers / official_link、套券与 CJ 前缀 */
 function getAffiliateLink(
     brand: string,
     slug: string,
-    offers: Offer[] = []
+    _offers: Offer[] = []
 ): { href: string; restricted: boolean } {
-    // 1. 已批准品牌：经动态路由 /go/[slug] 出站（CJ 前缀在 route 内按 site_name 拼接）
-    if (APPROVED_AFFILIATE_BRANDS.has(brand)) {
+    if (slug && /^[\w-]+$/.test(slug)) {
         return { href: productGoLink(slug), restricted: false }
     }
-
-    // 2. 对于像 Saatva 这样处于 [PENDING] 状态的品牌：
-    // 不要重定向到 /quiz，而是直接输出原始官网链接。
-    // 这样部署在 layout.tsx 中的 Skimlinks JS 才能识别并进行自动转链。
-    if (offers.length > 0 && offers[0].link) {
-        return {
-            href: offers[0].link, // 指向 image_6d0976.png 中提到的官网商品页
-            restricted: false
-        }
-    }
-
-    // 3. 只有在没有任何链接数据时，才回退到 Quiz
     return {
         href: `/quiz?brand=${encodeURIComponent(brand)}&slug=${encodeURIComponent(slug)}`,
         restricted: true
@@ -173,7 +164,10 @@ const LayerStack = ({
 }) => {
     // 使用 useMemo 确保只有在 product 或 specs 变化时才重新计算层级
     const layers = useMemo(() => {
+        const slug = (product?.slug || "").toLowerCase()
         const modelName = (product?.model || "").toLowerCase()
+        const cat = String(product?.category ?? "").toLowerCase()
+        const blob = `${slug} ${modelName} ${cat}`
 
         // 优先从 product.technical_specs 解析，如果没有则使用传入的 specs
         let specs: any = {}
@@ -189,8 +183,20 @@ const LayerStack = ({
             specs = incomingSpecs || {}
         }
 
-        // --- 逻辑 A: 检测是否为枕头 ---
-        if (modelName.includes("pillow") || modelName.includes("枕")) {
+        const shelf = product
+            ? quizShelfFields({
+                  slug: product.slug,
+                  model: product.model,
+                  name: product.model,
+                  category: product.category ?? undefined
+              })
+            : "mattress"
+
+        // --- 枕头：quiz 货架 + 关键词 ---
+        if (
+            shelf === "pillow" ||
+            /pillow|枕|bolster/i.test(blob)
+        ) {
             return [
                 {
                     name: "Outer Shell",
@@ -213,11 +219,11 @@ const LayerStack = ({
             ]
         }
 
-        // --- 逻辑 B: 检测是否为被褥/床单 ---
+        // --- 床单/被套类：类目或关键词（slug 中含 sheet set 等也可命中）---
         if (
-            modelName.includes("sheet") ||
-            modelName.includes("duvet") ||
-            modelName.includes("quilt")
+            /sheet|duvet|quilt|percale|sateen|linen\s*set|床品|bedding/i.test(
+                blob
+            )
         ) {
             return [
                 {
@@ -237,6 +243,54 @@ const LayerStack = ({
                     detail: "Double-stitched integrity",
                     color: "bg-slate-400",
                     height: "30%"
+                }
+            ]
+        }
+
+        // --- 生活方式（浴袍、毛巾等）：与床垫层级区分 ---
+        if (shelf === "lifestyle") {
+            return [
+                {
+                    name: "Face / Pile",
+                    detail: specs.Construction || "Terry or waffle structure",
+                    color: "bg-slate-100",
+                    height: "35%"
+                },
+                {
+                    name: "GSM / Loft",
+                    detail: specs.Firmness || "Weight & absorbency",
+                    color: "bg-blue-100",
+                    height: "40%"
+                },
+                {
+                    name: "Hem & Binding",
+                    detail: specs.Support_Core || "Reinforced seams",
+                    color: "bg-slate-400",
+                    height: "25%"
+                }
+            ]
+        }
+
+        // --- Topper / Protector：薄堆栈 ---
+        if (shelf === "other") {
+            return [
+                {
+                    name: "Comfort Surface",
+                    detail: specs.Comfort_Layer || "Responsive top",
+                    color: "bg-blue-100",
+                    height: "25%"
+                },
+                {
+                    name: "Transition Core",
+                    detail: specs.Construction || "Pressure distribution",
+                    color: "bg-blue-200",
+                    height: "35%"
+                },
+                {
+                    name: "Skirt / Anchor",
+                    detail: specs.Support_Core || "Mattress grip / encasement",
+                    color: "bg-slate-300",
+                    height: "40%"
                 }
             ]
         }
@@ -268,7 +322,7 @@ const LayerStack = ({
                 height: "10%"
             }
         ]
-    }, [product])
+    }, [product, incomingSpecs])
 
     return (
         <div className="relative w-full py-8 sm:py-10 px-4 sm:px-6 bg-slate-50 border border-slate-200 overflow-hidden font-mono shadow-inner">

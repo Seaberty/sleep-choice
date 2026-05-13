@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-统一情报同步入口：Saatva / Sleep & Beyond / FluffCo 批量审计与价格补完。
+统一情报同步入口：多品牌批量审计与价格补完（默认含 Saatva、Sleep & Beyond、FluffCo、WinkBeds、Tempur-Pedic、Avocado 等）。
 
 用法：
   cd src/scripts && python batch_scanner.py                  # 全部品牌（增量：缺字段才跑）
@@ -9,9 +9,15 @@
   python batch_scanner.py --brand fluffco --brand saatva    # 多个品牌
   python batch_scanner.py --full-sync                       # 等价 --force（命名便于 cron）
 
-官网轻量同步（不调 LLM，适合高频拉价）：
-  python batch_scanner.py --site-only
-  python batch_scanner.py --site-only -b Saatva --limit 3
+官网 PDP 列表**仅**从各站 sitemap 自动发现；无静态 URL 回退（抓取失败则该品牌任务为空）。
+扩展品牌：在 ``BRAND_SITE_PROFILES`` 中增加一项，或添加 ``src/data/batch_scanner_brand_profiles.json``（见模块内说明）。
+缓存：``src/data/batch_scanner_targets.cache.json``
+  BATCH_SCANNER_TARGETS_CACHE_HOURS — 缓存有效小时数，默认 168（7 天）。
+  BATCH_SCANNER_TARGETS_CACHE_PATH — 覆盖缓存 JSON 路径。
+  SAATVA_SITEMAP_URL / SB_SHOP_ORIGIN / FLUFFCO_SHOP_ORIGIN — 覆盖抓取起点。
+  TEMPURPEDIC_SHOP_ORIGIN / TEMPURPEDIC_SITEMAP_URL — Tempur-Pedic 主站与 sitemap（可选）。
+
+  python batch_scanner.py --refresh-targets   # 忽略缓存重新拉 sitemap 再跑任务
 
 试跑（不写库、不联网）：
   python batch_scanner.py --dry-run -b FluffCo
@@ -27,23 +33,35 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import html
 import json
 import os
 import re
+import ssl
 import sys
+import urllib.error
+import urllib.request
 from datetime import datetime, UTC
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
+from urllib.parse import urlparse
 
 from dotenv import load_dotenv
 from supabase import Client, create_client
 
-from forensic_engine import (
-    ForensicAuditEngine,
-    coupon_token_is_plausible,
-    finalize_coupon_for_store,
-    normalize_coupon_token,
-)
+if TYPE_CHECKING:
+    from forensic_engine import ForensicAuditEngine
+
+_FORENSIC_ENGINE_MOD: Any = None
+
+
+def _forensic_engine():
+    """延迟加载 forensic_engine（含 google-genai 等）；sitemap 发现逻辑不依赖此模块。"""
+    global _FORENSIC_ENGINE_MOD
+    if _FORENSIC_ENGINE_MOD is None:
+        import forensic_engine as _FORENSIC_ENGINE_MOD
+
+    return _FORENSIC_ENGINE_MOD
 
 _ROOT = Path(__file__).resolve().parents[2]
 _ENV = _ROOT / ".env.local"
@@ -104,79 +122,664 @@ def get_clean_slug(brand: str, model: str) -> str:
     return slugify(f"{brand}-{model}")
 
 
-# --- 任务矩阵 -----------------------------------------------------------------
+# --- 品牌站点矩阵（仅 sitemap；无静态 URL 表）---------------------------------
+# 扩展方式：
+#   1) 修改下方 BUILTIN_BRAND_SITE_PROFILES；或
+#   2) 新增 src/data/batch_scanner_brand_profiles.json（JSON 数组），字段示例：
+#        {"name": "MyBrand", "cooldown_sec": 25, "discover_kind": "shopify_products",
+#         "origin": "https://shop.example.com"}
+#      discover_kind 支持：
+#        saatva_mattresses | woocommerce_products | shopify_products | tempurpedic_sitemap
+#      同名品牌会覆盖内置项。
 
-SAATVA_TARGETS: list[dict[str, str]] = [
-    {"model": "Classic", "url": "https://www.saatva.com/mattresses/saatva-classic"},
-    {"model": "Rx", "url": "https://www.saatva.com/mattresses/saatva-rx"},
-    {"model": "Loom & Leaf", "url": "https://www.saatva.com/mattresses/loom-and-leaf"},
-    {"model": "Latex Hybrid", "url": "https://www.saatva.com/mattresses/saatva-latex-hybrid"},
-    {"model": "Solaire", "url": "https://www.saatva.com/mattresses/solaire"},
-    {"model": "Zenhaven", "url": "https://www.saatva.com/mattresses/zenhaven"},
-    {"model": "HD", "url": "https://www.saatva.com/mattresses/saatva-hd"},
-    {"model": "Memory Foam Hybrid", "url": "https://www.saatva.com/mattresses/memory-foam-hybrid"},
-    {"model": "Youth", "url": "https://www.saatva.com/mattresses/saatva-youth"},
-    {"model": "Crib", "url": "https://www.saatva.com/mattresses/crib-mattress"},
-]
+_EXTRA_PROFILES_PATH = _ROOT / "src" / "data" / "batch_scanner_brand_profiles.json"
 
-SB_TARGETS: list[dict[str, str]] = [
-    {"model": "MyTravel Pillow", "url": "https://sleepandbeyond.com/product/mytravel-pillow/"},
-    {"model": "MyWoolly Pillow", "url": "https://sleepandbeyond.com/product/mywoolly-pillow/"},
-    {"model": "MyMerino Pillow", "url": "https://sleepandbeyond.com/product/mymerino-pillow/"},
-    {"model": "MyMerino Comforter", "url": "https://sleepandbeyond.com/product/mymerino-comforter/"},
-    {"model": "MyComforter", "url": "https://sleepandbeyond.com/product/mycomforter/"},
-    {"model": "MyTopper", "url": "https://sleepandbeyond.com/product/mytopper/"},
-    {"model": "MyMerino Topper", "url": "https://sleepandbeyond.com/product/mymerino-topper/"},
-    {"model": "MyProtector", "url": "https://sleepandbeyond.com/product/myprotector/"},
-    {"model": "mySheet Set", "url": "https://sleepandbeyond.com/product/mysheet-set/"},
-    {"model": "myPad", "url": "https://sleepandbeyond.com/product/mypad/"},
-]
+BUILTIN_BRAND_SITE_PROFILES: tuple[dict[str, Any], ...] = (
+    {"name": "Saatva", "cooldown_sec": 25, "discover_kind": "saatva_mattresses"},
+    {
+        "name": "Sleep & Beyond",
+        "cooldown_sec": 25,
+        "discover_kind": "woocommerce_products",
+        "origin": "",
+    },
+    {"name": "FluffCo", "cooldown_sec": 20, "discover_kind": "shopify_products", "origin": ""},
+    {
+        "name": "WinkBeds",
+        "cooldown_sec": 25,
+        "discover_kind": "shopify_products",
+        "origin": "https://www.winkbeds.com",
+    },
+    {
+        "name": "Tempur-Pedic",
+        "cooldown_sec": 28,
+        "discover_kind": "tempurpedic_sitemap",
+        "origin": "https://www.tempurpedic.com",
+    },
+    {
+        "name": "Avocado",
+        "cooldown_sec": 25,
+        "discover_kind": "shopify_products",
+        "origin": "https://www.avocadogreenmattress.com",
+    },
+)
 
-# 官网主域已迁至 https://home.fluff.co/（React PDP：.pdp-price / 划线兄弟节点）
-FLUFFCO_TARGETS: list[dict[str, str]] = [
-    {
-        "model": "Down Feather Pillow",
-        "url": "https://home.fluff.co/products/down-feather-pillow?variant=35113578889377",
-    },
-    {
-        "model": "Down Alternative Pillow",
-        "url": "https://home.fluff.co/products/down-alternative-pillow?variant=35113580527777",
-    },
-    {
-        "model": "Down Blended Comforter",
-        "url": "https://home.fluff.co/products/down-blended-comforter?variant=39752258519201",
-    },
-    {
-        "model": "Down Alternative Comforter",
-        "url": "https://home.fluff.co/products/down-alternative-comforter?variant=40396635078817",
-    },
-    {
-        "model": "Hotel Lounge Robe",
-        "url": "https://home.fluff.co/products/hotel-lounge-robe?variant=39752183447713",
-    },
-    {
-        "model": "Hotel Waffle Robe",
-        "url": "https://home.fluff.co/products/hotel-waffle-robe?variant=49119638749478",
-    },
-    {
-        "model": "Hotel Towel",
-        "url": "https://home.fluff.co/products/hotel-towel?variant=40808608858273",
-    },
-    {
-        "model": "Silk Pillowcase",
-        "url": "https://home.fluff.co/products/silk-pillowcase?variant=35113585016865",
-    },
-    {
-        "model": "Pillow & Comforter Kit",
-        "url": "https://home.fluff.co/products/pillow-comforter-kit?variant=35113586032705",
-    },
-]
+_TARGETS_CACHE_PATH = Path(
+    (os.getenv("BATCH_SCANNER_TARGETS_CACHE_PATH") or "").strip()
+    or str(_ROOT / "src" / "data" / "batch_scanner_targets.cache.json")
+)
 
-BRAND_REGISTRY: list[dict[str, Any]] = [
-    {"name": "Saatva", "targets": SAATVA_TARGETS, "cooldown_sec": 25},
-    {"name": "Sleep & Beyond", "targets": SB_TARGETS, "cooldown_sec": 25},
-    {"name": "FluffCo", "targets": FLUFFCO_TARGETS, "cooldown_sec": 20},
-]
+
+def _targets_cache_ttl_sec() -> float:
+    try:
+        h = float((os.getenv("BATCH_SCANNER_TARGETS_CACHE_HOURS") or "168").strip())
+    except ValueError:
+        h = 168.0
+    return max(300.0, h * 3600.0)
+
+
+def _http_get(url: str, timeout: float = 45.0) -> str:
+    req = urllib.request.Request(
+        url,
+        headers={
+            "User-Agent": (
+                "Mozilla/5.0 (compatible; SleepChoiceBatchScanner/1.0; "
+                "+https://sleepchoiceguide.com)"
+            ),
+            "Accept": "application/xml,text/xml,application/xhtml+xml,*/*;q=0.8",
+        },
+        method="GET",
+    )
+    ctx = ssl.create_default_context()
+    with urllib.request.urlopen(req, timeout=timeout, context=ctx) as resp:
+        return resp.read().decode("utf-8", errors="replace")
+
+
+def _extract_sitemap_locs(xml: str) -> list[str]:
+    return [
+        html.unescape(m.strip())
+        for m in re.findall(r"<loc>\s*([^<]+?)\s*</loc>", xml, re.I)
+    ]
+
+
+def _normalize_product_url(url: str) -> str:
+    u = (url or "").strip()
+    if not u:
+        return ""
+    return u.split("#")[0].split("?")[0].rstrip("/")
+
+
+_EXCLUDE_NON_SLEEP_URL_SNIPS: tuple[str, ...] = (
+    "gift-card",
+    "gift_card",
+    "/cart",
+    "/account",
+    "sample-pack",
+    "swatch",
+)
+
+_SLEEP_PRODUCT_SLUG_RE = re.compile(
+    r"(pillow|mattress|topper|comforter|sheet|duvet|blanket|protector|protect|"
+    r"quilt|wool|merino|crib|bunk|feather|foam|towel|robe|sleep|bedding|"
+    r"pad|lounge|waffle|silk|kit|down|frame|foundation|base|platform|wink|"
+    r"gravity|cloud|ergo|travel)",
+    re.I,
+)
+
+
+def _url_looks_sleep_related(url: str) -> bool:
+    """WooCommerce / Shopify sitemap 常含非睡眠页；仅保留与睡眠品类相关的 PDP。"""
+    lu = url.lower()
+    if any(s in lu for s in _EXCLUDE_NON_SLEEP_URL_SNIPS):
+        return False
+    m = re.search(r"(?:/product/|/products/)([^/?#]+)", url, re.I)
+    if not m:
+        return True
+    return bool(_SLEEP_PRODUCT_SLUG_RE.search(m.group(1)))
+
+
+_SAATVA_SEGMENT_MODEL: dict[str, str] = {
+    "loom-and-leaf": "Loom & Leaf",
+    "memory-foam-hybrid": "Memory Foam Hybrid",
+    "crib-mattress": "Crib",
+    "saatva-youth": "Youth",
+}
+
+
+def _model_from_saatva_mattress_url(url: str) -> str:
+    m = re.search(r"/mattresses/([^/?#]+)/?", url, re.I)
+    if not m:
+        return ""
+    seg = m.group(1).lower()
+    if seg in _SAATVA_SEGMENT_MODEL:
+        return _SAATVA_SEGMENT_MODEL[seg]
+    core = seg[7:] if seg.startswith("saatva-") else seg
+    parts = [p for p in core.split("-") if p]
+    if not parts:
+        return ""
+    return " ".join(p.capitalize() for p in parts)
+
+
+_SB_PRODUCT_SLUG_TO_MODEL: dict[str, str] = {
+    "mytravel-pillow": "MyTravel Pillow",
+    "mywoolly-pillow": "MyWoolly Pillow",
+    "mymerino-pillow": "MyMerino Pillow",
+    "mymerino-comforter": "MyMerino Comforter",
+    "mycomforter": "MyComforter",
+    "mytopper": "MyTopper",
+    "mymerino-topper": "MyMerino Topper",
+    "myprotector": "MyProtector",
+    "mysheet-set": "mySheet Set",
+    "mypad": "myPad",
+}
+
+
+def _model_from_sb_product_url(url: str) -> str:
+    m = re.search(r"/product/([^/?#]+)/?", url, re.I)
+    if not m:
+        return ""
+    slug = m.group(1).lower().strip("/")
+    if slug in _SB_PRODUCT_SLUG_TO_MODEL:
+        return _SB_PRODUCT_SLUG_TO_MODEL[slug]
+    return " ".join(p.capitalize() for p in slug.split("-") if p)
+
+
+_FLUFF_HANDLE_TO_MODEL: dict[str, str] = {
+    "pillow-comforter-kit": "Pillow & Comforter Kit",
+    "down-alternative-pillow": "Down Alternative Pillow",
+    "down-feather-pillow": "Down Feather Pillow",
+    "down-blended-comforter": "Down Blended Comforter",
+    "down-alternative-comforter": "Down Alternative Comforter",
+    "hotel-lounge-robe": "Hotel Lounge Robe",
+    "hotel-waffle-robe": "Hotel Waffle Robe",
+    "hotel-towel": "Hotel Towel",
+    "silk-pillowcase": "Silk Pillowcase",
+}
+
+
+def _model_from_fluffco_product_url(url: str) -> str:
+    m = re.search(r"/products/([^/?#]+)", url, re.I)
+    if not m:
+        return ""
+    handle = m.group(1).lower()
+    if handle in _FLUFF_HANDLE_TO_MODEL:
+        return _FLUFF_HANDLE_TO_MODEL[handle]
+    return " ".join(p.capitalize() for p in handle.split("-") if p)
+
+
+_TEMPUR_ALLOWED_PREFIXES: frozenset[str] = frozenset(
+    {
+        "shop-mattresses",
+        "shop-pillows",
+        "other-products",
+        "bedding",
+        "bases-and-foundations",
+        "bases-and-foundations-v1",
+    }
+)
+_TEMPUR_MATTRESS_HUB_SLUGS: frozenset[str] = frozenset(
+    {
+        "adapt-collection",
+        "breeze-collection",
+        "compare-tempurpedic-mattresses",
+        "previous-generation-adapt-closeout",
+        "split-head-king",
+        "tempur-active-breeze",
+    }
+)
+_TEMPUR_PILLOW_HUB_SLUGS: frozenset[str] = frozenset(
+    {"all", "adapt-pillows", "breeze-pillows"}
+)
+
+
+def _tempurpedic_slug_keep(prefix: str, slug: str) -> bool:
+    """主站 sitemap 含集合页与办公周边；只保留睡眠相关 PDP。"""
+    lu = slug.lower()
+    if prefix == "shop-mattresses":
+        if slug in _TEMPUR_MATTRESS_HUB_SLUGS or lu.startswith("all-"):
+            return False
+        return bool(_SLEEP_PRODUCT_SLUG_RE.search(slug))
+    if prefix == "shop-pillows":
+        if slug in _TEMPUR_PILLOW_HUB_SLUGS:
+            return False
+        return bool(_SLEEP_PRODUCT_SLUG_RE.search(slug))
+    if prefix == "other-products":
+        if slug == "tempur-toppers":
+            return False
+        noise = (
+            "office-chair",
+            "plush-puppy",
+            "plush-teddy",
+            "wireless-remote",
+            "universal-bracket-kit",
+            "lumbar-support",
+            "seat-cushion",
+            "universal-support",
+        )
+        if any(x in lu for x in noise):
+            return False
+        return bool(_SLEEP_PRODUCT_SLUG_RE.search(slug))
+    if prefix == "bedding":
+        return True
+    if prefix in ("bases-and-foundations", "bases-and-foundations-v1"):
+        return bool(_SLEEP_PRODUCT_SLUG_RE.search(slug)) or any(
+            k in lu for k in ("foundation", "frame", "base", "ergo", "ease", "adjust", "power", "bed")
+        )
+    return False
+
+
+def _model_from_tempurpedic_url(url: str) -> str:
+    try:
+        path = (urlparse(url).path or "").strip("/")
+    except Exception:
+        return ""
+    segs = [s for s in path.split("/") if s]
+    if len(segs) < 2:
+        return ""
+    slug = segs[-1].lower()
+    return " ".join(p.capitalize() for p in slug.split("-") if p)
+
+
+def _discover_tempurpedic_products(origin: str) -> list[dict[str, str]]:
+    origin = origin.rstrip("/")
+    index_url = (os.getenv("TEMPURPEDIC_SITEMAP_URL") or "").strip() or f"{origin}/sitemap.xml"
+    xml = _http_get(index_url)
+    locs = _extract_sitemap_locs(xml)
+    out: list[dict[str, str]] = []
+    seen: set[str] = set()
+    origin_host = urlparse(origin).netloc.lower()
+    for raw in locs:
+        try:
+            pr = urlparse((raw or "").strip())
+        except Exception:
+            continue
+        if not pr.scheme.startswith("http"):
+            continue
+        if pr.netloc.lower() != origin_host:
+            continue
+        segs = [s for s in (pr.path or "").strip("/").split("/") if s]
+        if len(segs) != 2:
+            continue
+        prefix, slug = segs[0], segs[1]
+        if prefix not in _TEMPUR_ALLOWED_PREFIXES:
+            continue
+        if not _tempurpedic_slug_keep(prefix, slug):
+            continue
+        canon = _normalize_product_url(raw)
+        if not canon:
+            continue
+        url = canon if canon.endswith("/") else canon + "/"
+        if url in seen:
+            continue
+        model = _model_from_tempurpedic_url(url)
+        if not model:
+            continue
+        seen.add(url)
+        out.append({"model": model, "url": url})
+    out.sort(key=lambda x: x["model"].lower())
+    return out
+
+
+def _discover_saatva_targets() -> list[dict[str, str]]:
+    index_url = (os.getenv("SAATVA_SITEMAP_URL") or "").strip() or "https://www.saatva.com/sitemap.xml"
+    xml = _http_get(index_url)
+    locs = _extract_sitemap_locs(xml)
+    secondary = [u for u in locs if u.lower().endswith(".xml") and u != index_url][:40]
+    all_urls = list(locs)
+    for sm in secondary:
+        try:
+            all_urls.extend(_extract_sitemap_locs(_http_get(sm)))
+        except (urllib.error.URLError, OSError, TimeoutError):
+            continue
+    deny_seg = frozenset(
+        {
+            "mattresses",
+            "shop",
+            "compare",
+            "foundations",
+            "bedding",
+            "furniture",
+            "adjustable-bases",
+            "viewing-rooms",
+        }
+    )
+    out: list[dict[str, str]] = []
+    seen: set[str] = set()
+    pat = re.compile(r"https?://(?:www\.)?saatva\.com/mattresses/([a-z0-9-]+)/?", re.I)
+    for raw in all_urls:
+        u = raw.strip()
+        m = pat.match(u)
+        if not m:
+            continue
+        seg = m.group(1).lower()
+        if seg in deny_seg or not seg:
+            continue
+        canon = _normalize_product_url(u)
+        if not canon or canon in seen:
+            continue
+        model = _model_from_saatva_mattress_url(canon + "/")
+        if not model:
+            continue
+        seen.add(canon)
+        out.append({"model": model, "url": canon + "/" if not canon.endswith("/") else canon})
+    out.sort(key=lambda x: x["model"].lower())
+    return out
+
+
+def _discover_woocommerce_products(origin: str) -> list[dict[str, str]]:
+    origin = origin.rstrip("/")
+    for index_path in ("/wp-sitemap.xml", "/sitemap_index.xml", "/sitemap.xml"):
+        try:
+            xml = _http_get(origin + index_path)
+        except (urllib.error.URLError, OSError, TimeoutError):
+            continue
+        locs = _extract_sitemap_locs(xml)
+        secondary = [u for u in locs if u.lower().endswith(".xml")][:35]
+        all_urls = list(locs)
+        for sm in secondary:
+            try:
+                all_urls.extend(_extract_sitemap_locs(_http_get(sm)))
+            except (urllib.error.URLError, OSError, TimeoutError):
+                continue
+        out: list[dict[str, str]] = []
+        seen: set[str] = set()
+        for raw in all_urls:
+            lu = raw.lower()
+            if "/product/" not in lu:
+                continue
+            if any(x in lu for x in ("/product-category/", "/product-tag/", "attachment")):
+                continue
+            if not _url_looks_sleep_related(raw):
+                continue
+            canon = _normalize_product_url(raw)
+            if not canon or canon in seen:
+                continue
+            model = _model_from_sb_product_url(canon + "/")
+            if not model:
+                continue
+            seen.add(canon)
+            url = canon if canon.endswith("/") else canon + "/"
+            out.append({"model": model, "url": url})
+        if out:
+            out.sort(key=lambda x: x["model"].lower())
+            return out
+    return []
+
+
+def _sitemap_loc_is_xml(url: str) -> bool:
+    """Shopify 子 sitemap 常为 ``.../sitemap_products_1.xml?from=...&to=...``，不能仅用 endswith('.xml')。"""
+    base = (url or "").strip().lower().split("?")[0].rstrip("/")
+    return base.endswith(".xml")
+
+
+def _discover_shopify_products(origin: str) -> list[dict[str, str]]:
+    origin = origin.rstrip("/")
+    index_url = origin + "/sitemap.xml"
+    xml = _http_get(index_url)
+    locs = _extract_sitemap_locs(xml)
+    secondary = [u for u in locs if _sitemap_loc_is_xml(u) and u != index_url][:35]
+    all_urls = list(locs)
+    for sm in secondary:
+        try:
+            all_urls.extend(_extract_sitemap_locs(_http_get(sm)))
+        except (urllib.error.URLError, OSError, TimeoutError):
+            continue
+    pat = re.compile(r"https?://[^/]+/products/[a-z0-9-]+", re.I)
+    out: list[dict[str, str]] = []
+    seen: set[str] = set()
+    for raw in all_urls:
+        if "/products/" not in raw.lower():
+            continue
+        if not _url_looks_sleep_related(raw):
+            continue
+        m = pat.search(raw)
+        if not m:
+            continue
+        canon = _normalize_product_url(m.group(0))
+        if not canon or canon in seen:
+            continue
+        model = _model_from_fluffco_product_url(canon)
+        if not model:
+            continue
+        seen.add(canon)
+        out.append({"model": model, "url": canon})
+    out.sort(key=lambda x: x["model"].lower())
+    return out
+
+
+def _load_extra_brand_profiles() -> list[dict[str, Any]]:
+    path = Path(_EXTRA_PROFILES_PATH)
+    if not path.is_file():
+        return []
+    try:
+        raw = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError, TypeError):
+        return []
+    if not isinstance(raw, list):
+        return []
+    out: list[dict[str, Any]] = []
+    for item in raw:
+        if not isinstance(item, dict):
+            continue
+        n = str(item.get("name") or "").strip()
+        kind = str(item.get("discover_kind") or "").strip()
+        if not n or not kind:
+            continue
+        out.append(dict(item))
+    return out
+
+
+def _merge_brand_profiles() -> list[dict[str, Any]]:
+    merged: list[dict[str, Any]] = [dict(p) for p in BUILTIN_BRAND_SITE_PROFILES]
+    by_name = {str(p["name"]): i for i, p in enumerate(merged)}
+    for p in _load_extra_brand_profiles():
+        n = str(p.get("name", "")).strip()
+        if not n:
+            continue
+        row = dict(p)
+        row["name"] = n
+        if n in by_name:
+            merged[by_name[n]] = row
+        else:
+            merged.append(row)
+            by_name[n] = len(merged) - 1
+    return merged
+
+
+BRAND_SITE_PROFILES: list[dict[str, Any]] = _merge_brand_profiles()
+CANONICAL_BRANDS: tuple[str, ...] = tuple(p["name"] for p in BRAND_SITE_PROFILES)
+
+
+def _discover_for_profile(profile: dict[str, Any]) -> list[dict[str, str]]:
+    kind = profile.get("discover_kind")
+    if kind == "saatva_mattresses":
+        return _discover_saatva_targets()
+    if kind == "woocommerce_products":
+        origin = (
+            (profile.get("origin") or "").strip()
+            or (os.getenv("SB_SHOP_ORIGIN") or "").strip()
+            or "https://sleepandbeyond.com"
+        ).rstrip("/")
+        return _discover_woocommerce_products(origin)
+    if kind == "shopify_products":
+        origin = (
+            (profile.get("origin") or "").strip()
+            or (os.getenv("FLUFFCO_SHOP_ORIGIN") or "").strip()
+            or "https://home.fluff.co"
+        ).rstrip("/")
+        return _discover_shopify_products(origin)
+    if kind == "tempurpedic_sitemap":
+        origin = (
+            (profile.get("origin") or "").strip()
+            or (os.getenv("TEMPURPEDIC_SHOP_ORIGIN") or "").strip()
+            or "https://www.tempurpedic.com"
+        ).rstrip("/")
+        return _discover_tempurpedic_products(origin)
+    raise ValueError(
+        f"未知 discover_kind={kind!r}（品牌 {profile.get('name')}）。"
+        "可选: saatva_mattresses | woocommerce_products | shopify_products | tempurpedic_sitemap"
+    )
+
+
+def _load_targets_cache() -> dict[str, Any] | None:
+    path = Path(_TARGETS_CACHE_PATH)
+    if not path.is_file():
+        return None
+    try:
+        raw = path.read_text(encoding="utf-8")
+        data = json.loads(raw)
+        return data if isinstance(data, dict) else None
+    except (OSError, json.JSONDecodeError):
+        return None
+
+
+def _save_targets_cache(payload: dict[str, Any]) -> None:
+    path = Path(_TARGETS_CACHE_PATH)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    tmp = path.with_suffix(path.suffix + ".tmp")
+    tmp.write_text(
+        json.dumps(payload, ensure_ascii=False, indent=2),
+        encoding="utf-8",
+    )
+    tmp.replace(path)
+
+
+def discover_brand_targets_from_sites(
+    *,
+    force_refresh: bool = False,
+    discover_only: frozenset[str] | None = None,
+) -> dict[str, list[dict[str, str]]]:
+    """
+    从各品牌 profile 的 sitemap 策略拉取 PDP URL；无静态回退。
+    与库内 slug 对齐的 model 名仍依赖少量 slug→display 映射（见 _SB_PRODUCT_SLUG_TO_MODEL 等）。
+
+    discover_only:
+        若为非空集合，仅对这些品牌执行网络发现；其余品牌沿用已有缓存中的 targets（避免
+        ``--brand X`` 时仍扫全站且误报其他品牌「未发现 URL」）。与全量品牌集合相同时视为未指定。
+    """
+    expected_names = {p["name"] for p in BRAND_SITE_PROFILES}
+    if discover_only is not None:
+        discover_only = frozenset(n for n in discover_only if n in expected_names)
+        if not discover_only or discover_only == expected_names:
+            discover_only = None
+
+    if not force_refresh:
+        cached = _load_targets_cache()
+        if isinstance(cached, dict) and cached.get("targets"):
+            try:
+                ts = float(cached.get("fetched_at_unix", 0))
+            except (TypeError, ValueError):
+                ts = 0.0
+            cached_keys = set(cached["targets"].keys())
+            if (
+                ts
+                and (datetime.now(UTC).timestamp() - ts) < _targets_cache_ttl_sec()
+                and cached_keys == expected_names
+            ):
+                return {
+                    k: list(v)
+                    for k, v in cached["targets"].items()
+                    if isinstance(v, list) and k in expected_names
+                }
+
+    prev_cached = _load_targets_cache()
+    prev_targets: dict[str, list[dict[str, str]]] = {}
+    prev_sources: dict[str, str] = {}
+    if isinstance(prev_cached, dict):
+        raw_t = prev_cached.get("targets")
+        if isinstance(raw_t, dict):
+            for k, v in raw_t.items():
+                if k in expected_names and isinstance(v, list):
+                    prev_targets[k] = [
+                        dict(x) for x in v if isinstance(x, dict) and x.get("url")
+                    ]
+        raw_s = prev_cached.get("sources")
+        if isinstance(raw_s, dict):
+            for k, v in raw_s.items():
+                if k in expected_names and isinstance(v, str):
+                    prev_sources[k] = v
+
+    out: dict[str, list[dict[str, str]]] = {name: [] for name in expected_names}
+    errors: list[str] = []
+    sources: dict[str, str] = {}
+    warn_scope = discover_only if discover_only is not None else frozenset(expected_names)
+
+    for profile in BRAND_SITE_PROFILES:
+        name = profile["name"]
+        if discover_only is not None and name not in discover_only:
+            out[name] = list(prev_targets.get(name, []))
+            sources[name] = prev_sources.get(name, "（本趟未重拉 sitemap，沿用缓存）")
+            continue
+        try:
+            out[name] = _discover_for_profile(profile)
+            kind = str(profile.get("discover_kind") or "")
+            if kind == "saatva_mattresses":
+                sources[name] = os.getenv("SAATVA_SITEMAP_URL") or "https://www.saatva.com/sitemap.xml"
+            elif kind == "woocommerce_products":
+                o = (
+                    (profile.get("origin") or "").strip()
+                    or (os.getenv("SB_SHOP_ORIGIN") or "").strip()
+                    or "https://sleepandbeyond.com"
+                ).rstrip("/")
+                sources[name] = f"{o}/wp-sitemap.xml (或 sitemap_index)"
+            elif kind == "shopify_products":
+                o = (
+                    (profile.get("origin") or "").strip()
+                    or (os.getenv("FLUFFCO_SHOP_ORIGIN") or "").strip()
+                    or "https://home.fluff.co"
+                ).rstrip("/")
+                sources[name] = f"{o}/sitemap.xml"
+            elif kind == "tempurpedic_sitemap":
+                o = (
+                    (profile.get("origin") or "").strip()
+                    or (os.getenv("TEMPURPEDIC_SHOP_ORIGIN") or "").strip()
+                    or "https://www.tempurpedic.com"
+                ).rstrip("/")
+                sources[name] = (
+                    (os.getenv("TEMPURPEDIC_SITEMAP_URL") or "").strip() or f"{o}/sitemap.xml"
+                )
+            else:
+                sources[name] = kind
+        except Exception as e:
+            errors.append(f"{name}: {e}")
+            out[name] = []
+        if not out[name] and name in warn_scope:
+            print(f"⚠️ 品牌「{name}」sitemap 未发现任务 URL（检查网络、站点结构或 sleep 关键词过滤）")
+
+    payload = {
+        "fetched_at": datetime.now(UTC).isoformat(),
+        "fetched_at_unix": datetime.now(UTC).timestamp(),
+        "sources": sources,
+        "targets": out,
+        "errors": errors,
+    }
+    try:
+        _save_targets_cache(payload)
+    except OSError as oe:
+        print(f"⚠️ 无法写入 targets 缓存 {_TARGETS_CACHE_PATH}: {oe}")
+    if errors:
+        print("⚠️ 部分品牌 sitemap 抓取异常（该品牌列表可能为空）:", "; ".join(errors))
+    return out
+
+
+def get_brand_registry(
+    *,
+    force_refresh: bool = False,
+    discover_only: frozenset[str] | None = None,
+) -> list[dict[str, Any]]:
+    """运行期任务矩阵：顺序与 BRAND_SITE_PROFILES 一致。"""
+    targets_map = discover_brand_targets_from_sites(
+        force_refresh=force_refresh,
+        discover_only=discover_only,
+    )
+    return [
+        {
+            "name": p["name"],
+            "targets": targets_map.get(p["name"], []),
+            "cooldown_sec": int(p.get("cooldown_sec", 25)),
+        }
+        for p in BRAND_SITE_PROFILES
+    ]
+
 
 BRAND_ALIASES: dict[str, str] = {
     "saatva": "Saatva",
@@ -186,15 +789,24 @@ BRAND_ALIASES: dict[str, str] = {
     "sb": "Sleep & Beyond",
     "fluffco": "FluffCo",
     "fluff": "FluffCo",
+    "winkbeds": "WinkBeds",
+    "winkbed": "WinkBeds",
+    "wink-beds": "WinkBeds",
+    "tempur-pedic": "Tempur-Pedic",
+    "tempurpedic": "Tempur-Pedic",
+    "tempur": "Tempur-Pedic",
+    "avocado": "Avocado",
+    "avocado-green-mattress": "Avocado",
+    "avocadogreenmattress": "Avocado",
 }
 
 
 def resolve_brand_names(tokens: list[str] | None) -> list[str]:
-    """将 CLI 输入解析为 BRAND_REGISTRY 中的 canonical name。"""
+    """将 CLI 输入解析为 canonical 品牌名。"""
     if not tokens:
-        return [b["name"] for b in BRAND_REGISTRY]
+        return list(CANONICAL_BRANDS)
     out: list[str] = []
-    canonical = {b["name"] for b in BRAND_REGISTRY}
+    canonical = set(CANONICAL_BRANDS)
     for raw in tokens:
         t = raw.strip()
         if not t:
@@ -213,6 +825,10 @@ def resolve_brand_names(tokens: list[str] | None) -> list[str]:
                     break
         if not name:
             raise ValueError(f"未知品牌: {raw!r}。可选: {sorted(canonical)}")
+        if name not in canonical:
+            raise ValueError(
+                f"未知品牌: {raw!r}（未在 BRAND_SITE_PROFILES 注册）。可选: {sorted(canonical)}"
+            )
         if name not in out:
             out.append(name)
     return out
@@ -231,6 +847,7 @@ class IntelBatchScanner:
         sync_mode: str = "auto",
         limit_per_brand: int | None = None,
         no_cooldown: bool = False,
+        refresh_targets: bool = False,
     ) -> None:
         if sync_mode not in ("auto", "site-only"):
             raise ValueError("sync_mode 必须是 auto 或 site-only")
@@ -238,6 +855,7 @@ class IntelBatchScanner:
         self.sync_mode = sync_mode
         self.limit_per_brand = limit_per_brand
         self.no_cooldown = no_cooldown
+        self.refresh_targets = refresh_targets
         url, key = _resolve_supabase_credentials()
         if not url or not key:
             print(f"❌ 环境探测失败: 已查找 dotenv 路径 {_ENV.absolute()}（CI 上通常不存在）")
@@ -260,6 +878,7 @@ class IntelBatchScanner:
         slug: str,
     ) -> None:
         """仅 Playwright 抓取 + 写 audit_products / product_offers（与法医 LLM 无关）。"""
+        fe = _forensic_engine()
         print(f"\n[官网情报] 正在抓取: {brand} {model}")
         try:
             new_site_data = await engine.fetch_site_data(url)
@@ -344,12 +963,12 @@ class IntelBatchScanner:
                         ).strip()[:160]
                     cc_raw = new_site_data.get("coupon_code")
                     cc_n = (
-                        normalize_coupon_token(cc_raw)
+                        fe.normalize_coupon_token(cc_raw)
                         if isinstance(cc_raw, str)
                         else None
                     )
-                    if cc_n and coupon_token_is_plausible(cc_n):
-                        cc_n = await finalize_coupon_for_store(url, cc_n)
+                    if cc_n and fe.coupon_token_is_plausible(cc_n):
+                        cc_n = await fe.finalize_coupon_for_store(url, cc_n)
                     else:
                         cc_n = None
                     if cc_n:
@@ -380,7 +999,7 @@ class IntelBatchScanner:
                         po["promo_discount_percent"] = round(pct_f, 4)
                     else:
                         po["promo_discount_percent"] = None
-                    ts = ForensicAuditEngine.compute_total_savings(
+                    ts = fe.ForensicAuditEngine.compute_total_savings(
                         msrp_f,
                         float(new_site_data["price"]),
                         pct_f,
@@ -424,7 +1043,8 @@ class IntelBatchScanner:
                     f"⏭️ 跳过（库中无 slug）: {model} — 请先跑一次非 --site-only 以建立记录"
                 )
                 return
-            engine = ForensicAuditEngine(brand, model)
+            fe = _forensic_engine()
+            engine = fe.ForensicAuditEngine(brand, model)
             await self._run_site_intel_patch(
                 engine, existing_record, brand, model, url, slug
             )
@@ -451,7 +1071,8 @@ class IntelBatchScanner:
             print(f"⏩ 跳过: {model} 已有完整存证。")
             return
 
-        engine = ForensicAuditEngine(brand, model)
+        fe = _forensic_engine()
+        engine = fe.ForensicAuditEngine(brand, model)
 
         if needs_full_audit:
             print(f"\n[法医扫描-全量] 正在分析: {brand} {model}")
@@ -467,7 +1088,11 @@ class IntelBatchScanner:
             )
 
     async def run_brands(self, brand_names: list[str]) -> None:
-        for cfg in BRAND_REGISTRY:
+        registry = get_brand_registry(
+            force_refresh=self.refresh_targets,
+            discover_only=frozenset(brand_names),
+        )
+        for cfg in registry:
             name = cfg["name"]
             if name not in brand_names:
                 continue
@@ -533,6 +1158,11 @@ def build_arg_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="去掉品牌任务间隔（本地调试或 CI 加速）。",
     )
+    p.add_argument(
+        "--refresh-targets",
+        action="store_true",
+        help="忽略目标 URL 缓存，从各站 sitemap 重新拉取 PDP 列表后再执行（写入 batch_scanner_targets.cache.json）。",
+    )
     return p
 
 
@@ -541,10 +1171,16 @@ def _print_dry_run_plan(
     limit_per_brand: int | None,
     site_only: bool,
     force: bool,
+    *,
+    refresh_targets: bool = False,
 ) -> None:
     print("📋 [dry-run] 计划任务（未执行）")
     print(f"    模式: {'官网-only' if site_only else ('强制全量' if force else '增量 auto')}")
-    for cfg in BRAND_REGISTRY:
+    registry = get_brand_registry(
+        force_refresh=refresh_targets,
+        discover_only=frozenset(brand_names),
+    )
+    for cfg in registry:
         name = cfg["name"]
         if name not in brand_names:
             continue
@@ -568,7 +1204,9 @@ def cli_main(argv: list[str] | None = None) -> int:
         return 2
 
     if args.dry_run:
-        _print_dry_run_plan(names, args.limit, site_only, force)
+        _print_dry_run_plan(
+            names, args.limit, site_only, force, refresh_targets=bool(args.refresh_targets)
+        )
         return 0
 
     if site_only and force:
@@ -591,6 +1229,7 @@ def cli_main(argv: list[str] | None = None) -> int:
             sync_mode="site-only" if site_only else "auto",
             limit_per_brand=limit,
             no_cooldown=bool(args.no_cooldown),
+            refresh_targets=bool(args.refresh_targets),
         )
     except ValueError as e:
         print(e)

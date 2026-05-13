@@ -27,14 +27,17 @@ Environment variables (loaded from repo-root ``.env`` / ``.env.local``):
         requests. If Reddit returns ``403 Blocked``, set this to a current
         desktop browser UA (see DevTools) or route traffic via ``PROXY_URL``.
 
-    SUPABASE_URL / SUPABASE_KEY — Optional; when set, reply-template scores are
-        read from ``audit_products.audit_scores`` (same source as ``src/lib/registry.ts``).
-        Falls back to ``src/data/registry.json`` if the query fails or returns no row.
+    SUPABASE_URL / SUPABASE_KEY — **Required** for reply-template numbers and links:
+        candidates are read from ``audit_products``, compared on ``audit_scores``, and
+        the **only** outbound audit URL is ``/registry/{slug}`` for the winning row
+        (same page as the live registry dossier).
 
-    REDDIT_AUDIT_SLUG_THERMAL / REDDIT_AUDIT_SLUG_FLUFFCO — Optional registry slugs
-        whose ``audit_scores`` power MyMerino/thermal and FluffCo value sentences.
-        You can instead set ``reddit_audit_slugs.thermal`` / ``fluffco_value`` in
-        ``src/data/registry.json``.
+    REDDIT_REPLY_CANDIDATE_SLUGS_THERMAL — Optional comma-separated slugs to restrict
+        tier-A / wool-pivot comparisons (otherwise brand/slug heuristics query the DB).
+
+    REDDIT_REPLY_CANDIDATE_SLUGS_FLUFFCO — Same for tier-B (FluffCo-style picks).
+
+    REDDIT_REPLY_CANDIDATE_SLUGS_SAATVA — Same for tier-C (Saatva picks).
 
     GMAIL_SMTP_TRY_DIRECT_FIRST — Set to ``1`` to try direct SMTP before the proxy.
     GMAIL_SMTP_DIRECT_TIMEOUT_SEC — Optional override for direct TCP timeout (seconds).
@@ -51,7 +54,10 @@ State file (repository root): ``processed_posts.json``
 every ``BATCH_SEND_INTERVAL`` seconds. Pending queue is **not** persisted.
 
 Each alert includes a **reply template** block (Detected Topic / Direct Link /
-Copy & Paste Audit Note). The main loop adjusts sleep so digest deadlines are
+Copy & Paste Audit Note). The note is built by ``generate_reply_logic``: a single
+expert-style blurb plus **one** ``/registry/{slug}`` URL from Supabase after score
+comparison, with tier Sleep & Beyond (A) > FluffCo (B) > Saatva (C).
+The main loop adjusts sleep so digest deadlines are
 not missed by a full poll interval when the queue is non-empty.
 """
 
@@ -72,11 +78,11 @@ from contextlib import contextmanager
 import urllib.error
 import urllib.request
 from urllib.error import HTTPError
-from urllib.parse import urlparse
+from urllib.parse import quote, urlparse
 from datetime import datetime
 from email.message import EmailMessage
 from pathlib import Path
-from typing import Any, NamedTuple
+from typing import Any
 
 import feedparser
 from dotenv import load_dotenv
@@ -109,6 +115,11 @@ NORMAL_PRIORITY_KEYWORDS: list[str] = [
     "hot sleeper",
     "mattress review",
     "topper",
+    "natural materials",
+    "pillow",
+    "value",
+    "hotel",
+    "budget",
 ]
 
 HIGH_PRIORITY_SET = frozenset(HIGH_PRIORITY_KEYWORDS)
@@ -160,99 +171,8 @@ def scg_url(path: str) -> str:
     return f"{base}{p}"
 
 
-# Deep links aligned with Next.js routes (``sitemap.ts``: ``/registry/{slug}``,
-# ``/journal/{slug}``; ``registry.json`` + ``hero.tsx`` slugs).
-PATH_SAATVA_CLASSIC = "/registry/saatva-classic"
-PATH_SAATVA_HD = "/registry/saatva-hd"
-PATH_BEST_PICKS = "/best-picks"
-PATH_COMPARE = "/compare"
+# Soft landing when no tier matches (not a product dossier).
 PATH_METHODOLOGY = "/methodology"
-PATH_INTELLIGENCE = "/intelligence"
-PATH_DEALS = "/deals"
-PATH_REGISTRY = "/registry"
-
-# Registry slugs (same as ``/registry/[slug]`` and ``audit_products.slug``).
-SLUG_SAATVA_CLASSIC = "saatva-classic"
-SLUG_SAATVA_HD = "saatva-hd"
-REGISTRY_JSON_PATH = _REPO_ROOT / "src" / "data" / "registry.json"
-
-
-# --- Multi-dimensional reply library (blogger tone; paths via ``scg_url``) ---
-# ``forensic_data`` is optional when scores are assembled dynamically (Saatva / S&B / FluffCo / back_pain).
-AUDIT_SNIPPETS_BY_KEYWORD: dict[str, dict[str, str]] = {
-    "Saatva": {
-        "professional_intro": (
-            "Hey — dropping in from **SleepChoiceGuide** where we keep an "
-            "independent audit trail on mattresses (no brand pays us for scores)."
-        ),
-        "target_path": PATH_SAATVA_CLASSIC,
-        "secondary_path": PATH_SAATVA_HD,
-    },
-    "Sleep & Beyond": {
-        "professional_intro": (
-            "When a thread goes **hot sleeper**, **topper**, or **cooling**, this "
-            "is basically **Sleep & Beyond / MyMerino** territory in our data."
-        ),
-        "target_path": PATH_BEST_PICKS,
-        "secondary_path": PATH_METHODOLOGY,
-    },
-    "FluffCo": {
-        "professional_intro": (
-            "If the vibe is **pillows**, **budget**, or **value-for-money**, I reach "
-            "for **FluffCo** first in our value audits."
-        ),
-        "target_path": PATH_DEALS,
-        "secondary_path": PATH_REGISTRY,
-    },
-    "MyMerino": {
-        "professional_intro": (
-            "Quick take on **MyMerino / wool toppers** from our topper audits."
-        ),
-        "forensic_data": (
-            "I read these layers on **loft + wool GSM** and how they mate with your "
-            "base mattress—otherwise you’re tuning pressure and heat blind."
-        ),
-        "target_path": PATH_BEST_PICKS,
-        "secondary_path": PATH_COMPARE,
-    },
-    "back_pain": {
-        "professional_intro": (
-            "For **back pain** threads, I anchor on alignment first—not just softer foam."
-        ),
-        "target_path": PATH_SAATVA_CLASSIC,
-        "secondary_path": PATH_BEST_PICKS,
-    },
-    "mattress_review": {
-        "professional_intro": "Mattress **review** threads: I never trust star averages alone.",
-        "forensic_data": (
-            "I cross-check owner narratives with our **alignment + durability** "
-            "signals before I paste a pick—marketing stars and real spine fit diverge "
-            "all the time."
-        ),
-        "target_path": PATH_METHODOLOGY,
-        "secondary_path": PATH_REGISTRY,
-    },
-}
-
-HARDCORE_TRIGGERS = (
-    "latex",
-    "chemical",
-    "foam",
-    "off-gassing",
-    "offgassing",
-    "voc",
-    "allergy",
-    "allergic",
-    "formaldehyde",
-)
-
-
-class _ReplyScoreContext(NamedTuple):
-    """Live ``audit_scores`` keyed by slug (Supabase overrides local JSON)."""
-
-    by_slug: dict[str, dict[str, float]]
-    thermal_slug: str | None
-    fluff_slug: str | None
 
 
 def _ensure_dotenv_loaded() -> None:
@@ -281,124 +201,166 @@ def _parse_audit_scores(raw: Any) -> dict[str, float]:
     return out
 
 
-def _load_registry_blob() -> dict[str, Any]:
-    if not REGISTRY_JSON_PATH.is_file():
-        return {}
-    try:
-        with REGISTRY_JSON_PATH.open(encoding="utf-8") as f:
-            data = json.load(f)
-        return data if isinstance(data, dict) else {}
-    except (OSError, json.JSONDecodeError):
-        return {}
-
-
-def _reddit_audit_slugs_from_registry(reg: dict[str, Any]) -> dict[str, str]:
-    raw = reg.get("reddit_audit_slugs")
-    if not isinstance(raw, dict):
-        return {}
-    return {
-        str(k): str(v).strip()
-        for k, v in raw.items()
-        if isinstance(v, str) and v.strip()
-    }
-
-
-def _scores_from_product_blob(blob: Any) -> dict[str, float]:
-    if not isinstance(blob, dict):
-        return {}
-    ac = blob.get("audit_scores")
-    if isinstance(ac, dict) and ac:
-        return _parse_audit_scores(ac)
-    return _parse_audit_scores(blob.get("metrics"))
-
-
-def _supabase_audit_scores_by_slug(slugs: list[str]) -> dict[str, dict[str, float]]:
+def _get_supabase_client() -> Any | None:
     _ensure_dotenv_loaded()
     url = (os.getenv("SUPABASE_URL") or "").strip().rstrip("/")
     key = (
         (os.getenv("SUPABASE_KEY") or "").strip()
         or (os.getenv("NEXT_PUBLIC_SUPABASE_ANON_KEY") or "").strip()
     )
-    if not url or not key or not slugs:
-        return {}
-    uniq = list(dict.fromkeys(s for s in slugs if s))
+    if not url or not key:
+        return None
     try:
         from supabase import create_client
 
-        client = create_client(url, key)
+        return create_client(url, key)
+    except Exception as exc:
+        logging.getLogger(__name__).debug("Supabase client init failed: %s", exc)
+        return None
+
+
+def _comma_env_slugs(var_name: str) -> list[str]:
+    raw = (os.getenv(var_name) or "").strip()
+    if not raw:
+        return []
+    return [p.strip() for p in raw.split(",") if p.strip()]
+
+
+def _audit_product_select() -> str:
+    return "slug, brand, model, audit_scores, price"
+
+
+def _fetch_audit_rows_by_slugs(client: Any, slugs: list[str]) -> list[dict[str, Any]]:
+    uniq = list(dict.fromkeys(s.strip() for s in slugs if s and str(s).strip()))
+    if not uniq:
+        return []
+    try:
         res = (
             client.table("audit_products")
-            .select("slug, audit_scores")
+            .select(_audit_product_select())
             .in_("slug", uniq)
             .execute()
         )
-        out: dict[str, dict[str, float]] = {}
-        for row in res.data or []:
-            slug = row.get("slug")
-            if not slug:
-                continue
-            parsed = _parse_audit_scores(row.get("audit_scores"))
-            if parsed:
-                out[str(slug)] = parsed
-        return out
+        return list(res.data or [])
     except Exception as exc:
-        logging.getLogger(__name__).debug("audit_products audit_scores fetch skipped: %s", exc)
-        return {}
+        logging.getLogger(__name__).debug("audit_products in(slug) failed: %s", exc)
+        return []
 
 
-def _merge_scores_from_registry(
-    slugs: list[str], reg: dict[str, Any]
-) -> dict[str, dict[str, float]]:
-    products = reg.get("products") or {}
-    if not isinstance(products, dict):
-        return {}
-    merged: dict[str, dict[str, float]] = {}
-    for slug in slugs:
-        if not slug:
-            continue
-        blob = products.get(slug)
-        sc = _scores_from_product_blob(blob)
-        if sc:
-            merged[slug] = sc
-    return merged
+def _fetch_audit_rows_or(client: Any, or_filter: str, *, limit: int) -> list[dict[str, Any]]:
+    try:
+        res = (
+            client.table("audit_products")
+            .select(_audit_product_select())
+            .or_(or_filter)
+            .limit(int(limit))
+            .execute()
+        )
+        return list(res.data or [])
+    except Exception as exc:
+        logging.getLogger(__name__).debug("audit_products or() failed: %s", exc)
+        return []
 
 
-def _build_reply_score_context() -> _ReplyScoreContext:
-    """
-    Scores for reply templates: Supabase ``audit_products.audit_scores`` wins,
-    then local ``registry.json`` (same merge order as ``mergeAuditProductRow`` for scores).
-    """
-    reg = _load_registry_blob()
-    aliases = _reddit_audit_slugs_from_registry(reg)
-    thermal_slug = (
-        (os.getenv("REDDIT_AUDIT_SLUG_THERMAL") or "").strip()
-        or aliases.get("thermal")
-        or aliases.get("thermal_wool")
-        or None
+def _fetch_candidates_tier_a(client: Any) -> list[dict[str, Any]]:
+    """Hot sleeper / wool / MyMerino — compare ``audit_scores`` on DB rows."""
+    slugs = _comma_env_slugs("REDDIT_REPLY_CANDIDATE_SLUGS_THERMAL")
+    if slugs:
+        return _fetch_audit_rows_by_slugs(client, slugs)
+    or_filter = (
+        "brand.ilike.%Sleep%Beyond%,"
+        "brand.ilike.%sleep%beyond%,"
+        "brand.ilike.%Sleep and Beyond%,"
+        "slug.ilike.%sleep-beyond%,"
+        "slug.ilike.%mymerino%,"
+        "model.ilike.%Merino%"
     )
-    fluff_slug = (
-        (os.getenv("REDDIT_AUDIT_SLUG_FLUFFCO") or "").strip()
-        or aliases.get("fluffco_value")
-        or aliases.get("fluffco")
-        or None
+    return _fetch_audit_rows_or(client, or_filter, limit=120)
+
+
+def _fetch_candidates_tier_b(client: Any) -> list[dict[str, Any]]:
+    slugs = _comma_env_slugs("REDDIT_REPLY_CANDIDATE_SLUGS_FLUFFCO")
+    if slugs:
+        return _fetch_audit_rows_by_slugs(client, slugs)
+    try:
+        res = (
+            client.table("audit_products")
+            .select(_audit_product_select())
+            .ilike("brand", "%FluffCo%")
+            .limit(120)
+            .execute()
+        )
+        return list(res.data or [])
+    except Exception as exc:
+        logging.getLogger(__name__).debug("audit_products FluffCo ilike failed: %s", exc)
+        return []
+
+
+def _fetch_candidates_tier_c(client: Any) -> list[dict[str, Any]]:
+    slugs = _comma_env_slugs("REDDIT_REPLY_CANDIDATE_SLUGS_SAATVA")
+    if slugs:
+        return _fetch_audit_rows_by_slugs(client, slugs)
+    try:
+        res = (
+            client.table("audit_products")
+            .select(_audit_product_select())
+            .ilike("brand", "%Saatva%")
+            .limit(120)
+            .execute()
+        )
+        return list(res.data or [])
+    except Exception as exc:
+        logging.getLogger(__name__).debug("audit_products Saatva ilike failed: %s", exc)
+        return []
+
+
+def _scores_from_audit_row(row: dict[str, Any]) -> dict[str, float]:
+    return _parse_audit_scores(row.get("audit_scores"))
+
+
+def _row_sort_tuple(row: dict[str, Any], keys: tuple[str, ...]) -> tuple[float, ...]:
+    sc = _scores_from_audit_row(row)
+    return tuple(_pick_score(sc, k) or -1.0 for k in keys)
+
+
+def _best_audit_product(
+    rows: list[dict[str, Any]], sort_keys: tuple[str, ...]
+) -> dict[str, Any] | None:
+    rows = [r for r in rows if r.get("slug")]
+    if not rows:
+        return None
+    return max(rows, key=lambda r: _row_sort_tuple(r, sort_keys))
+
+
+def _registry_dossier_url(slug: str) -> str:
+    """Single allowed product link: live audit dossier ``/registry/{slug}``."""
+    s = (slug or "").strip()
+    if not s:
+        return ""
+    return scg_url(f"/registry/{quote(s, safe='')}")
+
+
+def _product_line_label(row: dict[str, Any]) -> str:
+    brand = str(row.get("brand") or "").strip()
+    model = str(row.get("model") or "").strip()
+    if brand and model:
+        return f"{brand} **{model}**"
+    return brand or model or "this product"
+
+
+def _no_db_candidates_message(pool: str) -> str:
+    return (
+        f"✍️ **SleepChoiceGuide** — no matching rows in ``audit_products`` for: {pool}. "
+        "Add listings in Supabase or set ``REDDIT_REPLY_CANDIDATE_SLUGS_*`` to an explicit "
+        "comma-separated slug list so we can compare ``audit_scores`` and link the dossier."
     )
-    want = [SLUG_SAATVA_CLASSIC, SLUG_SAATVA_HD]
-    if thermal_slug:
-        want.append(thermal_slug)
-    if fluff_slug:
-        want.append(fluff_slug)
-    want = list(dict.fromkeys(want))
 
-    merged = _merge_scores_from_registry(want, reg)
-    remote = _supabase_audit_scores_by_slug(want)
-    for slug, scores in remote.items():
-        if scores:
-            merged[slug] = scores
 
-    return _ReplyScoreContext(
-        by_slug=merged,
-        thermal_slug=thermal_slug if thermal_slug else None,
-        fluff_slug=fluff_slug if fluff_slug else None,
+def _missing_supabase_message() -> str:
+    return (
+        "✍️ **SleepChoiceGuide** — configure ``SUPABASE_URL`` and ``SUPABASE_KEY`` (or "
+        "``NEXT_PUBLIC_SUPABASE_ANON_KEY``) so this reply can read ``audit_products`` and "
+        "emit a single ``/registry/{slug}`` audit URL."
     )
 
 
@@ -410,343 +372,199 @@ def _pick_score(row: dict[str, float], *keys: str) -> float | None:
     return None
 
 
-def _forensic_saatva(ctx: _ReplyScoreContext) -> str:
-    cl = ctx.by_slug.get(SLUG_SAATVA_CLASSIC) or {}
-    hd = ctx.by_slug.get(SLUG_SAATVA_HD) or {}
-    if not cl and not hd:
-        return (
-            "**Saatva Classic / HD** — open the registry dossiers below for live "
-            "**audit_scores** (same JSON fields we store on ``audit_products`` in Supabase)."
-        )
-    parts: list[str] = []
-    if cl:
-        o = _pick_score(cl, "overall")
-        sup = _pick_score(cl, "support")
-        cool = _pick_score(cl, "cooling")
-        seg: list[str] = []
-        if o is not None:
-            seg.append(f"**{o:.1f}/10** overall")
-        if sup is not None:
-            seg.append(f"**{sup:.1f}/10** support (spine / lumbar fit)")
-        if cool is not None:
-            seg.append(f"**{cool:.1f}/10** cooling")
-        if seg:
-            parts.append(
-                "**Saatva Classic** in our sheet: "
-                + ", ".join(seg)
-                + "—strong zoning for chronic back issues. If you care **more about sleeping cool**, "
-                "I’d still line that up against **natural materials** (wool / latex stacks) "
-                "instead of chasing foam-only cooling marketing."
-            )
-        else:
-            parts.append(
-                "**Saatva Classic** — numeric scores are on the dossier below (pulled from our DB row)."
-            )
-    if hd:
-        o2 = _pick_score(hd, "overall")
-        sup2 = _pick_score(hd, "support")
-        cool2 = _pick_score(hd, "cooling")
-        seg2: list[str] = []
-        if o2 is not None:
-            seg2.append(f"**{o2:.1f}/10** overall")
-        if sup2 is not None:
-            seg2.append(f"**{sup2:.1f}/10** support")
-        if cool2 is not None:
-            seg2.append(f"**{cool2:.1f}/10** cooling")
-        if seg2:
-            parts.append(
-                "**Saatva HD / RX-class hybrid** row: " + ", ".join(seg2) + " (same scoring rubric)."
-            )
-    return " ".join(parts) if parts else (
-        "**Saatva Classic / HD** — see live **audit_scores** on the registry links below."
-    )
-
-
-def _forensic_sleep_beyond_thermal(ctx: _ReplyScoreContext) -> str:
-    slug = ctx.thermal_slug
-    row = ctx.by_slug.get(slug) if slug else {}
-    if not isinstance(row, dict):
-        row = {}
-    cool = _pick_score(row, "cooling", "thermal")
-    if cool is not None and slug:
-        return (
-            f"**MyMerino** is printing **{cool:.1f}/10** on "
-            "**cooling** in our audit sheet—the field we use for heat / vapor migration "
-            "instead of marketing “chill” labels. Wool’s **protein-rich fibers** behave like "
-            "a wicking layer: they move humidity off the skin so you’re not fighting that "
-            "sticky 2 AM micro-climate synthetic “cooling gels” often paper over."
-        )
-    return (
-        "**MyMerino / wool** layers have been a thermal outlier in our topper audits—"
-        "set ``REDDIT_AUDIT_SLUG_THERMAL`` (or ``reddit_audit_slugs.thermal`` in "
-        "``registry.json``) to the live registry slug so this line can echo the exact "
-        "**cooling** score from our **audit_products** row."
-    )
-
-
-def _forensic_thermal_lane_short(ctx: _ReplyScoreContext) -> str:
-    slug = ctx.thermal_slug
-    row = ctx.by_slug.get(slug) if slug else {}
-    if not isinstance(row, dict):
-        row = {}
-    cool = _pick_score(row, "cooling", "thermal")
-    if cool is not None:
-        return (
-            "🐑 **Thermal lane — Sleep & Beyond MyMerino**\n\n"
-            f"Separate from the coil story: **MyMerino** is still a **{cool:.1f}/10** "
-            "**cooling** pick in our workbook. Wool’s **protein-rich fibers** pull "
-            "moisture off the skin so you’re not stuck in that 2 AM pillow flip cycle "
-            "synthetic cooling stories love to ignore."
-        )
-    return (
-        "🐑 **Thermal lane — Sleep & Beyond MyMerino**\n\n"
-        "Separate from the coil story: **MyMerino** is still our wool thermal anchor—"
-        "open the dossier below for the live **cooling** score from our database."
-    )
-
-
-def _forensic_fluffco(ctx: _ReplyScoreContext) -> str:
-    slug = ctx.fluff_slug
-    row = ctx.by_slug.get(slug) if slug else {}
-    if not isinstance(row, dict):
-        row = {}
-    overall = _pick_score(row, "overall")
-    sup = _pick_score(row, "support")
-    cool = _pick_score(row, "cooling")
-    if overall is not None and slug:
-        bits = [f"**{overall:.1f}/10** overall (headline audit index)"]
-        if sup is not None:
-            bits.append(f"**{sup:.1f}/10** support")
-        if cool is not None:
-            bits.append(f"**{cool:.1f}/10** cooling")
-        return (
-            "**FluffCo** — "
-            + ", ".join(bits)
-            + " in our sheet—basically **five-star hotel fill specs** without the resort markup when "
-            "people want “feels expensive” without the invoice shock."
-        )
-    return (
-        "**FluffCo** — set ``REDDIT_AUDIT_SLUG_FLUFFCO`` (or ``reddit_audit_slugs.fluffco_value``) "
-        "to your live registry slug so this line can quote the same **overall** / comfort "
-        "scores as the **audit_products** row."
-    )
-
-
-def _forensic_back_pain(ctx: _ReplyScoreContext) -> str:
-    cl = ctx.by_slug.get(SLUG_SAATVA_CLASSIC) or {}
-    sup = _pick_score(cl, "support")
-    cool = _pick_score(cl, "cooling")
-    if sup is not None:
-        lead = (
-            f"We still use **Saatva Classic** as a **{sup:.1f}/10** **support** reference "
-            "when lumbar load is the headline pain."
-        )
-    else:
-        lead = (
-            "We still anchor on **Saatva Classic** in the registry when lumbar load is the headline pain."
-        )
-    if cool is not None:
-        mid = f" Its **cooling** reads **{cool:.1f}/10**—if you need more breathability, "
-    else:
-        mid = " If you need more breathability, "
-    return (
-        lead
-        + mid
-        + "I’d also eye **organic wool toppers** so you’re not trading spine support for a swampy climate."
-    )
-
-
-def _scenario_b_thermal(haystack_lower: str, match_set: set[str]) -> bool:
-    """Hot sleeper / topper / cooling → Sleep & Beyond primary story."""
-    if match_set & {"hot sleeper", "topper"}:
+def _explicit_saatva_intent(haystack_lower: str, match_set: set[str]) -> bool:
+    """Priority C: only when the post clearly names Saatva."""
+    if "saatva" in haystack_lower:
         return True
-    for token in (
-        "cooling",
-        "sleeps hot",
-        "sleep hot",
-        "night sweats",
-        "overheat",
-        "sleep too hot",
-    ):
-        if token in haystack_lower:
-            return True
+    return "Saatva" in match_set
+
+
+def _match_priority_a(haystack_lower: str, match_set: set[str]) -> bool:
+    """
+    Priority A — authorized high-conversion: hot sleeper, topper, natural materials
+    (plus MyMerino product-line hits → same single Sleep & Beyond recommendation).
+    """
+    if "hot sleeper" in haystack_lower or "hot sleeper" in match_set:
+        return True
+    if "topper" in haystack_lower or "topper" in match_set:
+        return True
+    if "natural materials" in haystack_lower or "natural materials" in match_set:
+        return True
+    if "MyMerino" in match_set or "mymerino" in haystack_lower:
+        return True
     return False
 
 
-def _scenario_c_value(haystack_lower: str) -> bool:
-    """Pillow / value / budget → FluffCo primary story."""
-    for token in (
+def _match_priority_b(haystack_lower: str, match_set: set[str]) -> bool:
+    """Priority B — pillow / value / hotel / budget (and close variants)."""
+    if "FluffCo" in match_set:
+        return True
+    needles = (
         "pillow",
         "pillows",
-        "budget",
         "value",
+        "hotel",
+        "budget",
         "affordable",
         "cheap",
-        "worth it",
-        "under $",
-        "under$",
-    ):
-        if token in haystack_lower:
-            return True
-    return False
+    )
+    return any(n in haystack_lower for n in needles)
 
 
-def _hardcore_mode(haystack: str) -> bool:
-    """Long, materials-heavy posts → add technical vocabulary block."""
-    h = haystack.lower()
-    if len(haystack) < 200:
-        return False
-    return any(t in h for t in HARDCORE_TRIGGERS)
+def _resolve_reply_tier(
+    haystack_lower: str, match_set: set[str]
+) -> str | None:
+    """
+    Single-diagnosis tier. If multiple keyword families hit, keep:
+    Sleep & Beyond (A) > FluffCo (B) > Saatva audit (C).
+    """
+    a = _match_priority_a(haystack_lower, match_set)
+    b = _match_priority_b(haystack_lower, match_set)
+    c = _explicit_saatva_intent(haystack_lower, match_set)
+    if a:
+        return "A"
+    if b:
+        return "B"
+    if c:
+        return "C"
+    return None
 
 
-def _hardcore_paragraph() -> str:
+def _body_tier_a(winner: dict[str, Any]) -> str:
+    sc = _scores_from_audit_row(winner)
+    label = _product_line_label(winner)
+    cool = _pick_score(sc, "cooling", "thermal")
+    overall = _pick_score(sc, "overall")
+    if cool is not None:
+        score_clause = f"**{label}** leads our compared pool at **{cool:.1f}/10** on **cooling**"
+    elif overall is not None:
+        score_clause = f"**{label}** leads our compared pool at **{overall:.1f}/10** overall (full ``audit_scores`` on the dossier)"
+    else:
+        score_clause = f"**{label}** is the compared-pool pick (scores live on the dossier)"
     return (
-        "🔬 **If you want the nerdy framing:** I sometimes explain comfort failures as "
-        "**thermal saturation**—when the comfort stack can’t dump **latent heat** "
-        "fast enough. **Bi-component fibers** (blended natural + synthetic) move "
-        "moisture differently than single-origin fills, which changes how **latent "
-        "heat** shows up in real bedrooms vs. lab charts."
+        f"🔍 Quick Audit: For hot sleepers / wool toppers, {score_clause} in ``audit_products``. "
+        "Wool protein fibers wick moisture instead of parking humidity on your skin like a lot of gel-marketing stacks."
     )
 
 
-def _append_snippet_block(
-    key: str,
-    body_parts: list[str],
-    link_bucket: list[str],
-    *,
-    forensic_override: str | None = None,
-) -> None:
-    row = AUDIT_SNIPPETS_BY_KEYWORD[key]
-    intro = row["professional_intro"]
-    data = (
-        forensic_override
-        if forensic_override is not None
-        else (row.get("forensic_data") or "")
+def _body_tier_b(winner: dict[str, Any]) -> str:
+    sc = _scores_from_audit_row(winner)
+    label = _product_line_label(winner)
+    overall = _pick_score(sc, "overall")
+    sup = _pick_score(sc, "support")
+    if overall is not None:
+        bits = f"**{overall:.1f}/10** overall"
+        if sup is not None:
+            bits += f", **{sup:.1f}/10** support"
+        score_clause = f"{label} tops our FluffCo pool at {bits}"
+    else:
+        score_clause = f"{label} is the compared-pool value pick (see dossier for scores)"
+    return (
+        f"🔍 Quick Audit: On value-for-money vs hotel-style specs, {score_clause} in ``audit_products``. "
+        "Same rubric we render on the registry page—no separate marketing URL."
     )
-    body_parts.append(f"{intro}\n\n{data}")
-    link_bucket.append(scg_url(row["target_path"]))
-    sec = row.get("secondary_path")
-    if sec:
-        link_bucket.append(scg_url(sec))
 
 
-def _dedupe_preserve_order(urls: list[str]) -> list[str]:
-    seen: set[str] = set()
-    out: list[str] = []
-    for u in urls:
-        if u not in seen:
-            seen.add(u)
-            out.append(u)
-    return out
+def _body_tier_c(winner: dict[str, Any]) -> str:
+    sc = _scores_from_audit_row(winner)
+    label = _product_line_label(winner)
+    sup = _pick_score(sc, "support", "pressure")
+    cool = _pick_score(sc, "cooling")
+    if sup is not None:
+        spine = f"**{sup:.1f}/10** on **support** / pressure (spinal-alignment axis in our sheet)"
+    else:
+        spine = "support / pressure scores on the dossier (we read the same JSON the site uses)"
+    cool_clause = ""
+    if cool is not None:
+        cool_clause = f" **Cooling** on that row is **{cool:.1f}/10**—still line it up against natural fills if heat is the complaint."
+    return (
+        f"🔍 Quick Audit: In our **Saatva** pool, **{label}** prints {spine}.{cool_clause} "
+        "**Break-in** still matters: dual-coil faces can read firmer than people expect early."
+    )
+
+
+def _body_tier_c_pivot_wool(winner: dict[str, Any]) -> str:
+    label = _product_line_label(winner)
+    sc = _scores_from_audit_row(winner)
+    cool = _pick_score(sc, "cooling", "thermal")
+    if cool is not None:
+        tail = f"Compared wool-side rows land **{label}** at **{cool:.1f}/10** on **cooling** in ``audit_products``."
+    else:
+        tail = f"Compared wool-side pick: **{label}** (scores on dossier)."
+    return (
+        "🔍 Quick Audit (troubleshooting): **Sagging / pain** next to a Saatva-class hybrid is often "
+        "**comfort-layer groove** vs true structural collapse—different failure mode. "
+        f"If trapped heat rides along with softening, {tail}"
+    )
+
+
+def _mentions_sagging_or_pain(haystack_lower: str) -> bool:
+    """Pain / sagging threads: no pure-praise copy; switch to troubleshooting + pivot."""
+    if "sagging" in haystack_lower:
+        return True
+    return re.search(r"\bpain\b", haystack_lower) is not None
+
+
+def generate_reply_logic(matches: list[str], haystack: str) -> str:
+    """
+    Single expert blurb + **one** URL: the winning row's ``/registry/{slug}`` dossier.
+
+    Flow: resolve tier → fetch ``audit_products`` candidates from Supabase → sort by
+    the relevant ``audit_scores`` keys → link only the recommended slug's registry page.
+    """
+    h = haystack.lower()
+    ms = set(matches)
+    tier = _resolve_reply_tier(h, ms)
+    client = _get_supabase_client()
+    if not client:
+        return _missing_supabase_message()
+
+    if tier == "A":
+        rows = _fetch_candidates_tier_a(client)
+        winner = _best_audit_product(rows, ("cooling", "thermal", "overall"))
+        if not winner:
+            return _no_db_candidates_message("thermal / wool (tier A)")
+        url = _registry_dossier_url(str(winner.get("slug") or ""))
+        return f"{_body_tier_a(winner)}\n{url}"
+
+    if tier == "B":
+        rows = _fetch_candidates_tier_b(client)
+        winner = _best_audit_product(rows, ("overall", "pressure", "cooling"))
+        if not winner:
+            return _no_db_candidates_message("FluffCo (tier B)")
+        url = _registry_dossier_url(str(winner.get("slug") or ""))
+        return f"{_body_tier_b(winner)}\n{url}"
+
+    if tier == "C":
+        if _mentions_sagging_or_pain(h):
+            rows = _fetch_candidates_tier_a(client)
+            winner = _best_audit_product(rows, ("cooling", "thermal", "overall"))
+            if not winner:
+                return _no_db_candidates_message("wool pivot after pain/sagging (tier-A pool)")
+            url = _registry_dossier_url(str(winner.get("slug") or ""))
+            return f"{_body_tier_c_pivot_wool(winner)}\n{url}"
+        rows = _fetch_candidates_tier_c(client)
+        winner = _best_audit_product(rows, ("support", "pressure", "overall"))
+        if not winner:
+            return _no_db_candidates_message("Saatva (tier C)")
+        url = _registry_dossier_url(str(winner.get("slug") or ""))
+        return f"{_body_tier_c(winner)}\n{url}"
+
+    return (
+        "✍️ **SleepChoiceGuide** — no single-brand tier matched this thread yet "
+        f"(see methodology: {scg_url(PATH_METHODOLOGY)}). "
+        "When a tier hits, the note links only the winning ``audit_products`` dossier."
+    )
 
 
 def format_copy_paste_audit_note(matches: list[str], haystack: str) -> str:
     """
-    One cohesive Copy & Paste block: scene priority + optional hardcore + link rail.
+    Copy-and-paste block for email alerts (same body as ``generate_reply_logic``).
 
-    Numeric claims come from ``audit_products.audit_scores`` when
-    ``SUPABASE_URL`` / ``SUPABASE_KEY`` are set, else from ``src/data/registry.json``
-    (same fields as ``mergeAuditProductRow`` in ``src/lib/registry.ts``).
+    Numbers and the single outbound link come from Supabase ``audit_products`` after
+    score comparison; the URL is always ``/registry/{slug}`` for the recommended row.
     """
-    h = haystack.lower()
-    ms = set(matches)
-    parts: list[str] = []
-    links: list[str] = []
-    ctx = _build_reply_score_context()
-
-    saatva_hit = "saatva" in h or "Saatva" in ms
-    thermal_hit = _scenario_b_thermal(h, ms)
-    value_hit = _scenario_c_value(h)
-
-    # Scene A — Saatva (objective audit; “未批下来” → independent framing)
-    if saatva_hit:
-        _append_snippet_block(
-            "Saatva",
-            parts,
-            links,
-            forensic_override=_forensic_saatva(ctx),
-        )
-
-    # Scene B — Sleep & Beyond / thermal (主场; with or without brand in post)
-    if thermal_hit:
-        if saatva_hit:
-            parts.append(_forensic_thermal_lane_short(ctx))
-            links.append(scg_url(PATH_BEST_PICKS))
-            links.append(scg_url(PATH_METHODOLOGY))
-        else:
-            _append_snippet_block(
-                "Sleep & Beyond",
-                parts,
-                links,
-                forensic_override=_forensic_sleep_beyond_thermal(ctx),
-            )
-
-    # Scene C — FluffCo (pillow / value / budget)
-    if value_hit:
-        _append_snippet_block(
-            "FluffCo",
-            parts,
-            links,
-            forensic_override=_forensic_fluffco(ctx),
-        )
-    elif "FluffCo" in ms:
-        _append_snippet_block(
-            "FluffCo",
-            parts,
-            links,
-            forensic_override=_forensic_fluffco(ctx),
-        )
-
-    # Keyword-only tails (avoid repeating Saatva block if Scene A already ran)
-    if "back pain" in ms and not saatva_hit:
-        _append_snippet_block(
-            "back_pain",
-            parts,
-            links,
-            forensic_override=_forensic_back_pain(ctx),
-        )
-    elif "back pain" in ms and saatva_hit and not thermal_hit:
-        parts.append(
-            "🌿 **Layering note:** for **back pain + breathability**, I’d still look at "
-            "**organic wool toppers** so support doesn’t come with a swampy climate."
-        )
-        links.append(scg_url(PATH_BEST_PICKS))
-
-    if "mattress review" in ms:
-        _append_snippet_block("mattress_review", parts, links)
-
-    # Brand keyword hits without Scene B already covering S&B / MyMerino story
-    if "Sleep & Beyond" in ms and not thermal_hit:
-        _append_snippet_block(
-            "Sleep & Beyond",
-            parts,
-            links,
-            forensic_override=_forensic_sleep_beyond_thermal(ctx),
-        )
-
-    if "MyMerino" in ms and not thermal_hit and "Sleep & Beyond" not in ms:
-        _append_snippet_block("MyMerino", parts, links)
-
-    if _hardcore_mode(haystack):
-        parts.append(_hardcore_paragraph())
-
-    if not parts:
-        u_m = scg_url(PATH_METHODOLOGY)
-        u_r = scg_url(PATH_REGISTRY)
-        return (
-            "✍️ **SleepChoiceGuide**\n\n"
-            "I don’t have a perfect canned fit for this exact wording yet—compose "
-            f"one tailored line, and anchor claims here:\n{u_m}\nLive rows: {u_r}"
-        )
-
-    unique_links = _dedupe_preserve_order(links)
-    link_rail = "\n".join(f"• {u}" for u in unique_links)
-    core = "\n\n".join(parts)
-    return (
-        f"✨ **Ready-to-paste reply (SleepChoiceGuide)**\n\n"
-        f"{core}\n\n"
-        f"📎 **Our links (open before you post):**\n{link_rail}"
-    )
+    return generate_reply_logic(matches, haystack)
 
 
 def audit_appendix(matches: list[str], haystack: str) -> str:

@@ -1,0 +1,1210 @@
+{
+  "fetched_at": "2026-05-13T02:58:13.023730+00:00",
+  "fetched_at_unix": 1778641093.02373,
+  "sources": {
+    "Saatva": "https://www.saatva.com/sitemap.xml",
+    "Sleep & Beyond": "https://sleepandbeyond.com/wp-sitemap.xml (或 sitemap_index)",
+    "FluffCo": "https://home.fluff.co/sitemap.xml",
+    "WinkBeds": "https://www.winkbeds.com/sitemap.xml",
+    "Tempur-Pedic": "https://www.tempurpedic.com/sitemap.xml",
+    "Avocado": "https://www.avocadogreenmattress.com/sitemap.xml"
+  },
+  "targets": {
+    "Avocado": [
+      {
+        "model": "Affordable Eco Organic Crib Mattress",
+        "url": "https://www.avocadogreenmattress.com/products/affordable-eco-organic-crib-mattress"
+      },
+      {
+        "model": "Affordable Eco Organic Kids Mattress",
+        "url": "https://www.avocadogreenmattress.com/products/affordable-eco-organic-kids-mattress"
+      },
+      {
+        "model": "Affordable Eco Organic Topper",
+        "url": "https://www.avocadogreenmattress.com/products/affordable-eco-organic-topper"
+      },
+      {
+        "model": "Affordable Organic Cotton Sheets",
+        "url": "https://www.avocadogreenmattress.com/products/affordable-organic-cotton-sheets"
+      },
+      {
+        "model": "Affordable Organic Crib Mattress",
+        "url": "https://www.avocadogreenmattress.com/products/affordable-organic-crib-mattress"
+      },
+      {
+        "model": "Alpaca Duvet Insert",
+        "url": "https://www.avocadogreenmattress.com/products/alpaca-duvet-insert"
+      },
+      {
+        "model": "Alpaca Mattress Pillow Topper",
+        "url": "https://www.avocadogreenmattress.com/products/alpaca-mattress-pillow-topper"
+      },
+      {
+        "model": "Alpaca Wool Blankets",
+        "url": "https://www.avocadogreenmattress.com/products/alpaca-wool-blankets"
+      },
+      {
+        "model": "Avocado Organic Pillow With Natural Latex And Kapok Fill",
+        "url": "https://www.avocadogreenmattress.com/products/avocado-organic-pillow-with-natural-latex-and-kapok-fill"
+      },
+      {
+        "model": "Avocado Vegan Mattress",
+        "url": "https://www.avocadogreenmattress.com/products/avocado-vegan-mattress"
+      },
+      {
+        "model": "Avocado Wool Mattress",
+        "url": "https://www.avocadogreenmattress.com/products/avocado-wool-mattress"
+      },
+      {
+        "model": "Babyletto Crib Sheet In Gots Certified Organic Muslin Cotton",
+        "url": "https://www.avocadogreenmattress.com/products/babyletto-crib-sheet-in-gots-certified-organic-muslin-cotton"
+      },
+      {
+        "model": "Babyletto Gelato 4 In 1 Convertible Crib With Toddler Bed Conversion Kit",
+        "url": "https://www.avocadogreenmattress.com/products/babyletto-gelato-4-in-1-convertible-crib-with-toddler-bed-conversion-kit"
+      },
+      {
+        "model": "Babyletto Gelato 4 In 1 Convertible Mini Crib",
+        "url": "https://www.avocadogreenmattress.com/products/babyletto-gelato-4-in-1-convertible-mini-crib"
+      },
+      {
+        "model": "Babyletto Gelato Mini Toddler Bed Conversion Kit",
+        "url": "https://www.avocadogreenmattress.com/products/babyletto-gelato-mini-toddler-bed-conversion-kit"
+      },
+      {
+        "model": "Babyletto Hudson 3 In 1 Convertible Crib With Toddler Bed Conversion Kit",
+        "url": "https://www.avocadogreenmattress.com/products/babyletto-hudson-3-in-1-convertible-crib-with-toddler-bed-conversion-kit"
+      },
+      {
+        "model": "Babyletto Mini Crib Sheet In Gots Certified Organic Muslin Cotton",
+        "url": "https://www.avocadogreenmattress.com/products/babyletto-mini-crib-sheet-in-gots-certified-organic-muslin-cotton"
+      },
+      {
+        "model": "Babyletto Twin Full Size Bed Conversion Kit M5789",
+        "url": "https://www.avocadogreenmattress.com/products/babyletto-twin-full-size-bed-conversion-kit-m5789"
+      },
+      {
+        "model": "Best Luxury Down Duvet Insert",
+        "url": "https://www.avocadogreenmattress.com/products/best-luxury-down-duvet-insert"
+      },
+      {
+        "model": "Best Organic Affordable Mattress Eco Organic",
+        "url": "https://www.avocadogreenmattress.com/products/best-organic-affordable-mattress-eco-organic"
+      },
+      {
+        "model": "Bunkie Board",
+        "url": "https://www.avocadogreenmattress.com/products/bunkie-board"
+      },
+      {
+        "model": "City Bed Frame",
+        "url": "https://www.avocadogreenmattress.com/products/city-bed-frame"
+      },
+      {
+        "model": "Coconut Coir Mattress Pad",
+        "url": "https://www.avocadogreenmattress.com/products/coconut-coir-mattress-pad"
+      },
+      {
+        "model": "Coyuchi Avocado Mattress Cambria Embroidered Organic Linen Duvet Cover Natural Chambray",
+        "url": "https://www.avocadogreenmattress.com/products/coyuchi-avocado-mattress-cambria-embroidered-organic-linen-duvet-cover-natural-chambray"
+      },
+      {
+        "model": "Coyuchi Avocado Mattress Cambria Embroidered Organic Linen Sham Natural Chambray",
+        "url": "https://www.avocadogreenmattress.com/products/coyuchi-avocado-mattress-cambria-embroidered-organic-linen-sham-natural-chambray"
+      },
+      {
+        "model": "Coyuchi Avocado Mattress Camellia Organic Print Duvet Cover Amber",
+        "url": "https://www.avocadogreenmattress.com/products/coyuchi-avocado-mattress-camellia-organic-print-duvet-cover-amber"
+      },
+      {
+        "model": "Coyuchi Avocado Mattress Camellia Organic Print Sham Amber",
+        "url": "https://www.avocadogreenmattress.com/products/coyuchi-avocado-mattress-camellia-organic-print-sham-amber"
+      },
+      {
+        "model": "Coyuchi Avocado Mattress Cascade Organic Matelasse Blanket Chestnut",
+        "url": "https://www.avocadogreenmattress.com/products/coyuchi-avocado-mattress-cascade-organic-matelasse-blanket-chestnut"
+      },
+      {
+        "model": "Coyuchi Avocado Mattress Cascade Organic Matelasse Sham Chestnut",
+        "url": "https://www.avocadogreenmattress.com/products/coyuchi-avocado-mattress-cascade-organic-matelasse-sham-chestnut"
+      },
+      {
+        "model": "Coyuchi Avocado Mattress Cazadero Stripe Organic Duvet Cover Fawn",
+        "url": "https://www.avocadogreenmattress.com/products/coyuchi-avocado-mattress-cazadero-stripe-organic-duvet-cover-fawn"
+      },
+      {
+        "model": "Coyuchi Avocado Mattress Cazadero Stripe Organic Sham Fawn",
+        "url": "https://www.avocadogreenmattress.com/products/coyuchi-avocado-mattress-cazadero-stripe-organic-sham-fawn"
+      },
+      {
+        "model": "Coyuchi Avocado Mattress Organic Crinkled Percale",
+        "url": "https://www.avocadogreenmattress.com/products/coyuchi-avocado-mattress-organic-crinkled-percale"
+      },
+      {
+        "model": "Coyuchi Avocado Mattress Organic Crinkled Percale Duvet Cover Ginger",
+        "url": "https://www.avocadogreenmattress.com/products/coyuchi-avocado-mattress-organic-crinkled-percale-duvet-cover-ginger"
+      },
+      {
+        "model": "Coyuchi Avocado Mattress Organic Crinkled Percale Duvet Set Alpine White",
+        "url": "https://www.avocadogreenmattress.com/products/coyuchi-avocado-mattress-organic-crinkled-percale-duvet-set-alpine-white"
+      },
+      {
+        "model": "Coyuchi Avocado Mattress Organic Crinkled Percale Duvet Set Hazel Chambray",
+        "url": "https://www.avocadogreenmattress.com/products/coyuchi-avocado-mattress-organic-crinkled-percale-duvet-set-hazel-chambray"
+      },
+      {
+        "model": "Coyuchi Avocado Mattress Organic Crinkled Percale Duvet Set Undyed",
+        "url": "https://www.avocadogreenmattress.com/products/coyuchi-avocado-mattress-organic-crinkled-percale-duvet-set-undyed"
+      },
+      {
+        "model": "Coyuchi Avocado Mattress Organic Crinkled Percale Sham Ginger",
+        "url": "https://www.avocadogreenmattress.com/products/coyuchi-avocado-mattress-organic-crinkled-percale-sham-ginger"
+      },
+      {
+        "model": "Coyuchi Avocado Mattress Organic Crinkled Percale Sham Hazel Chambray",
+        "url": "https://www.avocadogreenmattress.com/products/coyuchi-avocado-mattress-organic-crinkled-percale-sham-hazel-chambray"
+      },
+      {
+        "model": "Coyuchi Avocado Mattress Organic Crinkled Percale Sheet Set Hazel Chambray",
+        "url": "https://www.avocadogreenmattress.com/products/coyuchi-avocado-mattress-organic-crinkled-percale-sheet-set-hazel-chambray"
+      },
+      {
+        "model": "Coyuchi Avocado Mattress Organic Crinkled Percale Sheet Set Steel Blue",
+        "url": "https://www.avocadogreenmattress.com/products/coyuchi-avocado-mattress-organic-crinkled-percale-sheet-set-steel-blue"
+      },
+      {
+        "model": "Coyuchi Avocado Mattress Organic Crinkled Percale Sheet Set Surf Stripe",
+        "url": "https://www.avocadogreenmattress.com/products/coyuchi-avocado-mattress-organic-crinkled-percale-sheet-set-surf-stripe"
+      },
+      {
+        "model": "Coyuchi Avocado Mattress Organic Print Percale Pillowcases Praline Meadow",
+        "url": "https://www.avocadogreenmattress.com/products/coyuchi-avocado-mattress-organic-print-percale-pillowcases-praline-meadow"
+      },
+      {
+        "model": "Coyuchi Avocado Mattress Organic Print Percale Sheet Set Praline Meadow",
+        "url": "https://www.avocadogreenmattress.com/products/coyuchi-avocado-mattress-organic-print-percale-sheet-set-praline-meadow"
+      },
+      {
+        "model": "Coyuchi Avocado Mattress Organic Print Percale Sheet Set Shell Robles",
+        "url": "https://www.avocadogreenmattress.com/products/coyuchi-avocado-mattress-organic-print-percale-sheet-set-shell-robles"
+      },
+      {
+        "model": "Coyuchi Avocado Mattress Pebbled Handstitched Organic Quilt Slate",
+        "url": "https://www.avocadogreenmattress.com/products/coyuchi-avocado-mattress-pebbled-handstitched-organic-quilt-slate"
+      },
+      {
+        "model": "Coyuchi Avocado Mattress Pebbled Handstitched Organic Quilt Undyed",
+        "url": "https://www.avocadogreenmattress.com/products/coyuchi-avocado-mattress-pebbled-handstitched-organic-quilt-undyed"
+      },
+      {
+        "model": "Coyuchi Avocado Mattress Pescadero Matelasse Organic Blanket Praline",
+        "url": "https://www.avocadogreenmattress.com/products/coyuchi-avocado-mattress-pescadero-matelasse-organic-blanket-praline"
+      },
+      {
+        "model": "Coyuchi Avocado Mattress Pescadero Matelasse Organic Blanket Tidal",
+        "url": "https://www.avocadogreenmattress.com/products/coyuchi-avocado-mattress-pescadero-matelasse-organic-blanket-tidal"
+      },
+      {
+        "model": "Coyuchi Avocado Mattress Pescadero Matelasse Organic Sham Praline",
+        "url": "https://www.avocadogreenmattress.com/products/coyuchi-avocado-mattress-pescadero-matelasse-organic-sham-praline"
+      },
+      {
+        "model": "Coyuchi Avocado Mattress Pescadero Matelasse Organic Sham Tidal",
+        "url": "https://www.avocadogreenmattress.com/products/coyuchi-avocado-mattress-pescadero-matelasse-organic-sham-tidal"
+      },
+      {
+        "model": "Coyuchi Avocado Mattress Robles Handstitched Organic Quilt Fawn W Juniper",
+        "url": "https://www.avocadogreenmattress.com/products/coyuchi-avocado-mattress-robles-handstitched-organic-quilt-fawn-w-juniper"
+      },
+      {
+        "model": "Coyuchi Avocado Mattress Robles Handstitched Organic Sham Fawn W Juniper",
+        "url": "https://www.avocadogreenmattress.com/products/coyuchi-avocado-mattress-robles-handstitched-organic-sham-fawn-w-juniper"
+      },
+      {
+        "model": "Coyuchi Avocado Mattress Topanga Organic Matelasse Throw Sunset Stripe",
+        "url": "https://www.avocadogreenmattress.com/products/coyuchi-avocado-mattress-topanga-organic-matelasse-throw-sunset-stripe"
+      },
+      {
+        "model": "Coyuchi Avocado Mattress Topanga Organic Matelasse Throw Undyed",
+        "url": "https://www.avocadogreenmattress.com/products/coyuchi-avocado-mattress-topanga-organic-matelasse-throw-undyed"
+      },
+      {
+        "model": "Coyuchi Birch Organic Duvet Cover Undyed",
+        "url": "https://www.avocadogreenmattress.com/products/coyuchi-birch-organic-duvet-cover-undyed"
+      },
+      {
+        "model": "Coyuchi Cambria Embroidered Organic Linen Duvet Cover Pacific Blue Chambray Multi",
+        "url": "https://www.avocadogreenmattress.com/products/coyuchi-cambria-embroidered-organic-linen-duvet-cover-pacific-blue-chambray-multi"
+      },
+      {
+        "model": "Coyuchi Organic Crinkled Percale Crib Sheet Ginger",
+        "url": "https://www.avocadogreenmattress.com/products/coyuchi-organic-crinkled-percale-crib-sheet-ginger"
+      },
+      {
+        "model": "Coyuchi Organic Crinkled Percale Crib Sheet Praline Meadow",
+        "url": "https://www.avocadogreenmattress.com/products/coyuchi-organic-crinkled-percale-crib-sheet-praline-meadow"
+      },
+      {
+        "model": "Coyuchi Organic Crinkled Percale Crib Sheet Steel Blue",
+        "url": "https://www.avocadogreenmattress.com/products/coyuchi-organic-crinkled-percale-crib-sheet-steel-blue"
+      },
+      {
+        "model": "Coyuchi Organic Crinkled Percale Crib Sheet Tidal Meadow",
+        "url": "https://www.avocadogreenmattress.com/products/coyuchi-organic-crinkled-percale-crib-sheet-tidal-meadow"
+      },
+      {
+        "model": "Coyuchi Organic Crinkled Percale Sheet Set Indigo Chambray",
+        "url": "https://www.avocadogreenmattress.com/products/coyuchi-organic-crinkled-percale-sheet-set-indigo-chambray"
+      },
+      {
+        "model": "Coyuchi Organic Crinkled Percale Sheet Set Indigo Stripe",
+        "url": "https://www.avocadogreenmattress.com/products/coyuchi-organic-crinkled-percale-sheet-set-indigo-stripe"
+      },
+      {
+        "model": "Coyuchi Organic Print Percale Duvet Cover Plum Blossom Primrose",
+        "url": "https://www.avocadogreenmattress.com/products/coyuchi-organic-print-percale-duvet-cover-plum-blossom-primrose"
+      },
+      {
+        "model": "Coyuchi Organic Print Percale Pillowcases Plum Blossom Primrose",
+        "url": "https://www.avocadogreenmattress.com/products/coyuchi-organic-print-percale-pillowcases-plum-blossom-primrose"
+      },
+      {
+        "model": "Coyuchi Organic Print Percale Pillowcases Seafoam Chrysanthemum",
+        "url": "https://www.avocadogreenmattress.com/products/coyuchi-organic-print-percale-pillowcases-seafoam-chrysanthemum"
+      },
+      {
+        "model": "Coyuchi Organic Print Percale Sheet Set Plum Blossom Primrose",
+        "url": "https://www.avocadogreenmattress.com/products/coyuchi-organic-print-percale-sheet-set-plum-blossom-primrose"
+      },
+      {
+        "model": "Coyuchi Organic Print Percale Sheet Set Seafoam Chrysanthemum",
+        "url": "https://www.avocadogreenmattress.com/products/coyuchi-organic-print-percale-sheet-set-seafoam-chrysanthemum"
+      },
+      {
+        "model": "Coyuchi Pebbled Handstitched Organic Toddler Quilt Pale Gray With Cools",
+        "url": "https://www.avocadogreenmattress.com/products/coyuchi-pebbled-handstitched-organic-toddler-quilt-pale-gray-with-cools"
+      },
+      {
+        "model": "Coyuchi Unisex Organic Waffle Robe Alpine White",
+        "url": "https://www.avocadogreenmattress.com/products/coyuchi-unisex-organic-waffle-robe-alpine-white"
+      },
+      {
+        "model": "Coyuchi Unisex Organic Waffle Robe Fog",
+        "url": "https://www.avocadogreenmattress.com/products/coyuchi-unisex-organic-waffle-robe-fog"
+      },
+      {
+        "model": "Coyuchi Unisex Organic Waffle Robe Lagoon",
+        "url": "https://www.avocadogreenmattress.com/products/coyuchi-unisex-organic-waffle-robe-lagoon"
+      },
+      {
+        "model": "Coyuchi Unisex Organic Waffle Robe Shadow",
+        "url": "https://www.avocadogreenmattress.com/products/coyuchi-unisex-organic-waffle-robe-shadow"
+      },
+      {
+        "model": "Crib Waterproof Protector",
+        "url": "https://www.avocadogreenmattress.com/products/crib-waterproof-protector"
+      },
+      {
+        "model": "Deep Pocket Organic Cotton Sheets",
+        "url": "https://www.avocadogreenmattress.com/products/deep-pocket-organic-cotton-sheets"
+      },
+      {
+        "model": "Dog Bed Frame",
+        "url": "https://www.avocadogreenmattress.com/products/dog-bed-frame"
+      },
+      {
+        "model": "Down Mattress Topper",
+        "url": "https://www.avocadogreenmattress.com/products/down-mattress-topper"
+      },
+      {
+        "model": "Down Pillow",
+        "url": "https://www.avocadogreenmattress.com/products/down-pillow"
+      },
+      {
+        "model": "Eco Adjustable Base",
+        "url": "https://www.avocadogreenmattress.com/products/eco-adjustable-base"
+      },
+      {
+        "model": "Eco Bed Frame Adjustable Legs",
+        "url": "https://www.avocadogreenmattress.com/products/eco-bed-frame-adjustable-legs"
+      },
+      {
+        "model": "Eco Organic Mini Crib Mattress",
+        "url": "https://www.avocadogreenmattress.com/products/eco-organic-mini-crib-mattress"
+      },
+      {
+        "model": "Eco Plus Adjustable Bed Frame Base",
+        "url": "https://www.avocadogreenmattress.com/products/eco-plus-adjustable-bed-frame-base"
+      },
+      {
+        "model": "Ester Wool Throw Pillow Cover",
+        "url": "https://www.avocadogreenmattress.com/products/ester-wool-throw-pillow-cover"
+      },
+      {
+        "model": "Extra Firm Mattress",
+        "url": "https://www.avocadogreenmattress.com/products/extra-firm-mattress"
+      },
+      {
+        "model": "Grand Luxe Foundation",
+        "url": "https://www.avocadogreenmattress.com/products/grand-luxe-foundation"
+      },
+      {
+        "model": "Grand Luxe Mattress",
+        "url": "https://www.avocadogreenmattress.com/products/grand-luxe-mattress"
+      },
+      {
+        "model": "Grand Luxe Pillow",
+        "url": "https://www.avocadogreenmattress.com/products/grand-luxe-pillow"
+      },
+      {
+        "model": "Green Mattress Foundation With Legs",
+        "url": "https://www.avocadogreenmattress.com/products/green-mattress-foundation-with-legs"
+      },
+      {
+        "model": "Green Natural Organic Mattress",
+        "url": "https://www.avocadogreenmattress.com/products/green-natural-organic-mattress"
+      },
+      {
+        "model": "Green Pillow",
+        "url": "https://www.avocadogreenmattress.com/products/green-pillow"
+      },
+      {
+        "model": "Green Ultra Plush Mattress",
+        "url": "https://www.avocadogreenmattress.com/products/green-ultra-plush-mattress"
+      },
+      {
+        "model": "Hallie Wool Rug",
+        "url": "https://www.avocadogreenmattress.com/products/hallie-wool-rug"
+      },
+      {
+        "model": "Hass Modal Long Robe",
+        "url": "https://www.avocadogreenmattress.com/products/hass-modal-long-robe"
+      },
+      {
+        "model": "Hybrid Organic Mattress",
+        "url": "https://www.avocadogreenmattress.com/products/hybrid-organic-mattress"
+      },
+      {
+        "model": "Kids Trundle Bed Frame",
+        "url": "https://www.avocadogreenmattress.com/products/kids-trundle-bed-frame"
+      },
+      {
+        "model": "Linear Throw Pillow Cover",
+        "url": "https://www.avocadogreenmattress.com/products/linear-throw-pillow-cover"
+      },
+      {
+        "model": "Linen Duvet Cover",
+        "url": "https://www.avocadogreenmattress.com/products/linen-duvet-cover"
+      },
+      {
+        "model": "Lounge Chair Ottoman",
+        "url": "https://www.avocadogreenmattress.com/products/lounge-chair-ottoman"
+      },
+      {
+        "model": "Lunya Avocado Mattress Organic Pima Tee Short Set Storm Grey Heather",
+        "url": "https://www.avocadogreenmattress.com/products/lunya-avocado-mattress-organic-pima-tee-short-set-storm-grey-heather"
+      },
+      {
+        "model": "Lunya Avocado Mattress Organic Pima Wide Leg Pant Immersed Black",
+        "url": "https://www.avocadogreenmattress.com/products/lunya-avocado-mattress-organic-pima-wide-leg-pant-immersed-black"
+      },
+      {
+        "model": "Lunya Avocado Mattress Organic Pima Wide Leg Pant Storm Grey Heather",
+        "url": "https://www.avocadogreenmattress.com/products/lunya-avocado-mattress-organic-pima-wide-leg-pant-storm-grey-heather"
+      },
+      {
+        "model": "Lunya Avocado Mattress Silksweats Midweight Reversible Relaxed Boxy Pullover Napping Dove Heather",
+        "url": "https://www.avocadogreenmattress.com/products/lunya-avocado-mattress-silksweats-midweight-reversible-relaxed-boxy-pullover-napping-dove-heather"
+      },
+      {
+        "model": "Lunya Avocado Mattress Silksweats Midweight Reversible Seamed Jogger Napping Dove Heather",
+        "url": "https://www.avocadogreenmattress.com/products/lunya-avocado-mattress-silksweats-midweight-reversible-seamed-jogger-napping-dove-heather"
+      },
+      {
+        "model": "Lunya Avocado Mattress Soft Modal Rib Foldover Pant Immersed Black",
+        "url": "https://www.avocadogreenmattress.com/products/lunya-avocado-mattress-soft-modal-rib-foldover-pant-immersed-black"
+      },
+      {
+        "model": "Lunya Avocado Mattress Soft Modal Rib Tee Short Set Immersed Black",
+        "url": "https://www.avocadogreenmattress.com/products/lunya-avocado-mattress-soft-modal-rib-tee-short-set-immersed-black"
+      },
+      {
+        "model": "Lunya Avocado Mattress The Silk Slipper Immersed Black",
+        "url": "https://www.avocadogreenmattress.com/products/lunya-avocado-mattress-the-silk-slipper-immersed-black"
+      },
+      {
+        "model": "Lunya Avocado Mattress Washable Silk Long Sleeve Pant Set Deep Blue",
+        "url": "https://www.avocadogreenmattress.com/products/lunya-avocado-mattress-washable-silk-long-sleeve-pant-set-deep-blue"
+      },
+      {
+        "model": "Lunya Avocado Mattress Washable Silk Long Sleeve Pant Set Delicate Pink",
+        "url": "https://www.avocadogreenmattress.com/products/lunya-avocado-mattress-washable-silk-long-sleeve-pant-set-delicate-pink"
+      },
+      {
+        "model": "Lunya Avocado Mattress Washable Silk Sleep Mask Deep Blue",
+        "url": "https://www.avocadogreenmattress.com/products/lunya-avocado-mattress-washable-silk-sleep-mask-deep-blue"
+      },
+      {
+        "model": "Lunya Avocado Mattress Washable Silk Sleep Mask Delicate Pink",
+        "url": "https://www.avocadogreenmattress.com/products/lunya-avocado-mattress-washable-silk-sleep-mask-delicate-pink"
+      },
+      {
+        "model": "Lunya Avocado Mattress Washable Silk Sleep Mask Immersed Black",
+        "url": "https://www.avocadogreenmattress.com/products/lunya-avocado-mattress-washable-silk-sleep-mask-immersed-black"
+      },
+      {
+        "model": "Lunya Avocado Mattress Washable Silk Tee Pant Set Deep Blue",
+        "url": "https://www.avocadogreenmattress.com/products/lunya-avocado-mattress-washable-silk-tee-pant-set-deep-blue"
+      },
+      {
+        "model": "Lunya Avocado Mattress Washable Silk Tee Pant Set Delicate Pink",
+        "url": "https://www.avocadogreenmattress.com/products/lunya-avocado-mattress-washable-silk-tee-pant-set-delicate-pink"
+      },
+      {
+        "model": "Lunya Avocado Mattress Washable Silk Tee Short Set Deep Blue",
+        "url": "https://www.avocadogreenmattress.com/products/lunya-avocado-mattress-washable-silk-tee-short-set-deep-blue"
+      },
+      {
+        "model": "Lunya Avocado Mattress Washable Silk Tee Short Set Delicate Pink",
+        "url": "https://www.avocadogreenmattress.com/products/lunya-avocado-mattress-washable-silk-tee-short-set-delicate-pink"
+      },
+      {
+        "model": "Lunya Avocado Mattress Washable Silk Tulip Back Set Deep Blue",
+        "url": "https://www.avocadogreenmattress.com/products/lunya-avocado-mattress-washable-silk-tulip-back-set-deep-blue"
+      },
+      {
+        "model": "Lunya Avocado Mattress Washable Silk Tulip Back Set Delicate Pink",
+        "url": "https://www.avocadogreenmattress.com/products/lunya-avocado-mattress-washable-silk-tulip-back-set-delicate-pink"
+      },
+      {
+        "model": "Lunya Avocado Mattress Weighted Silk Sleep Mask Delicate Pink",
+        "url": "https://www.avocadogreenmattress.com/products/lunya-avocado-mattress-weighted-silk-sleep-mask-delicate-pink"
+      },
+      {
+        "model": "Lunya Avocado Mattress Weighted Silk Sleep Mask Meditative Grey",
+        "url": "https://www.avocadogreenmattress.com/products/lunya-avocado-mattress-weighted-silk-sleep-mask-meditative-grey"
+      },
+      {
+        "model": "Lunya The Silk Slipper Delicate Pink",
+        "url": "https://www.avocadogreenmattress.com/products/lunya-the-silk-slipper-delicate-pink"
+      },
+      {
+        "model": "Luxury Organic Throw Blankets",
+        "url": "https://www.avocadogreenmattress.com/products/luxury-organic-throw-blankets"
+      },
+      {
+        "model": "Luxury Plush Foundation",
+        "url": "https://www.avocadogreenmattress.com/products/luxury-plush-foundation"
+      },
+      {
+        "model": "Malibu Bed Frame Wood Legs",
+        "url": "https://www.avocadogreenmattress.com/products/malibu-bed-frame-wood-legs"
+      },
+      {
+        "model": "Malibu Platform Wood Bed Frame 1",
+        "url": "https://www.avocadogreenmattress.com/products/malibu-platform-wood-bed-frame-1"
+      },
+      {
+        "model": "Mattress Pad Protector",
+        "url": "https://www.avocadogreenmattress.com/products/mattress-pad-protector"
+      },
+      {
+        "model": "Metal Bed Frame",
+        "url": "https://www.avocadogreenmattress.com/products/metal-bed-frame"
+      },
+      {
+        "model": "Mid Century Modern Bed Frame",
+        "url": "https://www.avocadogreenmattress.com/products/mid-century-modern-bed-frame"
+      },
+      {
+        "model": "Mini Pillowcase",
+        "url": "https://www.avocadogreenmattress.com/products/mini-pillowcase"
+      },
+      {
+        "model": "Mini Silk Pillowcase",
+        "url": "https://www.avocadogreenmattress.com/products/mini-silk-pillowcase"
+      },
+      {
+        "model": "Molded Latex Mini Pillow",
+        "url": "https://www.avocadogreenmattress.com/products/molded-latex-mini-pillow"
+      },
+      {
+        "model": "Molded Organic Latex Pillow",
+        "url": "https://www.avocadogreenmattress.com/products/molded-organic-latex-pillow"
+      },
+      {
+        "model": "Montecito Bed Frame",
+        "url": "https://www.avocadogreenmattress.com/products/montecito-bed-frame"
+      },
+      {
+        "model": "Natural Linen Quilt",
+        "url": "https://www.avocadogreenmattress.com/products/natural-linen-quilt"
+      },
+      {
+        "model": "Natural Linen Sheets",
+        "url": "https://www.avocadogreenmattress.com/products/natural-linen-sheets"
+      },
+      {
+        "model": "Natural Organic Luxury Plush Mattress",
+        "url": "https://www.avocadogreenmattress.com/products/natural-organic-luxury-plush-mattress"
+      },
+      {
+        "model": "Natural Wood Bed Frame",
+        "url": "https://www.avocadogreenmattress.com/products/natural-wood-bed-frame"
+      },
+      {
+        "model": "Organic Cotton Bath Towels",
+        "url": "https://www.avocadogreenmattress.com/products/organic-cotton-bath-towels"
+      },
+      {
+        "model": "Organic Cotton Crib Sheet",
+        "url": "https://www.avocadogreenmattress.com/products/organic-cotton-crib-sheet"
+      },
+      {
+        "model": "Organic Cotton Duvet Cover",
+        "url": "https://www.avocadogreenmattress.com/products/organic-cotton-duvet-cover"
+      },
+      {
+        "model": "Organic Cotton Gauze Blanket",
+        "url": "https://www.avocadogreenmattress.com/products/organic-cotton-gauze-blanket"
+      },
+      {
+        "model": "Organic Cotton Pillow Protector",
+        "url": "https://www.avocadogreenmattress.com/products/organic-cotton-pillow-protector"
+      },
+      {
+        "model": "Organic Cotton Pillowcase Set",
+        "url": "https://www.avocadogreenmattress.com/products/organic-cotton-pillowcase-set"
+      },
+      {
+        "model": "Organic Cotton Robe",
+        "url": "https://www.avocadogreenmattress.com/products/organic-cotton-robe"
+      },
+      {
+        "model": "Organic Crib Mattress",
+        "url": "https://www.avocadogreenmattress.com/products/organic-crib-mattress"
+      },
+      {
+        "model": "Organic Dog Pillow",
+        "url": "https://www.avocadogreenmattress.com/products/organic-dog-pillow"
+      },
+      {
+        "model": "Organic French Terry Bathrobe",
+        "url": "https://www.avocadogreenmattress.com/products/organic-french-terry-bathrobe"
+      },
+      {
+        "model": "Organic Hemp Sheets",
+        "url": "https://www.avocadogreenmattress.com/products/organic-hemp-sheets"
+      },
+      {
+        "model": "Organic Latex Foam Mattress",
+        "url": "https://www.avocadogreenmattress.com/products/organic-latex-foam-mattress"
+      },
+      {
+        "model": "Organic Latex Travel Neck Pillow",
+        "url": "https://www.avocadogreenmattress.com/products/organic-latex-travel-neck-pillow"
+      },
+      {
+        "model": "Organic Latex Wedge Pillow",
+        "url": "https://www.avocadogreenmattress.com/products/organic-latex-wedge-pillow"
+      },
+      {
+        "model": "Organic Mattress Foundation",
+        "url": "https://www.avocadogreenmattress.com/products/organic-mattress-foundation"
+      },
+      {
+        "model": "Organic Sateen Cotton Sheet Set",
+        "url": "https://www.avocadogreenmattress.com/products/organic-sateen-cotton-sheet-set"
+      },
+      {
+        "model": "Organic Throw Pillow Insert",
+        "url": "https://www.avocadogreenmattress.com/products/organic-throw-pillow-insert"
+      },
+      {
+        "model": "Organic Toddler Pillow",
+        "url": "https://www.avocadogreenmattress.com/products/organic-toddler-pillow"
+      },
+      {
+        "model": "Organic Toddler Waterproof Pillow Protector",
+        "url": "https://www.avocadogreenmattress.com/products/organic-toddler-waterproof-pillow-protector"
+      },
+      {
+        "model": "Organic Travel Pillow",
+        "url": "https://www.avocadogreenmattress.com/products/organic-travel-pillow"
+      },
+      {
+        "model": "Organic Waterproof Latex Wedge Protector",
+        "url": "https://www.avocadogreenmattress.com/products/organic-waterproof-latex-wedge-protector"
+      },
+      {
+        "model": "Organic Waterproof Mattress Protector",
+        "url": "https://www.avocadogreenmattress.com/products/organic-waterproof-mattress-protector"
+      },
+      {
+        "model": "Organic Wedge Pillow Pillowcase",
+        "url": "https://www.avocadogreenmattress.com/products/organic-wedge-pillow-pillowcase"
+      },
+      {
+        "model": "Organic Wedge Pillowcase",
+        "url": "https://www.avocadogreenmattress.com/products/organic-wedge-pillowcase"
+      },
+      {
+        "model": "Organic Yoga Meditation Pillow",
+        "url": "https://www.avocadogreenmattress.com/products/organic-yoga-meditation-pillow"
+      },
+      {
+        "model": "Percale Organic Cotton Duvet Cover",
+        "url": "https://www.avocadogreenmattress.com/products/percale-organic-cotton-duvet-cover"
+      },
+      {
+        "model": "Percale Organic Cotton Pillowcases",
+        "url": "https://www.avocadogreenmattress.com/products/percale-organic-cotton-pillowcases"
+      },
+      {
+        "model": "Percale Organic Cotton Sheet Set",
+        "url": "https://www.avocadogreenmattress.com/products/percale-organic-cotton-sheet-set"
+      },
+      {
+        "model": "Percale Organic Cotton Sheets",
+        "url": "https://www.avocadogreenmattress.com/products/percale-organic-cotton-sheets"
+      },
+      {
+        "model": "Percale Organic Duvet Cover",
+        "url": "https://www.avocadogreenmattress.com/products/percale-organic-duvet-cover"
+      },
+      {
+        "model": "Pillow Protector Pillow Cover",
+        "url": "https://www.avocadogreenmattress.com/products/pillow-protector-pillow-cover"
+      },
+      {
+        "model": "Pillow Refill",
+        "url": "https://www.avocadogreenmattress.com/products/pillow-refill"
+      },
+      {
+        "model": "Pillow Top Hybrid Organic Mattress",
+        "url": "https://www.avocadogreenmattress.com/products/pillow-top-hybrid-organic-mattress"
+      },
+      {
+        "model": "Pure Talalay Luxury Pillow",
+        "url": "https://www.avocadogreenmattress.com/products/pure-talalay-luxury-pillow"
+      },
+      {
+        "model": "Replacement Mattress Topper Covers",
+        "url": "https://www.avocadogreenmattress.com/products/replacement-mattress-topper-covers"
+      },
+      {
+        "model": "Replacement Pillow Covers",
+        "url": "https://www.avocadogreenmattress.com/products/replacement-pillow-covers"
+      },
+      {
+        "model": "Sateen Organic Cotton Duvet Cover",
+        "url": "https://www.avocadogreenmattress.com/products/sateen-organic-cotton-duvet-cover"
+      },
+      {
+        "model": "Sateen Organic Cotton Pillowcases",
+        "url": "https://www.avocadogreenmattress.com/products/sateen-organic-cotton-pillowcases"
+      },
+      {
+        "model": "Silk Duvet Insert",
+        "url": "https://www.avocadogreenmattress.com/products/silk-duvet-insert"
+      },
+      {
+        "model": "Silk Pillowcase",
+        "url": "https://www.avocadogreenmattress.com/products/silk-pillowcase"
+      },
+      {
+        "model": "Square Meditation Pillow",
+        "url": "https://www.avocadogreenmattress.com/products/square-meditation-pillow"
+      },
+      {
+        "model": "Suvin Organic Cotton Sheets",
+        "url": "https://www.avocadogreenmattress.com/products/suvin-organic-cotton-sheets"
+      },
+      {
+        "model": "Throw Pillow Cover",
+        "url": "https://www.avocadogreenmattress.com/products/throw-pillow-cover"
+      },
+      {
+        "model": "Tierra Throw Pillow Cover",
+        "url": "https://www.avocadogreenmattress.com/products/tierra-throw-pillow-cover"
+      },
+      {
+        "model": "Truss Lounge Chair",
+        "url": "https://www.avocadogreenmattress.com/products/truss-lounge-chair"
+      },
+      {
+        "model": "Walrus Oil Furniture Maker Master Kit",
+        "url": "https://www.avocadogreenmattress.com/products/walrus-oil-furniture-maker-master-kit"
+      },
+      {
+        "model": "Waterproof Pillow Protector",
+        "url": "https://www.avocadogreenmattress.com/products/waterproof-pillow-protector"
+      },
+      {
+        "model": "Weighted Blanket",
+        "url": "https://www.avocadogreenmattress.com/products/weighted-blanket"
+      },
+      {
+        "model": "Wooden Towel Ladder",
+        "url": "https://www.avocadogreenmattress.com/products/wooden-towel-ladder"
+      },
+      {
+        "model": "Wooden Towel Rack",
+        "url": "https://www.avocadogreenmattress.com/products/wooden-towel-rack"
+      },
+      {
+        "model": "Yoga Organic Pranayama Pillow",
+        "url": "https://www.avocadogreenmattress.com/products/yoga-organic-pranayama-pillow"
+      }
+    ],
+    "Saatva": [
+      {
+        "model": "Bunk Trundle Youth",
+        "url": "https://www.saatva.com/mattresses/bunk-trundle-youth/"
+      },
+      {
+        "model": "Classic",
+        "url": "https://www.saatva.com/mattresses/saatva-classic/"
+      },
+      {
+        "model": "Contour5",
+        "url": "https://www.saatva.com/mattresses/saatva-contour5/"
+      },
+      {
+        "model": "Crib",
+        "url": "https://www.saatva.com/mattresses/crib-mattress/"
+      },
+      {
+        "model": "Dog Bed",
+        "url": "https://www.saatva.com/mattresses/dog-bed/"
+      },
+      {
+        "model": "Hd",
+        "url": "https://www.saatva.com/mattresses/saatva-hd/"
+      },
+      {
+        "model": "Latex Hybrid",
+        "url": "https://www.saatva.com/mattresses/saatva-latex-hybrid/"
+      },
+      {
+        "model": "Loom & Leaf",
+        "url": "https://www.saatva.com/mattresses/loom-and-leaf/"
+      },
+      {
+        "model": "Memory Foam Hybrid",
+        "url": "https://www.saatva.com/mattresses/memory-foam-hybrid/"
+      },
+      {
+        "model": "Murphy Bed Mattress",
+        "url": "https://www.saatva.com/mattresses/murphy-bed-mattress/"
+      },
+      {
+        "model": "Rx",
+        "url": "https://www.saatva.com/mattresses/saatva-rx/"
+      },
+      {
+        "model": "Solaire",
+        "url": "https://www.saatva.com/mattresses/solaire/"
+      },
+      {
+        "model": "Youth",
+        "url": "https://www.saatva.com/mattresses/saatva-youth/"
+      },
+      {
+        "model": "Zenhaven",
+        "url": "https://www.saatva.com/mattresses/zenhaven/"
+      }
+    ],
+    "Sleep & Beyond": [
+      {
+        "model": "100 Organic Cotton Honeycomb Jacquard Blanket",
+        "url": "https://sleepandbeyond.com/product/100-organic-cotton-honeycomb-jacquard-blanket/"
+      },
+      {
+        "model": "100 Organic Cotton Percale Duvet Cover Set",
+        "url": "https://sleepandbeyond.com/product/100-organic-cotton-percale-duvet-cover-set/"
+      },
+      {
+        "model": "100 Organic Cotton Percale Pillowcase Pair",
+        "url": "https://sleepandbeyond.com/product/100-organic-cotton-percale-pillowcase-pair/"
+      },
+      {
+        "model": "100 Organic Cotton Percale Sheet Set",
+        "url": "https://sleepandbeyond.com/product/100-organic-cotton-percale-sheet-set/"
+      },
+      {
+        "model": "Cotton Zippered Waterproof Mattress Encasement",
+        "url": "https://sleepandbeyond.com/product/cotton-zippered-waterproof-mattress-encasement/"
+      },
+      {
+        "model": "Merino Coco",
+        "url": "https://sleepandbeyond.com/product/merino-coco/"
+      },
+      {
+        "model": "Mybamboo Sheet Set",
+        "url": "https://sleepandbeyond.com/product/mybamboo-sheet-set/"
+      },
+      {
+        "model": "MyComforter",
+        "url": "https://sleepandbeyond.com/product/mycomforter/"
+      },
+      {
+        "model": "Mycomforter Light",
+        "url": "https://sleepandbeyond.com/product/mycomforter-light/"
+      },
+      {
+        "model": "Mydual Pad",
+        "url": "https://sleepandbeyond.com/product/mydual-pad/"
+      },
+      {
+        "model": "Mydual Side Pillow",
+        "url": "https://sleepandbeyond.com/product/mydual-side-pillow/"
+      },
+      {
+        "model": "Mylatex Pillow",
+        "url": "https://sleepandbeyond.com/product/mylatex-pillow/"
+      },
+      {
+        "model": "Mylatex Side Pillow",
+        "url": "https://sleepandbeyond.com/product/mylatex-side-pillow/"
+      },
+      {
+        "model": "Mymerino Color Comforter",
+        "url": "https://sleepandbeyond.com/product/mymerino-color-comforter/"
+      },
+      {
+        "model": "MyMerino Comforter",
+        "url": "https://sleepandbeyond.com/product/mymerino-comforter/"
+      },
+      {
+        "model": "Mymerino Comforter Light",
+        "url": "https://sleepandbeyond.com/product/mymerino-comforter-light/"
+      },
+      {
+        "model": "MyMerino Pillow",
+        "url": "https://sleepandbeyond.com/product/mymerino-pillow/"
+      },
+      {
+        "model": "MyMerino Topper",
+        "url": "https://sleepandbeyond.com/product/mymerino-topper/"
+      },
+      {
+        "model": "myPad",
+        "url": "https://sleepandbeyond.com/product/mypad/"
+      },
+      {
+        "model": "MyProtector",
+        "url": "https://sleepandbeyond.com/product/myprotector/"
+      },
+      {
+        "model": "mySheet Set",
+        "url": "https://sleepandbeyond.com/product/mysheet-set/"
+      },
+      {
+        "model": "MyTopper",
+        "url": "https://sleepandbeyond.com/product/mytopper/"
+      },
+      {
+        "model": "Mytraining Pillow",
+        "url": "https://sleepandbeyond.com/product/mytraining-pillow/"
+      },
+      {
+        "model": "MyTravel Pillow",
+        "url": "https://sleepandbeyond.com/product/mytravel-pillow/"
+      },
+      {
+        "model": "Mywool Pillow",
+        "url": "https://sleepandbeyond.com/product/mywool-pillow/"
+      },
+      {
+        "model": "Mywoolly Latex Topper",
+        "url": "https://sleepandbeyond.com/product/mywoolly-latex-topper/"
+      },
+      {
+        "model": "MyWoolly Pillow",
+        "url": "https://sleepandbeyond.com/product/mywoolly-pillow/"
+      },
+      {
+        "model": "Mywoolly Pillow Case",
+        "url": "https://sleepandbeyond.com/product/mywoolly-pillow-case/"
+      },
+      {
+        "model": "Mywoolly Side Pillow",
+        "url": "https://sleepandbeyond.com/product/mywoolly-side-pillow/"
+      },
+      {
+        "model": "Organic Cotton Fitted Sheet",
+        "url": "https://sleepandbeyond.com/product/organic-cotton-fitted-sheet/"
+      },
+      {
+        "model": "Organic Cotton Mattress Protector",
+        "url": "https://sleepandbeyond.com/product/organic-cotton-mattress-protector/"
+      },
+      {
+        "model": "Organic Cotton Muslin Blanket",
+        "url": "https://sleepandbeyond.com/product/organic-cotton-muslin-blanket/"
+      },
+      {
+        "model": "Organic Cotton Pillow Sham",
+        "url": "https://sleepandbeyond.com/product/organic-cotton-pillow-sham/"
+      },
+      {
+        "model": "Organic Cotton Terry Towel",
+        "url": "https://sleepandbeyond.com/product/organic-cotton-terry-towel/"
+      },
+      {
+        "model": "Organic Cotton Waterproof Pillow Case Encasement Pair",
+        "url": "https://sleepandbeyond.com/product/organic-cotton-waterproof-pillow-case-encasement-pair/"
+      },
+      {
+        "model": "Organic Duvet Cover",
+        "url": "https://sleepandbeyond.com/product/organic-duvet-cover/"
+      },
+      {
+        "model": "Organic Pillow Case Pair",
+        "url": "https://sleepandbeyond.com/product/organic-pillow-case-pair/"
+      },
+      {
+        "model": "Organic Sheet Set",
+        "url": "https://sleepandbeyond.com/product/organic-sheet-set/"
+      },
+      {
+        "model": "Wool Dryer Ball Set",
+        "url": "https://sleepandbeyond.com/product/wool-dryer-ball-set/"
+      }
+    ],
+    "WinkBeds": [
+      {
+        "model": "Adjustable Winkbase",
+        "url": "https://www.winkbeds.com/products/adjustable-winkbase"
+      },
+      {
+        "model": "Cooling Foam Pillow",
+        "url": "https://www.winkbeds.com/products/cooling-foam-pillow"
+      },
+      {
+        "model": "Heavy Duty Bed Frame",
+        "url": "https://www.winkbeds.com/products/heavy-duty-bed-frame"
+      },
+      {
+        "model": "Ice Mattress Protector",
+        "url": "https://www.winkbeds.com/products/ice-mattress-protector"
+      },
+      {
+        "model": "Mattress Removal",
+        "url": "https://www.winkbeds.com/products/mattress-removal"
+      },
+      {
+        "model": "Mattress Removal Installation Services",
+        "url": "https://www.winkbeds.com/products/mattress-removal-installation-services"
+      },
+      {
+        "model": "Mulberry Protection",
+        "url": "https://www.winkbeds.com/products/mulberry-protection"
+      },
+      {
+        "model": "Mulberry Protection 1",
+        "url": "https://www.winkbeds.com/products/mulberry-protection-1"
+      },
+      {
+        "model": "Mulberry Protection 2",
+        "url": "https://www.winkbeds.com/products/mulberry-protection-2"
+      },
+      {
+        "model": "Platform Foundation",
+        "url": "https://www.winkbeds.com/products/platform-foundation"
+      },
+      {
+        "model": "Resort Pillow",
+        "url": "https://www.winkbeds.com/products/resort-pillow"
+      },
+      {
+        "model": "Sheets",
+        "url": "https://www.winkbeds.com/products/sheets"
+      },
+      {
+        "model": "Shipping Protection",
+        "url": "https://www.winkbeds.com/products/shipping-protection"
+      },
+      {
+        "model": "The Ecocloud",
+        "url": "https://www.winkbeds.com/products/the-ecocloud"
+      },
+      {
+        "model": "The Firmer Winkbed",
+        "url": "https://www.winkbeds.com/products/the-firmer-winkbed"
+      },
+      {
+        "model": "The Gravitylux Firm",
+        "url": "https://www.winkbeds.com/products/the-gravitylux-firm"
+      },
+      {
+        "model": "The Gravitylux Medium",
+        "url": "https://www.winkbeds.com/products/the-gravitylux-medium"
+      },
+      {
+        "model": "The Gravitylux Soft",
+        "url": "https://www.winkbeds.com/products/the-gravitylux-soft"
+      },
+      {
+        "model": "The Luxury Firm Winkbed",
+        "url": "https://www.winkbeds.com/products/the-luxury-firm-winkbed"
+      },
+      {
+        "model": "The Plus Winkbed",
+        "url": "https://www.winkbeds.com/products/the-plus-winkbed"
+      },
+      {
+        "model": "The Softer Winkbed",
+        "url": "https://www.winkbeds.com/products/the-softer-winkbed"
+      },
+      {
+        "model": "Winkbeds Blue Collection B1",
+        "url": "https://www.winkbeds.com/products/winkbeds-blue-collection-b1"
+      },
+      {
+        "model": "Winkbeds Blue Collection B2",
+        "url": "https://www.winkbeds.com/products/winkbeds-blue-collection-b2"
+      }
+    ],
+    "FluffCo": [],
+    "Tempur-Pedic": [
+      {
+        "model": "Activebreeze Water Resistant Cover",
+        "url": "https://www.tempurpedic.com/bedding/activebreeze-water-resistant-cover/"
+      },
+      {
+        "model": "Bodypillow",
+        "url": "https://www.tempurpedic.com/shop-pillows/bodypillow/"
+      },
+      {
+        "model": "Cloud Hybrid Pillow",
+        "url": "https://www.tempurpedic.com/shop-pillows/cloud-hybrid-pillow/"
+      },
+      {
+        "model": "Complete Replacement Covers",
+        "url": "https://www.tempurpedic.com/bedding/complete-replacement-covers/"
+      },
+      {
+        "model": "Down Comforter",
+        "url": "https://www.tempurpedic.com/bedding/down-comforter/"
+      },
+      {
+        "model": "Foundation",
+        "url": "https://www.tempurpedic.com/bases-and-foundations/foundation/"
+      },
+      {
+        "model": "Heavy Duty Bed Frame",
+        "url": "https://www.tempurpedic.com/bases-and-foundations-v1/heavy-duty-bed-frame/"
+      },
+      {
+        "model": "Mattress Replacement Cover",
+        "url": "https://www.tempurpedic.com/bedding/mattress-replacement-cover/"
+      },
+      {
+        "model": "New Tempur Protect Pillow Protector",
+        "url": "https://www.tempurpedic.com/bedding/new-tempur-protect-pillow-protector/"
+      },
+      {
+        "model": "Sleep Mask",
+        "url": "https://www.tempurpedic.com/other-products/sleep-mask/"
+      },
+      {
+        "model": "Symphony Pillow",
+        "url": "https://www.tempurpedic.com/shop-pillows/symphony-pillow/"
+      },
+      {
+        "model": "Tempur Adapt Luxe Egyptian Cotton Sheet Set",
+        "url": "https://www.tempurpedic.com/bedding/tempur-adapt-luxe-egyptian-cotton-sheet-set/"
+      },
+      {
+        "model": "Tempur Breeze Cooling Sheet Set",
+        "url": "https://www.tempurpedic.com/bedding/tempur-breeze-cooling-sheet-set/"
+      },
+      {
+        "model": "Tempur Cloud Adjustable Pillow",
+        "url": "https://www.tempurpedic.com/shop-pillows/tempur-cloud-adjustable-pillow/"
+      },
+      {
+        "model": "Tempur Cloud Adjustable Pillow Bundle",
+        "url": "https://www.tempurpedic.com/shop-pillows/tempur-cloud-adjustable-pillow-bundle/"
+      },
+      {
+        "model": "Tempur Cloud Dual Cooling",
+        "url": "https://www.tempurpedic.com/shop-pillows/tempur-cloud-dual-cooling/"
+      },
+      {
+        "model": "Tempur Cloud Essential Pillow",
+        "url": "https://www.tempurpedic.com/shop-pillows/tempur-cloud-essential-pillow/"
+      },
+      {
+        "model": "Tempur Cloud Mattress",
+        "url": "https://www.tempurpedic.com/shop-mattresses/tempur-cloud-mattress/"
+      },
+      {
+        "model": "Tempur Cloud Pillow Bundle",
+        "url": "https://www.tempurpedic.com/shop-pillows/tempur-cloud-pillow-bundle/"
+      },
+      {
+        "model": "Tempur Neck Pillow",
+        "url": "https://www.tempurpedic.com/shop-pillows/tempur-neck-pillow/"
+      },
+      {
+        "model": "Tempur Pedic Breeze Pillowcase Set",
+        "url": "https://www.tempurpedic.com/bedding/tempur-pedic-breeze-pillowcase-set/"
+      },
+      {
+        "model": "Tempur Pedic Properformance Pillow Cases",
+        "url": "https://www.tempurpedic.com/bedding/tempur-pedic-properformance-pillow-cases/"
+      },
+      {
+        "model": "Tempur Pedic Properformance Sheet Set",
+        "url": "https://www.tempurpedic.com/bedding/tempur-pedic-properformance-sheet-set/"
+      },
+      {
+        "model": "Tempur Pedic Sheet Sets",
+        "url": "https://www.tempurpedic.com/bedding/tempur-pedic-sheet-sets/"
+      },
+      {
+        "model": "Tempur Pedic Weighted Blanket",
+        "url": "https://www.tempurpedic.com/bedding/tempur-pedic-weighted-blanket/"
+      },
+      {
+        "model": "Tempur Protect",
+        "url": "https://www.tempurpedic.com/other-products/tempur-protect/"
+      },
+      {
+        "model": "Tempur Protect Mattress Protector",
+        "url": "https://www.tempurpedic.com/bedding/tempur-protect-mattress-protector/"
+      },
+      {
+        "model": "Tempurpedic Comfort Pillow",
+        "url": "https://www.tempurpedic.com/shop-pillows/tempurpedic-comfort-pillow/"
+      },
+      {
+        "model": "The All Purposepillow By Tempur Pedictm",
+        "url": "https://www.tempurpedic.com/shop-pillows/the-all-purposepillow-by-tempur-pedictm/"
+      },
+      {
+        "model": "The Comfortpillow By Tempur Pedictm Travel",
+        "url": "https://www.tempurpedic.com/shop-pillows/the-comfortpillow-by-tempur-pedictm-travel/"
+      },
+      {
+        "model": "Top Only Replacement Covers",
+        "url": "https://www.tempurpedic.com/bedding/top-only-replacement-covers/"
+      },
+      {
+        "model": "Travel Neck Pillow",
+        "url": "https://www.tempurpedic.com/shop-pillows/travel-neck-pillow/"
+      },
+      {
+        "model": "Travel Pillow",
+        "url": "https://www.tempurpedic.com/shop-pillows/travel-pillow/"
+      },
+      {
+        "model": "Travel Set",
+        "url": "https://www.tempurpedic.com/other-products/travel-set/"
+      }
+    ]
+  },
+  "errors": []
+}

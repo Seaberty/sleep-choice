@@ -37,11 +37,19 @@ export interface QuizResultBundle {
     lifestyle: ProductData | null
 }
 
-/** 不依赖 DB category：slug / 型号名优先，其次才是 category 字段 */
-export function quizShelf(p: ProductData): QuizShelf {
-    const slug = (p.slug || "").toLowerCase()
-    const n = `${p.name || ""} ${p.model || ""}`.toLowerCase()
-    const c = (p.category || "").toLowerCase()
+/**
+ * 与 `ProductData` 解耦，供审计详情解剖图等仅需 slug/型号/类目的调用方复用。
+ * 规则与 `quizShelf` 一致：slug / name / model 优先，其次 `category`。
+ */
+export function quizShelfFields(input: {
+    slug?: string
+    name?: string
+    model?: string
+    category?: string
+}): QuizShelf {
+    const slug = (input.slug || "").toLowerCase()
+    const n = `${input.name ?? ""} ${input.model ?? ""}`.toLowerCase()
+    const c = (input.category || "").toLowerCase()
     const blob = `${slug} ${n} ${c}`
 
     if (/pillow|枕|bolster/i.test(blob)) return "pillow"
@@ -52,6 +60,16 @@ export function quizShelf(p: ProductData): QuizShelf {
         return "mattress"
 
     return "mattress"
+}
+
+/** 不依赖 DB category：slug / 型号名优先，其次才是 category 字段 */
+export function quizShelf(p: ProductData): QuizShelf {
+    return quizShelfFields({
+        slug: p.slug,
+        name: p.name,
+        model: p.model,
+        category: p.category
+    })
 }
 
 /** Supabase `quiz_tags` + 启发式（无 DB 标签时仍可匹配） */

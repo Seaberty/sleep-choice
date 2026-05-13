@@ -440,6 +440,35 @@ class IntelligenceProvider:
 
         return "\n\n".join(all_evidence), total_review_count, platform_blocks
 
+
+async def _safe_close_playwright_browser(context: Any, browser: Any) -> None:
+    """
+    关闭 Playwright context / browser。代理不稳或进程已崩溃时，raw close 会抛
+    ``Browser.close: Connection closed while reading from the driver``，且在 finally
+    中会覆盖 try 内已成功 return 的 data —— 故此处吞掉关闭类异常并仅打日志。
+    """
+    try:
+        await context.close()
+    except Exception:
+        pass
+    try:
+        await browser.close()
+    except Exception as e:
+        low = str(e).lower()
+        if (
+            "connection closed" in low
+            or "browser has been closed" in low
+            or "reading from the driver" in low
+            or "target closed" in low
+        ):
+            print(
+                "⚠️ Playwright 关闭时与浏览器驱动连接已断开（多见于 HTTP 代理中途断连、"
+                "节点重置或页面进程崩溃）。若上文已成功解析价格/JSON-LD，通常可忽略。"
+            )
+        else:
+            print(f"⚠️ Playwright 关闭浏览器: {e}")
+
+
 class ForensicAuditEngine: 
     def __init__(self, brand, model, slug_override=None):
         self.brand = brand
@@ -2168,6 +2197,53 @@ class ForensicAuditEngine:
                 "image_selector": ".pdp-gallery img",
                 "wait_for": ".pdp-price, h1.pdp-h1, h1",
             },
+            # Shopify 2.0：与 FluffCo 类似，依赖 JSON-LD + _extract_shopify_variant_pricing；DOM 链作补全
+            "WinkBeds": {
+                "price_selector": ".product__info-wrapper .price",
+                "price_selectors_fallback": [
+                    ".price-item--sale",
+                    ".price-item--last",
+                    "[class*='price-item']",
+                    ".pdp-price",
+                    ".product-single__price",
+                    "product-price",
+                    "[itemprop='price']",
+                    ".price",
+                ],
+                "image_selector": "meta[property='og:image']",
+                "wait_for": "h1, [itemprop='price'], .price, .product__title",
+            },
+            "Avocado": {
+                "price_selector": ".product__info-wrapper .price",
+                "price_selectors_fallback": [
+                    ".price-item--sale",
+                    ".price-item--last",
+                    "[class*='price-item']",
+                    ".pdp-price",
+                    ".product-single__price",
+                    "product-price",
+                    "[itemprop='price']",
+                    ".price",
+                ],
+                "image_selector": "meta[property='og:image']",
+                "wait_for": "h1, [itemprop='price'], .price, .product__title",
+            },
+            "Tempur-Pedic": {
+                "price_selector": "[itemprop='price']",
+                "price_selectors_fallback": [
+                    "[itemprop='price'][content]",
+                    ".product-info-main .price",
+                    ".product-info-price .price",
+                    "[data-price-type='finalPrice'] .price",
+                    ".price-wrapper .price",
+                    "meta[property='product:price:amount']",
+                    ".special-price .price",
+                    ".price",
+                    "[class*='ProductPrice']",
+                ],
+                "image_selector": "meta[property='og:image']",
+                "wait_for": "h1, [itemprop='price'], .price",
+            },
         }
 
         config = BRAND_MAP.get(self.brand, {})
@@ -2608,7 +2684,7 @@ class ForensicAuditEngine:
                 print(f"⚠️ 官网扫描受限: {e}")
                 data['error_log'] = str(e)
             finally:
-                await browser.close()
+                await _safe_close_playwright_browser(context, browser)
         return data 
 
     @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=2, min=5, max=15))
