@@ -56,7 +56,7 @@ export default function CalculatorPage() {
     const hasOptimalClearance = clearanceW >= 30 && clearanceL >= 30 // 提高到 30 英寸
 
     return (
-        <main className="relative min-h-screen bg-white pt-24 pb-20 overflow-x-hidden font-sans">
+        <main className="relative min-h-screen overflow-x-clip bg-white pt-24 pb-20 font-sans">
             {/* 实验室环境纹理 */}
             <div className="fixed inset-0 pointer-events-none z-0">
                 <div
@@ -72,12 +72,12 @@ export default function CalculatorPage() {
 
             <div className="container mx-auto px-4 sm:px-6 relative z-10 max-w-7xl">
                 {/* 1. Header: 终端化处理 */}
-                <header className="max-w-4xl mb-16 border-l-4 border-blue-600 pl-8">
+                <header className="mb-12 max-w-4xl border-l-4 border-blue-600 pl-4 sm:mb-16 sm:pl-8">
                     <div className="flex items-center gap-3 text-blue-600 font-black text-[9px] uppercase tracking-[0.4em] mb-4">
                         <Cpu className="w-4 h-4" />
                         {`Spatial_Audit_System_${APP_PROTOCOL} // Dimension_Scanner`}
                     </div>
-                    <h1 className="text-5xl md:text-8xl font-[1000] tracking-tighter uppercase leading-[0.8] mb-6 italic">
+                    <h1 className="text-[clamp(2rem,9vw,5rem)] font-[1000] tracking-tighter uppercase leading-[0.85] sm:leading-[0.8] mb-6 italic md:text-8xl">
                         Spatial <br />
                         <span className="text-blue-600 not-italic">
                             Analyzer
@@ -92,7 +92,7 @@ export default function CalculatorPage() {
                 <div className="grid lg:grid-cols-12 gap-8 items-start">
                     {/* 2. Control Node: 参数配置 */}
                     <div className="lg:col-span-3 space-y-4">
-                        <section className="bg-slate-950 p-8 text-white relative overflow-hidden">
+                        <section className="relative overflow-hidden bg-slate-950 p-5 text-white sm:p-8">
                             <div className="relative z-10">
                                 <h2 className="text-[10px] font-black uppercase tracking-[0.3em] text-blue-400 mb-8 flex items-center gap-2">
                                     <Compass className="w-4 h-4" />
