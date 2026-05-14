@@ -1,30 +1,23 @@
 # -*- coding: utf-8 -*-
 """
-Bulk-fill brand_intelligence using Serper (Google organic via API) + Gemini.
+Bulk-fill brand_intelligence from public.brand_social_corpus + DeepSeek（不经过 Serper）。
 
-Use when you need more coverage than the single-pass forensic audit:
-  - Multiple search queries per product
-  - Dedupe by URL
-  - Bucket snippets by destination domain → Reddit / Amazon / Trustpilot / SleepLine / Other
-  - One Gemini JSON pass per product → upsert into brand_intelligence
+每个 registry 产品：按 brand_slug + slug 读取 corpus → 按平台块调用 DeepSeek → upsert brand_intelligence。
 
-Prerequisites:
-  - Table public.brand_intelligence exists (migration applied).
-  - SUPABASE_KEY should be the service_role key (RLS allows SELECT only for anon; inserts need bypass).
-  - SERPER_API_KEY, GEMINI_API_KEY
+前置：
+  - public.brand_social_corpus 已有数据（见 brand_social_corpus_ingest.py --from-registry）。
+  - public.brand_intelligence 表已存在。
+  - SUPABASE_KEY 建议为 service_role。
+  - DEEPSEEK_API_KEY；503/429 等可自动重试。
 
-Compliance:
-  - Respect Serper / Google program terms, rate limits, and target sites’ ToS.
-  - This script does not scrape merchant pages directly; it uses Serper search results only.
-
-Usage:
+用法：
   cd src/scripts
   python brand_intel_bulk_ingest.py --limit 30
+  python brand_intel_bulk_ingest.py --limit 0          # 全站 audit_products
   python brand_intel_bulk_ingest.py --slug saatva-classic
-  python brand_intel_bulk_ingest.py --queries 10 --serper-num 50 --dry-run
-
-  按品牌名沉淀大量平台片段（不经 Serper / 不经 LLM、写入 brand_social_corpus）见：
-  python brand_social_corpus_ingest.py --brand Saatva
+  python brand_intel_bulk_ingest.py --dry-run
+  python brand_intel_bulk_ingest.py --skip-llm         # 占位行，无 LLM
+  CI：.github/workflows/brand-social-corpus-weekly.yml（Step 2 需 DEEPSEEK_API_KEY）
 """
 from __future__ import annotations
 
@@ -34,16 +27,12 @@ import os
 import re
 import sys
 import time
-from collections import defaultdict
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
-from urllib.parse import urlparse, urlunparse
 
 import httpx
 from dotenv import load_dotenv
-from google import genai
-from google.genai import types
 from supabase import create_client
 
 _ROOT = Path(__file__).resolve().parents[2]
@@ -52,22 +41,8 @@ if not _ENV.is_file():
     _ENV = Path(__file__).resolve().parents[1] / ".env.local"
 load_dotenv(dotenv_path=_ENV)
 
-SERPER_URL = "https://google.serper.dev/search"
-GEMINI_MODEL_ID = "gemini-2.5-flash"
-
-# Broad query templates — increase variety = more unique SERP rows (and Serper API spend).
-DEFAULT_QUERY_TEMPLATES: tuple[str, ...] = (
-    "{brand} {model} mattress review",
-    "{brand} {model} mattress reddit",
-    "site:reddit.com {brand} {model} mattress",
-    "site:amazon.com {brand} {model} mattress",
-    "{brand} {model} mattress trustpilot",
-    "site:trustpilot.com {brand}",
-    "{brand} {model} site:sleepline.com",
-    "{brand} {model} mattress complaints",
-    "{brand} {model} mattress experience",
-    "{brand} {model} mattress owner review",
-)
+DEEPSEEK_CHAT_URL = "https://api.deepseek.com/chat/completions"
+DEEPSEEK_MODEL_ID = "deepseek-chat"
 
 
 def slugify(text: str) -> str:
@@ -76,109 +51,16 @@ def slugify(text: str) -> str:
     return text.strip("-")
 
 
-def norm_link(url: str) -> str:
-    if not url or not url.startswith(("http://", "https://")):
-        return (url or "").strip()
-    try:
-        p = urlparse(url)
-        return urlunparse((p.scheme, p.netloc.lower(), p.path or "", "", "", ""))
-    except Exception:
-        return url.strip()
-
-
-def classify_platform(link: str) -> str:
-    u = (link or "").lower()
-    if "reddit.com" in u:
-        return "Reddit"
-    if "amazon." in u or "amzn.to" in u or "amzn." in u:
-        return "Amazon"
-    if "trustpilot.com" in u:
-        return "Trustpilot"
-    if "sleepline.com" in u:
-        return "SleepLine"
-    return "Other"
-
-
 def confidence_from_density(n: int) -> float:
     if n <= 0:
         return 0.05
     return round(min(1.0, n / 30.0), 4)
 
 
-def serper_organic(
-    client: httpx.Client, api_key: str, q: str, num: int
-) -> list[dict[str, Any]]:
-    headers = {"X-API-KEY": api_key, "Content-Type": "application/json"}
-    payload = {"q": q, "num": min(int(num), 100), "page": 1}
-    r = client.post(SERPER_URL, headers=headers, json=payload, timeout=30.0)
-    if r.status_code != 200:
-        print(f"  ❌ Serper HTTP {r.status_code}: {r.text[:400]}")
-        return []
-    data = r.json()
-    return data.get("organic", []) or []
-
-
-def collect_buckets(
-    client: httpx.Client,
-    serper_key: str,
-    brand: str,
-    model: str,
-    templates: tuple[str, ...],
-    max_queries: int,
-    serper_num: int,
-    sleep_s: float,
-) -> dict[str, list[dict[str, Any]]]:
-    seen: set[str] = set()
-    all_items: list[dict[str, Any]] = []
-    used = templates[: max(1, max_queries)]
-    for tpl in used:
-        q = tpl.format(brand=brand.strip(), model=model.strip())
-        organic = serper_organic(client, serper_key, q, serper_num)
-        for item in organic:
-            link = item.get("link") or ""
-            key = norm_link(link) if link else f"t:{item.get('title')}"
-            if key in seen:
-                continue
-            seen.add(key)
-            all_items.append(item)
-        time.sleep(sleep_s)
-
-    buckets: dict[str, list[dict[str, Any]]] = defaultdict(list)
-    for item in all_items:
-        plat = classify_platform(item.get("link") or "")
-        buckets[plat].append(item)
-    return dict(buckets)
-
-
-def buckets_to_blocks(
-    buckets: dict[str, list[dict[str, Any]]], max_snippets_per_platform: int
-) -> list[dict[str, Any]]:
-    blocks: list[dict[str, Any]] = []
-    for platform_name, items in sorted(buckets.items()):
-        if not items:
-            continue
-        chunk_lines = []
-        for it in items[:max_snippets_per_platform]:
-            chunk_lines.append(
-                f"🔍 SOURCE: {it.get('title')}\nCONTEXT: {it.get('snippet')}"
-            )
-        merged = "\n\n".join(chunk_lines)
-        if not merged.strip():
-            continue
-        blocks.append(
-            {
-                "source_platform": platform_name,
-                "evidence_text": merged[:12000],
-                "signal_density": len(items),
-            }
-        )
-    return blocks
-
-
-def gemini_batch_extract(
-    api_key: str, brand: str, model: str, blocks: list[dict[str, Any]]
-) -> list[dict[str, Any]]:
-    trimmed = []
+def _trimmed_platforms_for_llm(
+    brand: str, model: str, blocks: list[dict[str, Any]]
+) -> tuple[list[dict[str, Any]], str, dict[str, int]]:
+    trimmed: list[dict[str, Any]] = []
     for b in blocks:
         trimmed.append(
             {
@@ -187,41 +69,38 @@ def gemini_batch_extract(
                 "evidence_excerpt": (b["evidence_text"] or "")[:3200],
             }
         )
-    if not trimmed:
-        return []
-
-    prompt = """
-You are a consumer mattress research analyst. For EACH platform object in the JSON input, read only the evidence_excerpt.
-Return a single JSON object with key "items" — an array with one entry per input platform:
-- source_platform: exact copy from input
-- sentiment_score: float 0.0 (very negative consensus in snippets) to 1.0 (very positive)
-- key_issue_tags: array of 2 to 8 short labels (e.g. Edge_Support, Off-gassing, Shipping_Delay)
-- verdict_summary: one paragraph, max 85 words, neutral forensic tone; themes only, no URLs or invented facts
-
-If snippets are thin or contradictory, sentiment ~0.45–0.55 and include tag "Thin_Signal".
-"""
     ctx = json.dumps(
         {"brand": brand, "model": model, "platforms": trimmed},
         ensure_ascii=False,
     )
-    client = genai.Client(api_key=api_key)
-    response = client.models.generate_content(
-        model=GEMINI_MODEL_ID,
-        contents=[prompt.strip(), ctx],
-        config=types.GenerateContentConfig(response_mime_type="application/json"),
-    )
-    parsed = json.loads(response.text)
-    items = parsed.get("items") or []
     density_map = {x["source_platform"]: x["signal_density"] for x in trimmed}
-    out = []
+    return trimmed, ctx, density_map
+
+
+def _parse_json_object_text(raw: str) -> dict[str, Any]:
+    text = (raw or "").strip()
+    if text.startswith("```"):
+        lines = text.split("\n")
+        if lines and lines[0].startswith("```"):
+            lines = lines[1:]
+        if lines and lines[-1].strip() == "```":
+            lines = lines[:-1]
+        text = "\n".join(lines).strip()
+    return json.loads(text)
+
+
+def _rows_from_parsed_items(
+    parsed: dict[str, Any], density_map: dict[str, int]
+) -> list[dict[str, Any]]:
+    from forensic_engine import _sanitize_key_issue_tags
+
+    items = parsed.get("items") or []
+    out: list[dict[str, Any]] = []
     for it in items:
         plat = (it.get("source_platform") or "").strip()
         if plat not in density_map:
             continue
-        tags = it.get("key_issue_tags") or []
-        if isinstance(tags, str):
-            tags = [tags]
-        tags = [str(t).strip() for t in tags if str(t).strip()][:12]
+        tags = _sanitize_key_issue_tags(it.get("key_issue_tags"))
         try:
             ss = float(it.get("sentiment_score") if it.get("sentiment_score") is not None else 0.5)
         except (TypeError, ValueError):
@@ -237,6 +116,119 @@ If snippets are thin or contradictory, sentiment ~0.45–0.55 and include tag "T
             }
         )
     return out
+
+
+def _deepseek_error_retryable(exc: BaseException) -> bool:
+    if isinstance(exc, httpx.HTTPStatusError):
+        return exc.response.status_code in (408, 425, 429, 500, 502, 503, 504)
+    s = str(exc).lower()
+    return any(
+        x in s
+        for x in (
+            "timeout",
+            "timed out",
+            "connection",
+            "reset",
+            "temporar",
+            "503",
+            "429",
+            "502",
+            "504",
+            "unavailable",
+            "overloaded",
+            "rate",
+            "quota",
+            "try again",
+        )
+    )
+
+
+def deepseek_batch_extract_once(
+    api_key: str, brand: str, model: str, blocks: list[dict[str, Any]]
+) -> list[dict[str, Any]]:
+    from forensic_engine import _DEEPSEEK_BRAND_INTEL_SYSTEM
+
+    trimmed, ctx, density_map = _trimmed_platforms_for_llm(brand, model, blocks)
+    if not trimmed:
+        return []
+    user = (
+        "INPUT_JSON:\n"
+        + ctx
+        + "\n\nReturn exactly one JSON object with top-level key \"items\" only, "
+        "per your system instructions."
+    )
+    timeout = httpx.Timeout(connect=20.0, read=120.0, write=30.0, pool=20.0)
+    with httpx.Client(timeout=timeout, trust_env=True) as client:
+        resp = client.post(
+            DEEPSEEK_CHAT_URL,
+            headers={
+                "Authorization": f"Bearer {api_key}",
+                "Content-Type": "application/json",
+            },
+            json={
+                "model": DEEPSEEK_MODEL_ID,
+                "messages": [
+                    {"role": "system", "content": _DEEPSEEK_BRAND_INTEL_SYSTEM},
+                    {"role": "user", "content": user},
+                ],
+                "response_format": {"type": "json_object"},
+                "temperature": 0.2,
+            },
+        )
+        resp.raise_for_status()
+        data = resp.json()
+    content = (
+        data.get("choices", [{}])[0].get("message", {}).get("content", "") or ""
+    )
+    if not content.strip():
+        raise RuntimeError("DeepSeek 返回空内容")
+    parsed = _parse_json_object_text(content)
+    return _rows_from_parsed_items(parsed, density_map)
+
+
+def deepseek_batch_extract_with_retries(
+    api_key: str,
+    brand: str,
+    model: str,
+    blocks: list[dict[str, Any]],
+    max_retries: int,
+    base_delay_s: float,
+) -> list[dict[str, Any]]:
+    trimmed, _, _ = _trimmed_platforms_for_llm(brand, model, blocks)
+    if not trimmed:
+        return []
+    last: BaseException | None = None
+    attempts = max(1, int(max_retries))
+    for attempt in range(1, attempts + 1):
+        try:
+            return deepseek_batch_extract_once(api_key, brand, model, blocks)
+        except Exception as e:
+            last = e
+            if attempt >= attempts or not _deepseek_error_retryable(e):
+                raise
+            delay = min(120.0, float(base_delay_s) * (2 ** (attempt - 1)))
+            print(
+                f"  ⏳ DeepSeek 可重试错误（{attempt}/{attempts}），{delay:.1f}s 后重试: {e!s}"
+            )
+            time.sleep(delay)
+    assert last is not None
+    raise last
+
+
+def extract_brand_intel_llm_rows(
+    brand: str,
+    model: str,
+    blocks: list[dict[str, Any]],
+    deepseek_key: str,
+    max_retries: int,
+    base_delay_s: float,
+) -> list[dict[str, Any]]:
+    dk = (deepseek_key or "").strip()
+    if not dk:
+        raise RuntimeError("未配置 DEEPSEEK_API_KEY")
+    return deepseek_batch_extract_with_retries(
+        dk, brand, model, blocks, max_retries, base_delay_s
+    )
 
 
 def upsert_rows(
@@ -296,30 +288,50 @@ def fetch_products(
 
 
 def main(argv: list[str]) -> int:
-    p = argparse.ArgumentParser(description="Bulk ingest brand_intelligence via Serper + Gemini.")
-    p.add_argument("--limit", type=int, default=50, help="Max products from audit_products (ignored if --slug set).")
-    p.add_argument("--slug", type=str, default=None, help="Only this registry slug.")
-    p.add_argument("--queries", type=int, default=10, help="How many query templates to run per product.")
-    p.add_argument("--serper-num", type=int, default=50, help="Serper organic count per query (max 100).")
-    p.add_argument("--sleep", type=float, default=0.35, help="Seconds between Serper calls.")
-    p.add_argument("--dry-run", action="store_true", help="Print counts only; no Gemini / no DB writes.")
-    p.add_argument("--skip-llm", action="store_true", help="Upsert neutral rows without Gemini (fast, lower quality).")
+    p = argparse.ArgumentParser(
+        description="Bulk ingest brand_intelligence from brand_social_corpus + DeepSeek（无 Serper）。"
+    )
+    p.add_argument(
+        "--limit",
+        type=int,
+        default=50,
+        help="audit_products 最多处理条数；设为 0 表示不限制（全站产品）。--slug 时忽略。",
+    )
+    p.add_argument("--slug", type=str, default=None, help="仅该 registry slug。")
+    p.add_argument(
+        "--sleep-between-products",
+        type=float,
+        default=1.0,
+        help="每个产品之间的休眠秒数（降 API 限流风险）。",
+    )
+    p.add_argument(
+        "--deepseek-max-retries",
+        type=int,
+        default=6,
+        help="DeepSeek 503/429 等可重试错误时的最大尝试次数（含首次）。",
+    )
+    p.add_argument(
+        "--deepseek-retry-base-seconds",
+        type=float,
+        default=3.0,
+        help="首次重试前等待秒数，之后指数退避（上限 120s）。",
+    )
+    p.add_argument("--dry-run", action="store_true", help="只打印 corpus 块数量，不写库、不调 LLM。")
+    p.add_argument("--skip-llm", action="store_true", help="Upsert 占位行，不调用 DeepSeek。")
     args = p.parse_args(argv)
 
     url = os.getenv("SUPABASE_URL")
     key = os.getenv("SUPABASE_KEY")
-    serper_key = os.getenv("SERPER_API_KEY")
-    gemini_key = os.getenv("GEMINI_API_KEY")
+    deepseek_key = (os.getenv("DEEPSEEK_API_KEY") or "").strip()
 
     if not url or not key:
         print("❌ SUPABASE_URL / SUPABASE_KEY missing (.env.local)")
         return 1
-    if not serper_key:
-        print("❌ SERPER_API_KEY missing")
+    if not args.skip_llm and not args.dry_run and not deepseek_key:
+        print("❌ 需要 DEEPSEEK_API_KEY（或加 --skip-llm / --dry-run）")
         return 1
-    if not args.skip_llm and not args.dry_run and not gemini_key:
-        print("❌ GEMINI_API_KEY missing (use --skip-llm or --dry-run to bypass)")
-        return 1
+
+    from forensic_engine import load_social_evidence_from_brand_corpus
 
     supabase = create_client(url, key)
     products = fetch_products(supabase, args.limit, args.slug)
@@ -327,72 +339,67 @@ def main(argv: list[str]) -> int:
         print("No audit_products rows matched.")
         return 0
 
-    templates = DEFAULT_QUERY_TEMPLATES
-    mq = min(args.queries, len(templates))
-
     print(
-        f"📋 Products: {len(products)} | queries/product: {mq} | "
-        f"organic/query: {args.serper_num} | dry_run={args.dry_run}"
+        f"📋 Products: {len(products)} | source=brand_social_corpus | "
+        f"dry_run={args.dry_run} | skip_llm={args.skip_llm}"
     )
 
-    with httpx.Client() as http_client:
-        for i, pr in enumerate(products, 1):
-            slug = pr["slug"]
-            brand = pr["brand"]
-            model = pr["model"]
-            brand_slug = pr["brand_slug"]
-            print(f"\n[{i}/{len(products)}] {slug} ({brand} {model})")
+    for i, pr in enumerate(products, 1):
+        slug = pr["slug"]
+        brand = pr["brand"]
+        model = pr["model"]
+        brand_slug = pr["brand_slug"]
+        print(f"\n[{i}/{len(products)}] {slug} ({brand} {model})")
 
-            buckets = collect_buckets(
-                http_client,
-                serper_key,
-                brand,
-                model,
-                templates,
-                mq,
-                args.serper_num,
-                args.sleep,
-            )
-            total_hits = sum(len(v) for v in buckets.values())
-            print(f"  Serper unique hits: {total_hits} | buckets: { {k: len(v) for k, v in buckets.items()} }")
+        _, total_n, platform_blocks = load_social_evidence_from_brand_corpus(
+            supabase, brand_slug, slug
+        )
+        blocks = [b for b in platform_blocks if (b.get("evidence_text") or "").strip()]
+        print(f"  corpus: {len(blocks)} platform block(s), ~{total_n} snippet rows indexed")
 
-            blocks = buckets_to_blocks(buckets, max_snippets_per_platform=45)
-            if args.dry_run:
-                continue
+        if args.dry_run:
+            continue
 
-            if not blocks:
-                print("  ⏭ skip (no evidence)")
-                continue
+        if not blocks:
+            print("  ⏭ skip (no corpus evidence for this slug)")
+            continue
 
-            if args.skip_llm:
-                rows = [
-                    {
-                        "source_platform": b["source_platform"],
-                        "sentiment_score": 0.5,
-                        "key_issue_tags": ["Auto_Ingest"],
-                        "verdict_summary": "Automated bulk ingest without LLM scoring; replace via dashboard or re-run with Gemini.",
-                        "signal_density": b["signal_density"],
-                    }
-                    for b in blocks
-                ]
-            else:
-                try:
-                    rows = gemini_batch_extract(gemini_key, brand, model, blocks)
-                except Exception as e:
-                    print(f"  ⚠️ Gemini failed: {e}")
-                    continue
-
-            if not rows:
-                print("  ⏭ no LLM rows")
-                continue
-
+        if args.skip_llm:
+            rows = [
+                {
+                    "source_platform": b["source_platform"],
+                    "sentiment_score": 0.5,
+                    "key_issue_tags": ["Corpus_Only"],
+                    "verdict_summary": "Bulk ingest from brand_social_corpus without LLM; re-run with DeepSeek or use forensic audit.",
+                    "signal_density": b["signal_density"],
+                }
+                for b in blocks
+            ]
+        else:
             try:
-                upsert_rows(supabase, brand_slug, slug, rows)
-                print(f"  ✅ upserted {len(rows)} platform row(s)")
+                rows = extract_brand_intel_llm_rows(
+                    brand,
+                    model,
+                    blocks,
+                    deepseek_key,
+                    args.deepseek_max_retries,
+                    args.deepseek_retry_base_seconds,
+                )
             except Exception as e:
-                print(f"  ❌ Supabase upsert: {e}")
+                print(f"  ⚠️ LLM 失败（DeepSeek 重试后仍不可用）: {e}")
+                continue
 
-            time.sleep(1.0)
+        if not rows:
+            print("  ⏭ no LLM rows")
+            continue
+
+        try:
+            upsert_rows(supabase, brand_slug, slug, rows)
+            print(f"  ✅ upserted {len(rows)} platform row(s)")
+        except Exception as e:
+            print(f"  ❌ Supabase upsert: {e}")
+
+        time.sleep(max(0.0, args.sleep_between_products))
 
     print("\nDone.")
     return 0

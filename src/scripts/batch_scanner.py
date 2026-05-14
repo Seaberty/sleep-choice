@@ -57,7 +57,7 @@ _FORENSIC_ENGINE_MOD: Any = None
 
 
 def _forensic_engine():
-    """延迟加载 forensic_engine（含 google-genai 等）；sitemap 发现逻辑不依赖此模块。"""
+    """延迟加载 forensic_engine；sitemap 发现逻辑不依赖此模块。"""
     global _FORENSIC_ENGINE_MOD
     if _FORENSIC_ENGINE_MOD is None:
         import forensic_engine as _FORENSIC_ENGINE_MOD

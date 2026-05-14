@@ -15,8 +15,6 @@ from typing import Any
 # 核心库
 from supabase import create_client, Client
 from playwright.async_api import async_playwright
-from google import genai
-from google.genai import types
 
 _PROJECT_ROOT = Path(__file__).resolve().parents[2]
 _ENV_FILE = _PROJECT_ROOT / ".env.local"
@@ -253,15 +251,123 @@ async def finalize_coupon_for_store(page_url: str, token: str | None) -> str | N
     return token
 
 
-# --- LLM 审计（Gemini 主 / DeepSeek 备）---
-GEMINI_MODEL_ID = "gemini-2.5-flash"
-GEMINI_AUDIT_LABEL = "Gemini-2.5-Flash"
+# --- LLM 审计 / 情报（DeepSeek Chat）---
 DEEPSEEK_MODEL_ID = "deepseek-chat"
 DEEPSEEK_AUDIT_LABEL = "DeepSeek-Chat"
 DEEPSEEK_CHAT_URL = "https://api.deepseek.com/chat/completions"
 
+# 与 src/types/product.ts 中 AuditScores 对齐（仅允许这五个维度写入 audit_scores）
+_AUDIT_SCORE_KEYS: tuple[str, ...] = (
+    "overall",
+    "support",
+    "cooling",
+    "pressure",
+    "durability",
+)
+
+_DEEPSEEK_FORENSIC_AUDIT_SYSTEM = """You are a strict JSON generator for a mattress forensic audit pipeline.
+Your entire reply MUST be one JSON object only: no markdown code fences, no prose before or after, no comments.
+
+Schema (keys and nesting are mandatory):
+
+1) audit_scores — object with EXACTLY these five keys, all JSON numbers, no extras:
+   "overall", "support", "cooling", "pressure", "durability"
+   Each value is the 10-point forensic scale from 0.0 through 10.0 (one decimal recommended).
+   Do NOT encode the 10-point scale as a 0–1 fraction; use 0–10 directly.
+
+2) technical_specs — object with EXACTLY these seven keys, all string values:
+   "Construction", "Firmness", "Support_Core", "Comfort_Layer", "Trial", "Warranty", "Certifications"
+   Certifications: comma-separated claims traceable to the provided listing or brand copy; if none, use exactly:
+   Not stated in captured listing
+
+3) specs_matrix — object whose values are all strings, non-empty forensic prose.
+   REQUIRED keys: "Spinal_Alignment", "Edge_Support_Integrity", "Motion_Transfer_Damping", "Pressure_Relief_Index"
+   You may add more string keys with forensic indices if useful.
+
+4) pros — JSON array of short non-empty strings (strings only, not objects).
+5) cons — same as pros.
+
+6) audit_note — single string, clinical forensic tone, at most ~60 words.
+7) summary_log — single string, chronological steps using tokens like [T-00:00:00].
+
+8) seo_title — string, at most 60 characters, must include the words Forensic Audit and Review.
+9) seo_description — string, at most 155 characters.
+10) seo_keywords — string, 5–8 comma-separated lowercase keywords.
+11) detected_coupon — string (empty string if none).
+12) promo_text — string (empty string if none).
+
+Hard rules: valid JSON only; double-quoted keys; no trailing commas; no NaN or Infinity; do not rename or omit audit_scores keys."""
+
+_DEEPSEEK_BRAND_INTEL_SYSTEM = """You are a strict JSON API for mattress brand intelligence (consumer research).
+Your entire reply MUST be one JSON object only: no markdown fences, no commentary.
+
+Top-level: exactly one key "items" whose value is a JSON array.
+
+For EACH object in input.platforms (same order, same length), output one object in "items" with EXACTLY these keys:
+- "source_platform" (string): MUST exactly match that platform's input source_platform (same spelling and case).
+- "sentiment_score" (number): between 0.0 and 1.0 inclusive. If evidence is thin or contradictory, use about 0.45–0.55.
+- "key_issue_tags" (array of strings): length 2 to 8. Each tag: only ASCII letters, digits, and underscores; length 2–40; use forms like Edge_Support, Off_gassing, Thin_Signal. No commas, quotes, slashes, or spaces inside a tag. No empty strings.
+- "verdict_summary" (string): one neutral forensic paragraph, at most 85 words, themes only, no URLs, no invented facts.
+
+Do not add other top-level keys. Do not omit any input platform."""
+
+_CTRL_OR_INVISIBLE = re.compile(r"[\x00-\x1f\x7f\u200b-\u200f\ufeff]")
+
+
+def _normalize_audit_scores_from_llm(raw: Any) -> dict[str, float]:
+    """对齐 AuditScores：五键、0–10；兼容历史 0–1 分输出。"""
+    src = raw if isinstance(raw, dict) else {}
+    out: dict[str, float] = {}
+    for k in _AUDIT_SCORE_KEYS:
+        v = src.get(k)
+        try:
+            x = float(v) if v is not None else 0.0
+        except (TypeError, ValueError):
+            x = 0.0
+        if 0 < x <= 1.0:
+            x = round(x * 10, 1)
+        x = max(0.0, min(10.0, round(x, 1)))
+        out[k] = x
+    return out
+
+
+def _normalize_str_list_for_audit(raw: Any, *, cap: int = 24) -> list[str]:
+    if raw is None:
+        return []
+    if isinstance(raw, str):
+        s = raw.strip()
+        return [s] if s else []
+    if isinstance(raw, list):
+        return [str(x).strip() for x in raw if str(x).strip()][:cap]
+    return []
+
+
+def _sanitize_key_issue_tags(raw: Any, *, min_tags: int = 2, max_tags: int = 8) -> list[str]:
+    """稳定写入 brand_intelligence.key_issue_tags（text[] / json）：去控制字符、统一 token 形状。"""
+    if isinstance(raw, dict):
+        raw = list(raw.values())
+    elif not isinstance(raw, list):
+        raw = [raw] if raw is not None else []
+    out: list[str] = []
+    for x in raw:
+        s = _CTRL_OR_INVISIBLE.sub("", str(x)).strip()
+        s = re.sub(r"\s+", "_", s)
+        s = re.sub(r"_+", "_", s).strip("_")
+        s = re.sub(r"[^A-Za-z0-9_]+", "", s)[:40]
+        if len(s) >= 2 and s not in out:
+            out.append(s)
+        if len(out) >= max_tags:
+            break
+    for pad in ("Thin_Signal", "General_Themes"):
+        if len(out) >= min_tags:
+            break
+        if pad not in out:
+            out.append(pad)
+    return out[:max_tags]
+
+
 # --- 强制提前注入 ---
-# 这样可以确保所有后续初始化的库（httpx, playwright, genai）都读取到同一个配置
+# 这样可以确保所有后续初始化的库（httpx, playwright）都读取到同一个配置
 if os.getenv("PROXY_URL"):
     os.environ["HTTP_PROXY"] = os.getenv("PROXY_URL")
     os.environ["HTTPS_PROXY"] = os.getenv("PROXY_URL")
@@ -331,32 +437,6 @@ def playwright_fetch_site_new_context_kwargs() -> dict[str, Any]:
     return out
 
 
-def serper_social_proof_enabled() -> bool:
-    """
-    设为 0/false/off 时跳过 Serper（不自采 SERP）。
-    若 public.brand_social_corpus 有数据且传入 brand_slug，则审计仍可使用 corpus 舆情块；
-    否则舆情为空。显式强制 corpus：BRAND_AUDIT_USE_SOCIAL_CORPUS=1。
-    环境变量：USE_SERPER_SOCIAL_PROOF 或 BRAND_INTEL_USE_SERPER（任一即可）。
-    """
-    for key in ("USE_SERPER_SOCIAL_PROOF", "BRAND_INTEL_USE_SERPER"):
-        raw = (os.getenv(key) or "").strip().lower()
-        if raw in ("0", "false", "no", "off"):
-            return False
-    return True
-
-
-def brand_social_corpus_audit_forced() -> bool:
-    """
-    为真时审计舆情块只读 public.brand_social_corpus（不走 Serper）。
-    BRAND_AUDIT_USE_SOCIAL_CORPUS 或 USE_BRAND_SOCIAL_CORPUS_FOR_AUDIT = 1/true/on。
-    """
-    for key in ("BRAND_AUDIT_USE_SOCIAL_CORPUS", "USE_BRAND_SOCIAL_CORPUS_FOR_AUDIT"):
-        raw = (os.getenv(key) or "").strip().lower()
-        if raw in ("1", "true", "yes", "on"):
-            return True
-    return False
-
-
 def _brand_social_corpus_audit_max_rows() -> int:
     raw = (os.getenv("BRAND_SOCIAL_CORPUS_AUDIT_MAX") or "").strip()
     try:
@@ -372,7 +452,7 @@ def load_social_evidence_from_brand_corpus(
     product_slug: str | None,
 ) -> tuple[str, int, list[dict[str, Any]]]:
     """
-    从 brand_social_corpus 组装与 Serper 分支相同形态的 merged 文本与 platform_blocks，
+    从 brand_social_corpus 组装 merged 文本与 platform_blocks，
     供审计上下文与 _persist_brand_intelligence 使用。
     """
     bs = (brand_slug or "").strip()
@@ -441,36 +521,8 @@ def load_social_evidence_from_brand_corpus(
     return evidence_text, total_review_count, platform_blocks
 
 
-# Reddit / Amazon / Trustpilot / SleepLine — Serper Google organic，用于情报中心与证据日志
-PLATFORM_SEARCHES: tuple[tuple[str, str], ...] = (
-    ("Reddit", "{base} mattress review site:reddit.com"),
-    ("Amazon", "{base} mattress review site:amazon.com"),
-    ("Trustpilot", "{base} mattress reviews site:trustpilot.com"),
-    ("SleepLine", "{base} mattress site:sleepline.com"),
-)
-
-
-class IntelligenceProvider:
-    """情报供应商：Serper API 多平台舆情采集 → brand_intelligence / evidence_log"""
-
-    def __init__(self, api_key):
-        self.api_key = api_key
-        self.url = "https://google.serper.dev/search"
-
-    async def _serper_organic(self, client: httpx.AsyncClient, q: str, num: int = 20):
-        if not self.api_key:
-            return []
-        headers = {
-            "X-API-KEY": self.api_key,
-            "Content-Type": "application/json",
-        }
-        payload = {"q": q, "num": int(num), "page": 1}
-        resp = await client.post(self.url, headers=headers, json=payload)
-        if resp.status_code != 200:
-            print(f"❌ Serper 报错: {resp.status_code} - {resp.text[:500]}")
-            return []
-        data = resp.json()
-        return data.get("organic", []) or []
+class SocialEvidenceProvider:
+    """舆情：仅读取 public.brand_social_corpus。"""
 
     async def fetch_social_proof(
         self,
@@ -482,16 +534,11 @@ class IntelligenceProvider:
         product_slug: str | None = None,
     ):
         """
-        多平台舆情：Serper SERP 摘要，或 public.brand_social_corpus（brand_social_corpus_ingest 预采）。
         Returns:
             merged_evidence: str
             total_review_count: int
             platform_blocks: list[{"source_platform","evidence_text","signal_density"}]
         """
-        all_evidence: list[str] = []
-        platform_blocks: list[dict[str, Any]] = []
-        total_review_count = 0
-        base_q = (query or "").strip()
 
         def _update_evidence_log(evidence_text: str, review_count: int) -> None:
             if not (product_id and supabase_client and evidence_text):
@@ -507,58 +554,6 @@ class IntelligenceProvider:
             except Exception as ex:
                 print(f"⚠️ evidence_log 回写失败: {ex}")
 
-        if brand_social_corpus_audit_forced():
-            if supabase_client and brand_slug:
-                evidence_text, total_review_count, platform_blocks = (
-                    load_social_evidence_from_brand_corpus(
-                        supabase_client, brand_slug, product_slug
-                    )
-                )
-                if evidence_text.strip():
-                    print(
-                        f"ℹ️ 审计舆情来源: brand_social_corpus（{total_review_count} 条，BRAND_AUDIT_USE_SOCIAL_CORPUS）"
-                    )
-                    _update_evidence_log(evidence_text, total_review_count)
-                    return evidence_text, total_review_count, platform_blocks
-            print(
-                "⚠️ 已启用 BRAND_AUDIT_USE_SOCIAL_CORPUS，但缺少 supabase/brand_slug，或 corpus 为空。"
-            )
-            return "", 0, []
-
-        if serper_social_proof_enabled() and self.api_key:
-            async with httpx.AsyncClient(timeout=25.0) as client:
-                try:
-                    for platform_name, template in PLATFORM_SEARCHES:
-                        q = template.format(base=base_q)
-                        organic_results = await self._serper_organic(client, q, num=20)
-                        n = len(organic_results)
-                        total_review_count += n
-                        chunk_lines = []
-                        for item in organic_results[:12]:
-                            chunk_lines.append(
-                                f"🔍 SOURCE: {item.get('title')}\nCONTEXT: {item.get('snippet')}"
-                            )
-                        merged_chunk = "\n\n".join(chunk_lines)
-                        if merged_chunk.strip():
-                            all_evidence.append(
-                                f"--- PLATFORM: {platform_name} ---\n{merged_chunk}"
-                            )
-                        platform_blocks.append(
-                            {
-                                "source_platform": platform_name,
-                                "evidence_text": merged_chunk,
-                                "signal_density": n,
-                            }
-                        )
-
-                    evidence_text = "\n\n".join(all_evidence)
-                    _update_evidence_log(evidence_text, total_review_count)
-
-                except Exception as e:
-                    print(f"⚠️ 多平台舆情异常: {e}")
-
-            return "\n\n".join(all_evidence), total_review_count, platform_blocks
-
         if supabase_client and brand_slug:
             evidence_text, total_review_count, platform_blocks = (
                 load_social_evidence_from_brand_corpus(
@@ -567,20 +562,15 @@ class IntelligenceProvider:
             )
             if evidence_text.strip():
                 print(
-                    f"ℹ️ Serper 未使用，舆情来源: brand_social_corpus（{total_review_count} 条）"
+                    f"ℹ️ 审计舆情来源: brand_social_corpus（{total_review_count} 条）"
                 )
                 _update_evidence_log(evidence_text, total_review_count)
                 return evidence_text, total_review_count, platform_blocks
 
-        if not serper_social_proof_enabled():
-            print(
-                "ℹ️ Serper 已关闭（USE_SERPER_SOCIAL_PROOF=0 / BRAND_INTEL_USE_SERPER=0），"
-                "且 brand_social_corpus 无可用行；舆情块为空。"
-            )
-        elif not self.api_key:
-            print(
-                "⚠️ SERPER_API_KEY 未配置，且 brand_social_corpus 无可用行；跳过多平台舆情。"
-            )
+        print(
+            "ℹ️ 无舆情块：请配置 supabase + brand_slug，并在 public.brand_social_corpus 写入数据 "
+            "（python brand_social_corpus_ingest.py --from-registry）。"
+        )
         return "", 0, []
 
 
@@ -634,8 +624,7 @@ class ForensicAuditEngine:
             self.slug = slugify(f"{brand}-{model}")
         
         self.supabase: Client = create_client(os.getenv("SUPABASE_URL"), os.getenv("SUPABASE_KEY"))
-        self.ai_client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
-        self.intel = IntelligenceProvider(os.getenv("SERPER_API_KEY"))
+        self.intel = SocialEvidenceProvider()
 
     def generate_hash(self):
         return hashlib.md5(f"{self.slug}-{datetime.now().date()}".encode()).hexdigest()[:8].upper()
@@ -2784,29 +2773,19 @@ class ForensicAuditEngine:
         return data 
 
     @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=2, min=5, max=15))
-    async def call_ai_audit(self, prompt, context):
-        try:
-            response = self.ai_client.models.generate_content(
-                model=GEMINI_MODEL_ID,
-                contents=[prompt, context],
-                config=types.GenerateContentConfig(response_mime_type="application/json")
-            )
-            return json.loads(response.text)
-        except Exception as e:
-            # 打印完整的错误细节，看看是不是 API Key 过期、欠费或被封禁
-            print(f"DEBUG - Gemini API 报错详情: {str(e)}")
-            raise e
-
-    async def call_deepseek_audit(self, prompt, context):
-        """Gemini 不可用时的降级：DeepSeek Chat（OpenAI 兼容接口）。"""
+    async def _deepseek_chat_json_object(
+        self, user_message: str, *, system: str | None = None
+    ) -> dict:
+        """DeepSeek Chat API → 解析为单个 JSON 对象（可选 system 强化契约）。"""
         api_key = os.getenv("DEEPSEEK_API_KEY")
         if not api_key:
-            raise ValueError("未配置 DEEPSEEK_API_KEY，无法启用降级审计")
+            raise ValueError("未配置 DEEPSEEK_API_KEY，无法进行 LLM 调用")
 
-        combined = (
-            f"{prompt.strip()}\n\n--- EVIDENCE ---\n{context}\n\n"
-            "Respond with a single valid JSON object only, no markdown fences."
-        )
+        messages: list[dict[str, str]] = []
+        if system and system.strip():
+            messages.append({"role": "system", "content": system.strip()})
+        messages.append({"role": "user", "content": user_message})
+
         timeout = httpx.Timeout(connect=20.0, read=120.0, write=30.0, pool=20.0)
         async with httpx.AsyncClient(timeout=timeout, trust_env=True) as client:
             resp = await client.post(
@@ -2817,7 +2796,7 @@ class ForensicAuditEngine:
                 },
                 json={
                     "model": DEEPSEEK_MODEL_ID,
-                    "messages": [{"role": "user", "content": combined}],
+                    "messages": messages,
                     "response_format": {"type": "json_object"},
                     "temperature": 0.2,
                 },
@@ -2832,6 +2811,16 @@ class ForensicAuditEngine:
         if not content:
             raise RuntimeError("DeepSeek 返回空内容")
         return self._parse_llm_json_text(content)
+
+    async def call_deepseek_audit(self, prompt, context):
+        """DeepSeek Chat（OpenAI 兼容接口）做法医审计 JSON。"""
+        user = (
+            f"{prompt.strip()}\n\n--- EVIDENCE ---\n{context.strip()}\n\n"
+            "Output exactly one JSON object as defined in your system instructions."
+        )
+        return await self._deepseek_chat_json_object(
+            user, system=_DEEPSEEK_FORENSIC_AUDIT_SYSTEM
+        )
 
     @staticmethod
     def _confidence_from_density(signal_density: int) -> float:
@@ -2857,33 +2846,23 @@ class ForensicAuditEngine:
         if not trimmed:
             return []
 
-        prompt = """
-You are a consumer mattress research analyst. For EACH platform object in the JSON input, read only the evidence_excerpt.
-Return a single JSON object with key "items" — an array with one entry per input platform (same order as input.platforms):
-- source_platform: exact copy from input
-- sentiment_score: float 0.0 (very negative consensus in snippets) to 1.0 (very positive)
-- key_issue_tags: array of 2 to 8 short labels, Title_Case or descriptors like "Edge_Support", "Off-gassing", "Shipping_Delay"
-- verdict_summary: one paragraph, max 85 words, neutral forensic tone; describe themes only, no URLs or invented facts
-
-If snippets are thin or contradictory, use sentiment near 0.45–0.55 and include tag "Thin_Signal".
-"""
-        ctx = json.dumps(
-            {
-                "brand": self.brand,
-                "model": self.model,
-                "platforms": trimmed,
-            },
-            ensure_ascii=False,
+        user = (
+            "INPUT_JSON:\n"
+            + json.dumps(
+                {
+                    "brand": self.brand,
+                    "model": self.model,
+                    "platforms": trimmed,
+                },
+                ensure_ascii=False,
+            )
+            + "\n\nReturn exactly one JSON object with top-level key \"items\" only, "
+            "per your system instructions."
         )
         try:
-            response = self.ai_client.models.generate_content(
-                model=GEMINI_MODEL_ID,
-                contents=[prompt.strip(), ctx],
-                config=types.GenerateContentConfig(
-                    response_mime_type="application/json"
-                ),
+            parsed = await self._deepseek_chat_json_object(
+                user, system=_DEEPSEEK_BRAND_INTEL_SYSTEM
             )
-            parsed = json.loads(response.text)
             items = parsed.get("items") or []
             out = []
             density_map = {x["source_platform"]: x["signal_density"] for x in trimmed}
@@ -2891,10 +2870,7 @@ If snippets are thin or contradictory, use sentiment near 0.45–0.55 and includ
                 plat = (it.get("source_platform") or "").strip()
                 if plat not in density_map:
                     continue
-                tags = it.get("key_issue_tags") or []
-                if isinstance(tags, str):
-                    tags = [tags]
-                tags = [str(t).strip() for t in tags if str(t).strip()][:12]
+                tags = _sanitize_key_issue_tags(it.get("key_issue_tags"))
                 ss_raw = it.get("sentiment_score")
                 try:
                     ss = float(ss_raw if ss_raw is not None else 0.5)
@@ -2950,7 +2926,7 @@ If snippets are thin or contradictory, use sentiment near 0.45–0.55 and includ
         site_data = await self.fetch_site_data(url)
 
         # --- 新增判断逻辑 ---
-        # 如果价格没拿到且文本内容太短，判定为抓取失败，不触发 Gemini
+        # 如果价格没拿到且文本内容太短，判定为抓取失败，不触发 LLM 审计
         if site_data['price'] == 0.0 and len(site_data['raw_text']) < 300:
             print(f"❌ 采集完整性校验失败: {self.model}。原因：可能是被反爬拦截或 404。")
             return  # 优雅退出，不抛出异常，不触发 retry
@@ -3020,75 +2996,33 @@ If snippets are thin or contradictory, use sentiment near 0.45–0.55 and includ
         # 2. 注入审计上下文 (大幅减少 Token 占用)
         audit_context = f"--- OFFICIAL SPECS ---\n{clean_text}\n\n--- SOCIAL EVIDENCE ---\n{social_proof[:800]}"
 
-        # 3. 精炼版 10分制 Prompt
+        # 3. 法医审计 — user 任务说明；JSON 契约见 _DEEPSEEK_FORENSIC_AUDIT_SYSTEM
         audit_prompt = f"""
-        ACT AS A SENIOR BIOMECHANICAL AUDITOR. 
-        AUDIT TARGET: {self.brand} {self.model}
-        
-        TASK:
-        1. 10-point scale audit (audit_scores).
-        2. Create a standardized matrix (technical_specs).
-        3. Write a sharp clinical forensic note (audit_note).
-        4. Generate a 'specs_matrix' containing 4-6 forensic indices (e.g., Spinal_Alignment_Index, Motion_Isolation_Rating, Thermal_Conductivity).
+AUDIT TARGET: {self.brand} {self.model}
 
-        SPECIFICATIONS:
-        - audit_note: MAX 60 words. Strict clinical tone. 
-        - seo_title: Create a high-CTR title (max 60 chars) including "Forensic Audit" and "Review".
-        - seo_description: Max 155 chars. Focus on material integrity and audit results.
-        - seo_keywords: 5-8 highly relevant comma-separated keywords (e.g., brand, model, mattress-type, spinal-alignment).
-        - technical_specs: USE THESE KEYS: "Construction", "Firmness", "Support_Core", "Comfort_Layer", "Trial", "Warranty", "Certifications".
-        - Certifications: Comma-separated published claims traceable to the listing or brand copy (e.g. CertiPUR-US, OEKO-TEX, GOTS license ref if stated). Include specific IDs when the source text provides them. If no claim is found, use "Not stated in captured listing".
-        - specs_matrix: DO NOT leave empty. Provide detailed mechanical evaluation for each key.
+Act as a senior biomechanical mattress auditor. Using the evidence block:
+- Fill audit_scores on the 0.0–10.0 scale with all five required keys (overall, support, cooling, pressure, durability).
+- Complete technical_specs (seven exact keys) and specs_matrix (four required keys plus non-empty string values).
+- Provide pros and cons as arrays of concise strings; audit_note (clinical, ~60 words max); summary_log with [T-00:00:00] style steps.
+- SEO: seo_title (<=60 chars, include "Forensic Audit" and "Review"), seo_description (<=155 chars), seo_keywords (5–8 comma-separated, lowercase).
+- detected_coupon and promo_text as strings (use empty string when absent).
+"""
 
-        RETURN JSON:
-        {{
-          "audit_scores": {{"overall": 0.0, "support": 0.0, "cooling": 0.0, "pressure": 0.0, "durability": 0.0}},
-          "technical_specs": {{
-              "Construction": "", "Firmness": "", "Support_Core": "", "Comfort_Layer": "", "Trial": "", "Warranty": "", "Certifications": ""
-          }},
-          "specs_matrix": {{
-              "Spinal_Alignment": "",
-              "Edge_Support_Integrity": "",
-              "Motion_Transfer_Damping": "",
-              "Pressure_Relief_Index": ""
-          }},
-          "pros": [], 
-          "cons": [],
-          "audit_note": "",
-          "summary_log": "Generate chronological audit steps [T-00:00:00]...",
-          "seo_title": "",
-          "seo_description": "",
-          "seo_keywords": "",
-          "detected_coupon": "",
-          "promo_text": ""
-        }}
-        """
-
-        audit_llm_label = GEMINI_AUDIT_LABEL
+        audit_llm_label = DEEPSEEK_AUDIT_LABEL
         try:
-            print(f"🧠 启动 {GEMINI_AUDIT_LABEL}（{GEMINI_MODEL_ID}）深度审计...")
-            report = await self.call_ai_audit(audit_prompt, audit_context)
-        except Exception as gem_err:
-            print(f"⚠️ Gemini 审计失败，尝试 DeepSeek 降级: {gem_err}")
-            try:
-                print(
-                    f"🧠 启动 {DEEPSEEK_AUDIT_LABEL}（{DEEPSEEK_MODEL_ID}）深度审计..."
-                )
-                report = await self.call_deepseek_audit(
-                    audit_prompt, audit_context
-                )
-                audit_llm_label = DEEPSEEK_AUDIT_LABEL
-            except Exception as ds_err:
-                print(f"❌ DeepSeek 降级失败: {ds_err}")
-                raise RuntimeError(
-                    f"LLM 审计均失败 — Gemini: {gem_err!s} | DeepSeek: {ds_err!s}"
-                ) from ds_err
+            print(
+                f"🧠 启动 {DEEPSEEK_AUDIT_LABEL}（{DEEPSEEK_MODEL_ID}）深度审计..."
+            )
+            report = await self.call_deepseek_audit(
+                audit_prompt, audit_context
+            )
+        except Exception as ds_err:
+            print(f"❌ DeepSeek 审计失败: {ds_err}")
+            raise RuntimeError(f"LLM 审计失败 — DeepSeek: {ds_err!s}") from ds_err
 
         try:
             # 逻辑层：生成专业日志与数据校正
-            scores = report.get('audit_scores', {})
-            for k in scores: # 标准化分数
-                if 0 < scores[k] <= 1.0: scores[k] = round(scores[k] * 10, 1)
+            scores = _normalize_audit_scores_from_llm(report.get("audit_scores"))
 
             # 2. 数据清洗 (必须在构建 payload 之前)
             clean_desc = report.get('seo_description', '').strip().replace('"', '')
@@ -3107,11 +3041,7 @@ If snippets are thin or contradictory, use sentiment near 0.45–0.55 and includ
                 "audit_hash": self.generate_hash(),
                 "evidence_size": len(audit_context),
                 "model": audit_llm_label,
-                "api_model_id": (
-                    GEMINI_MODEL_ID
-                    if audit_llm_label == GEMINI_AUDIT_LABEL
-                    else DEEPSEEK_MODEL_ID
-                ),
+                "api_model_id": DEEPSEEK_MODEL_ID,
                 "timestamp": datetime.now(UTC).isoformat(),
                 "specs_matrix": report.get('specs_matrix', {}), # 这里对应前端的 Forensic Analysis
                 "protocol": "v3.0-forensic",
@@ -3131,8 +3061,8 @@ If snippets are thin or contradictory, use sentiment near 0.45–0.55 and includ
                 "price": site_data['price'],
                 "audit_scores": scores,
                 "technical_specs": report.get('technical_specs'),
-                "pros": report.get('pros', []),
-                "cons": report.get('cons', []),
+                "pros": _normalize_str_list_for_audit(report.get("pros")),
+                "cons": _normalize_str_list_for_audit(report.get("cons")),
                 "audit_note": report.get('audit_note'),
                 "summary_log": report.get('summary_log'),
 

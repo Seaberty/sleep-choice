@@ -219,12 +219,12 @@ def _reddit_draft(row: dict[str, Any], scores: dict[str, float], base_url: str) 
     lines.extend(
         [
             "",
-            "**SERP / forum excerpt (truncated):**",
-            ev_short if ev_short else "[No Serper block stored for this row yet.]",
+            "**Social / forum excerpt (truncated):**",
+            ev_short if ev_short else "[No social evidence block stored for this row yet.]",
             "",
             f"Deep-dive forensic page: {url}",
             "",
-            "Disclaimer: Aggregated public listings + SERP signals — verify certifications and policies on the merchant before buying.",
+            "Disclaimer: Aggregated public listings + community signals — verify certifications and policies on the merchant before buying.",
         ]
     )
     return "\n".join(lines)
