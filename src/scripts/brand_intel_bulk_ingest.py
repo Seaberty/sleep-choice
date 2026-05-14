@@ -22,6 +22,9 @@ Usage:
   python brand_intel_bulk_ingest.py --limit 30
   python brand_intel_bulk_ingest.py --slug saatva-classic
   python brand_intel_bulk_ingest.py --queries 10 --serper-num 50 --dry-run
+
+  按品牌名沉淀大量平台片段（不经 Serper / 不经 LLM、写入 brand_social_corpus）见：
+  python brand_social_corpus_ingest.py --brand Saatva
 """
 from __future__ import annotations
 

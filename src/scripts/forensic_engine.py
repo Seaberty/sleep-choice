@@ -333,8 +333,9 @@ def playwright_fetch_site_new_context_kwargs() -> dict[str, Any]:
 
 def serper_social_proof_enabled() -> bool:
     """
-    设为 0/false/off 时跳过 Serper（不自采 SERP、不写 evidence_log 舆情段、不触发 Gemini brand_intel）。
-    情报中心数据请自行写入 brand_intelligence 或对接其它数据源。
+    设为 0/false/off 时跳过 Serper（不自采 SERP）。
+    若 public.brand_social_corpus 有数据且传入 brand_slug，则审计仍可使用 corpus 舆情块；
+    否则舆情为空。显式强制 corpus：BRAND_AUDIT_USE_SOCIAL_CORPUS=1。
     环境变量：USE_SERPER_SOCIAL_PROOF 或 BRAND_INTEL_USE_SERPER（任一即可）。
     """
     for key in ("USE_SERPER_SOCIAL_PROOF", "BRAND_INTEL_USE_SERPER"):
@@ -342,6 +343,102 @@ def serper_social_proof_enabled() -> bool:
         if raw in ("0", "false", "no", "off"):
             return False
     return True
+
+
+def brand_social_corpus_audit_forced() -> bool:
+    """
+    为真时审计舆情块只读 public.brand_social_corpus（不走 Serper）。
+    BRAND_AUDIT_USE_SOCIAL_CORPUS 或 USE_BRAND_SOCIAL_CORPUS_FOR_AUDIT = 1/true/on。
+    """
+    for key in ("BRAND_AUDIT_USE_SOCIAL_CORPUS", "USE_BRAND_SOCIAL_CORPUS_FOR_AUDIT"):
+        raw = (os.getenv(key) or "").strip().lower()
+        if raw in ("1", "true", "yes", "on"):
+            return True
+    return False
+
+
+def _brand_social_corpus_audit_max_rows() -> int:
+    raw = (os.getenv("BRAND_SOCIAL_CORPUS_AUDIT_MAX") or "").strip()
+    try:
+        n = int(raw)
+        return max(20, min(n, 800))
+    except (TypeError, ValueError):
+        return 400
+
+
+def load_social_evidence_from_brand_corpus(
+    supabase: Client,
+    brand_slug: str,
+    product_slug: str | None,
+) -> tuple[str, int, list[dict[str, Any]]]:
+    """
+    从 brand_social_corpus 组装与 Serper 分支相同形态的 merged 文本与 platform_blocks，
+    供审计上下文与 _persist_brand_intelligence 使用。
+    """
+    bs = (brand_slug or "").strip()
+    if not bs:
+        return "", 0, []
+    lim = _brand_social_corpus_audit_max_rows()
+    try:
+        q = (
+            supabase.table("brand_social_corpus")
+            .select("source_platform,title,snippet,source_url")
+            .eq("brand_slug", bs)
+        )
+        ps = (product_slug or "").strip()
+        if ps:
+            q = q.or_(f"product_slug.is.null,product_slug.eq.{ps}")
+        res = q.order("collected_at", desc=True).limit(lim).execute()
+    except Exception as e:
+        print(f"⚠️ brand_social_corpus 读取失败（舆情块留空）: {e}")
+        return "", 0, []
+
+    rows = res.data or []
+    if not rows:
+        return "", 0, []
+
+    buckets: dict[str, list[dict[str, Any]]] = {}
+    for r in rows:
+        plat = (r.get("source_platform") or "Other").strip() or "Other"
+        buckets.setdefault(plat, []).append(r)
+
+    order = ("Reddit", "Amazon", "Trustpilot", "SleepLine", "Other")
+
+    def _plat_sort_key(p: str) -> int:
+        try:
+            return order.index(p)
+        except ValueError:
+            return 99
+
+    all_evidence: list[str] = []
+    platform_blocks: list[dict[str, Any]] = []
+    total_review_count = 0
+
+    for platform_name in sorted(buckets.keys(), key=_plat_sort_key):
+        items = buckets[platform_name]
+        n = len(items)
+        total_review_count += n
+        chunk_lines: list[str] = []
+        for item in items[:45]:
+            title = item.get("title") or ""
+            snip = item.get("snippet") or ""
+            link = item.get("source_url") or ""
+            chunk_lines.append(
+                f"🔍 SOURCE: {title}\nCONTEXT: {snip}\n🔗 {link}"
+            )
+        merged_chunk = "\n\n".join(chunk_lines)
+        platform_blocks.append(
+            {
+                "source_platform": platform_name,
+                "evidence_text": merged_chunk,
+                "signal_density": n,
+            }
+        )
+        if merged_chunk.strip():
+            all_evidence.append(f"--- PLATFORM: {platform_name} ---\n{merged_chunk}")
+
+    evidence_text = "\n\n".join(all_evidence)
+    return evidence_text, total_review_count, platform_blocks
 
 
 # Reddit / Amazon / Trustpilot / SleepLine — Serper Google organic，用于情报中心与证据日志
@@ -375,70 +472,116 @@ class IntelligenceProvider:
         data = resp.json()
         return data.get("organic", []) or []
 
-    async def fetch_social_proof(self, query, product_id=None, supabase_client=None):
+    async def fetch_social_proof(
+        self,
+        query,
+        product_id=None,
+        supabase_client=None,
+        *,
+        brand_slug: str | None = None,
+        product_slug: str | None = None,
+    ):
         """
-        多平台抓取 SERP 摘要；合并为审计上下文，并返回按平台分块的数据供 brand_intelligence 写入。
+        多平台舆情：Serper SERP 摘要，或 public.brand_social_corpus（brand_social_corpus_ingest 预采）。
         Returns:
             merged_evidence: str
-            total_review_count: int（各平台 organic 条数之和）
+            total_review_count: int
             platform_blocks: list[{"source_platform","evidence_text","signal_density"}]
         """
-        all_evidence = []
+        all_evidence: list[str] = []
         platform_blocks: list[dict[str, Any]] = []
         total_review_count = 0
         base_q = (query or "").strip()
 
-        if not serper_social_proof_enabled():
+        def _update_evidence_log(evidence_text: str, review_count: int) -> None:
+            if not (product_id and supabase_client and evidence_text):
+                return
+            try:
+                supabase_client.table("audit_products").update(
+                    {
+                        "evidence_log": evidence_text,
+                        "review_count": review_count,
+                        "updated_at": datetime.now(UTC).isoformat(),
+                    }
+                ).eq("id", product_id).execute()
+            except Exception as ex:
+                print(f"⚠️ evidence_log 回写失败: {ex}")
+
+        if brand_social_corpus_audit_forced():
+            if supabase_client and brand_slug:
+                evidence_text, total_review_count, platform_blocks = (
+                    load_social_evidence_from_brand_corpus(
+                        supabase_client, brand_slug, product_slug
+                    )
+                )
+                if evidence_text.strip():
+                    print(
+                        f"ℹ️ 审计舆情来源: brand_social_corpus（{total_review_count} 条，BRAND_AUDIT_USE_SOCIAL_CORPUS）"
+                    )
+                    _update_evidence_log(evidence_text, total_review_count)
+                    return evidence_text, total_review_count, platform_blocks
             print(
-                "ℹ️ Serper 已关闭（USE_SERPER_SOCIAL_PROOF=0 / BRAND_INTEL_USE_SERPER=0），"
-                "跳过 SERP 采集；brand_intelligence 请使用自建情报。"
+                "⚠️ 已启用 BRAND_AUDIT_USE_SOCIAL_CORPUS，但缺少 supabase/brand_slug，或 corpus 为空。"
             )
             return "", 0, []
 
-        if not self.api_key:
-            print("⚠️ SERPER_API_KEY 未配置，跳过多平台舆情采集")
-            return "", 0, []
-
-        async with httpx.AsyncClient(timeout=25.0) as client:
-            try:
-                for platform_name, template in PLATFORM_SEARCHES:
-                    q = template.format(base=base_q)
-                    organic_results = await self._serper_organic(client, q, num=20)
-                    n = len(organic_results)
-                    total_review_count += n
-                    chunk_lines = []
-                    for item in organic_results[:12]:
-                        chunk_lines.append(
-                            f"🔍 SOURCE: {item.get('title')}\nCONTEXT: {item.get('snippet')}"
+        if serper_social_proof_enabled() and self.api_key:
+            async with httpx.AsyncClient(timeout=25.0) as client:
+                try:
+                    for platform_name, template in PLATFORM_SEARCHES:
+                        q = template.format(base=base_q)
+                        organic_results = await self._serper_organic(client, q, num=20)
+                        n = len(organic_results)
+                        total_review_count += n
+                        chunk_lines = []
+                        for item in organic_results[:12]:
+                            chunk_lines.append(
+                                f"🔍 SOURCE: {item.get('title')}\nCONTEXT: {item.get('snippet')}"
+                            )
+                        merged_chunk = "\n\n".join(chunk_lines)
+                        if merged_chunk.strip():
+                            all_evidence.append(
+                                f"--- PLATFORM: {platform_name} ---\n{merged_chunk}"
+                            )
+                        platform_blocks.append(
+                            {
+                                "source_platform": platform_name,
+                                "evidence_text": merged_chunk,
+                                "signal_density": n,
+                            }
                         )
-                    merged_chunk = "\n\n".join(chunk_lines)
-                    if merged_chunk.strip():
-                        all_evidence.append(
-                            f"--- PLATFORM: {platform_name} ---\n{merged_chunk}"
-                        )
-                    platform_blocks.append(
-                        {
-                            "source_platform": platform_name,
-                            "evidence_text": merged_chunk,
-                            "signal_density": n,
-                        }
-                    )
 
-                evidence_text = "\n\n".join(all_evidence)
+                    evidence_text = "\n\n".join(all_evidence)
+                    _update_evidence_log(evidence_text, total_review_count)
 
-                if product_id and supabase_client:
-                    supabase_client.table("audit_products").update(
-                        {
-                            "evidence_log": evidence_text,
-                            "review_count": total_review_count,
-                            "updated_at": datetime.now(UTC).isoformat(),
-                        }
-                    ).eq("id", product_id).execute()
+                except Exception as e:
+                    print(f"⚠️ 多平台舆情异常: {e}")
 
-            except Exception as e:
-                print(f"⚠️ 多平台舆情异常: {e}")
+            return "\n\n".join(all_evidence), total_review_count, platform_blocks
 
-        return "\n\n".join(all_evidence), total_review_count, platform_blocks
+        if supabase_client and brand_slug:
+            evidence_text, total_review_count, platform_blocks = (
+                load_social_evidence_from_brand_corpus(
+                    supabase_client, brand_slug, product_slug
+                )
+            )
+            if evidence_text.strip():
+                print(
+                    f"ℹ️ Serper 未使用，舆情来源: brand_social_corpus（{total_review_count} 条）"
+                )
+                _update_evidence_log(evidence_text, total_review_count)
+                return evidence_text, total_review_count, platform_blocks
+
+        if not serper_social_proof_enabled():
+            print(
+                "ℹ️ Serper 已关闭（USE_SERPER_SOCIAL_PROOF=0 / BRAND_INTEL_USE_SERPER=0），"
+                "且 brand_social_corpus 无可用行；舆情块为空。"
+            )
+        elif not self.api_key:
+            print(
+                "⚠️ SERPER_API_KEY 未配置，且 brand_social_corpus 无可用行；跳过多平台舆情。"
+            )
+        return "", 0, []
 
 
 async def _safe_close_playwright_browser(context: Any, browser: Any) -> None:
@@ -2197,53 +2340,6 @@ class ForensicAuditEngine:
                 "image_selector": ".pdp-gallery img",
                 "wait_for": ".pdp-price, h1.pdp-h1, h1",
             },
-            # Shopify 2.0：与 FluffCo 类似，依赖 JSON-LD + _extract_shopify_variant_pricing；DOM 链作补全
-            "WinkBeds": {
-                "price_selector": ".product__info-wrapper .price",
-                "price_selectors_fallback": [
-                    ".price-item--sale",
-                    ".price-item--last",
-                    "[class*='price-item']",
-                    ".pdp-price",
-                    ".product-single__price",
-                    "product-price",
-                    "[itemprop='price']",
-                    ".price",
-                ],
-                "image_selector": "meta[property='og:image']",
-                "wait_for": "h1, [itemprop='price'], .price, .product__title",
-            },
-            "Avocado": {
-                "price_selector": ".product__info-wrapper .price",
-                "price_selectors_fallback": [
-                    ".price-item--sale",
-                    ".price-item--last",
-                    "[class*='price-item']",
-                    ".pdp-price",
-                    ".product-single__price",
-                    "product-price",
-                    "[itemprop='price']",
-                    ".price",
-                ],
-                "image_selector": "meta[property='og:image']",
-                "wait_for": "h1, [itemprop='price'], .price, .product__title",
-            },
-            "Tempur-Pedic": {
-                "price_selector": "[itemprop='price']",
-                "price_selectors_fallback": [
-                    "[itemprop='price'][content]",
-                    ".product-info-main .price",
-                    ".product-info-price .price",
-                    "[data-price-type='finalPrice'] .price",
-                    ".price-wrapper .price",
-                    "meta[property='product:price:amount']",
-                    ".special-price .price",
-                    ".price",
-                    "[class*='ProductPrice']",
-                ],
-                "image_selector": "meta[property='og:image']",
-                "wait_for": "h1, [itemprop='price'], .price",
-            },
         }
 
         config = BRAND_MAP.get(self.brand, {})
@@ -2916,7 +3012,9 @@ If snippets are thin or contradictory, use sentiment near 0.45–0.55 and includ
         social_proof, serp_review_count, platform_blocks = await self.intel.fetch_social_proof(
             f"{self.brand} {self.model}",
             product_id=existing_id,
-            supabase_client=self.supabase if existing_id else None,
+            supabase_client=self.supabase,
+            brand_slug=self.brand_slug,
+            product_slug=self.slug,
         )
 
         # 2. 注入审计上下文 (大幅减少 Token 占用)

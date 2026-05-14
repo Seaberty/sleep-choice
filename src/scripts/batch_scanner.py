@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-统一情报同步入口：多品牌批量审计与价格补完（默认含 Saatva、Sleep & Beyond、FluffCo、WinkBeds、Tempur-Pedic、Avocado 等）。
+统一情报同步入口：多品牌批量审计与价格补完（默认含 Saatva、Sleep & Beyond、FluffCo 等）。
 
 用法：
   cd src/scripts && python batch_scanner.py                  # 全部品牌（增量：缺字段才跑）
@@ -15,7 +15,8 @@
   BATCH_SCANNER_TARGETS_CACHE_HOURS — 缓存有效小时数，默认 168（7 天）。
   BATCH_SCANNER_TARGETS_CACHE_PATH — 覆盖缓存 JSON 路径。
   SAATVA_SITEMAP_URL / SB_SHOP_ORIGIN / FLUFFCO_SHOP_ORIGIN — 覆盖抓取起点。
-  TEMPURPEDIC_SHOP_ORIGIN / TEMPURPEDIC_SITEMAP_URL — Tempur-Pedic 主站与 sitemap（可选）。
+  通过 ``batch_scanner_brand_profiles.json`` 扩展品牌时，若使用 ``tempurpedic_sitemap``，可设
+  TEMPURPEDIC_SHOP_ORIGIN / TEMPURPEDIC_SITEMAP_URL。
 
   python batch_scanner.py --refresh-targets   # 忽略缓存重新拉 sitemap 再跑任务
 
@@ -143,24 +144,6 @@ BUILTIN_BRAND_SITE_PROFILES: tuple[dict[str, Any], ...] = (
         "origin": "",
     },
     {"name": "FluffCo", "cooldown_sec": 20, "discover_kind": "shopify_products", "origin": ""},
-    {
-        "name": "WinkBeds",
-        "cooldown_sec": 25,
-        "discover_kind": "shopify_products",
-        "origin": "https://www.winkbeds.com",
-    },
-    {
-        "name": "Tempur-Pedic",
-        "cooldown_sec": 28,
-        "discover_kind": "tempurpedic_sitemap",
-        "origin": "https://www.tempurpedic.com",
-    },
-    {
-        "name": "Avocado",
-        "cooldown_sec": 25,
-        "discover_kind": "shopify_products",
-        "origin": "https://www.avocadogreenmattress.com",
-    },
 )
 
 _TARGETS_CACHE_PATH = Path(
@@ -789,15 +772,6 @@ BRAND_ALIASES: dict[str, str] = {
     "sb": "Sleep & Beyond",
     "fluffco": "FluffCo",
     "fluff": "FluffCo",
-    "winkbeds": "WinkBeds",
-    "winkbed": "WinkBeds",
-    "wink-beds": "WinkBeds",
-    "tempur-pedic": "Tempur-Pedic",
-    "tempurpedic": "Tempur-Pedic",
-    "tempur": "Tempur-Pedic",
-    "avocado": "Avocado",
-    "avocado-green-mattress": "Avocado",
-    "avocadogreenmattress": "Avocado",
 }
 
 
