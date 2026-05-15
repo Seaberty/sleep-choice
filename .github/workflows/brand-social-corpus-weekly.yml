@@ -1,0 +1,63 @@
+# 自建情报中心：每周全站流水线（corpus → brand_intelligence）
+#
+# Step 1 — public.brand_social_corpus：按 audit_products 去重 brand_slug，Reddit search.json。
+# Step 2 — public.brand_intelligence：全量产品从 corpus + DeepSeek upsert（--limit 0）。
+#
+# 与 batch_scanner 分工：本 workflow 只做社媒沉淀 + 情报表；官网 PDP 审计见 batch-scanner-daily。
+#
+# Secrets：
+#   SUPABASE_URL, SUPABASE_KEY   — service_role（corpus + intelligence 写入）
+#   DEEPSEEK_API_KEY             — Step 2 必需（503/429 等会自动重试）
+#
+# 可选：REDDIT_RSS_USER_AGENT（Reddit 403）；BRAVE_SEARCH_API_KEY + run 中加 --brave（Amazon/TP）
+#
+# 调参：cron、timeout-minutes、inter-brand-sleep、brand_intel 的 sleep-between-products
+name: Intelligence pipeline — weekly (corpus + brand_intel)
+
+on:
+  schedule:
+    - cron: "0 8 * * 0"
+  workflow_dispatch:
+
+concurrency:
+  group: intelligence-pipeline-weekly-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  pipeline:
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    defaults:
+      run:
+        working-directory: src/scripts
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: requirements.txt
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r ${{ github.workspace }}/requirements.txt
+
+      - name: "Step 1/2: brand_social_corpus (--from-registry)"
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+          REDDIT_RSS_USER_AGENT: ${{ secrets.REDDIT_RSS_USER_AGENT }}
+          BRAVE_SEARCH_API_KEY: ${{ secrets.BRAVE_SEARCH_API_KEY }}
+        run: |
+          python brand_social_corpus_ingest.py --from-registry --inter-brand-sleep 4
+
+      - name: "Step 2/2: brand_intelligence (corpus + DeepSeek, all products)"
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+          DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
+        run: |
+          python brand_intel_bulk_ingest.py --limit 0 --sleep-between-products 2

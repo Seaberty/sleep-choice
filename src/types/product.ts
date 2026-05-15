@@ -32,7 +32,7 @@ export interface AuditScores {
     support: number
     cooling: number
     pressure: number
-    durability: number // 显式包含 Gemini 生成的耐用性评分
+    durability: number // 显式包含 LLM（DeepSeek）审计中的耐用性评分
     [key: string]: number
 }
 
@@ -126,7 +126,7 @@ export interface ProductData {
     isBestSeller?: boolean // 👈 添加这一行
     meta?: ProductMeta
 
-    /** Serper 有机结果条数，供 JSON-LD aggregateRating.ratingCount */
+    /** 舆情片段条数（如 corpus 索引规模），供 JSON-LD aggregateRating.ratingCount */
     review_count?: number
 
     /**

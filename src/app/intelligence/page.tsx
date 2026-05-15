@@ -30,9 +30,11 @@ export default async function IntelligenceCenterPage() {
                         Multi-platform signals
                     </h1>
                     <p className="max-w-2xl text-sm leading-relaxed text-slate-600">
-                        Each row is one platform batch for a registry product: Serper
-                        organic harvest, then a single structured LLM pass for
-                        sentiment, issue tags, and a short verdict. Higher{" "}
+                        Each row is one platform batch for a registry product: public
+                        snippets from{" "}
+                        <span className="font-mono text-xs">brand_social_corpus</span>, then
+                        a structured LLM pass for sentiment, issue tags, and a short verdict.
+                        Higher{" "}
                         <span className="font-mono text-xs">signal_density</span>{" "}
                         increases <span className="font-mono text-xs">confidence_score</span>
                         . This does not replace the on-site forensic{" "}
@@ -45,8 +47,9 @@ export default async function IntelligenceCenterPage() {
 
                 {rows.length === 0 ? (
                     <div className="rounded-2xl border border-dashed border-slate-200 bg-white/80 p-12 text-center text-sm text-slate-500">
-                        No brand intelligence rows yet. Run a forensic sync with
-                        Serper + Gemini to populate{" "}
+                        No brand intelligence rows yet. Populate{" "}
+                        <span className="font-mono text-xs">brand_social_corpus</span>, then
+                        run a forensic sync or bulk ingest with DeepSeek to fill{" "}
                         <span className="font-mono text-xs">brand_intelligence</span>.
                     </div>
                 ) : (

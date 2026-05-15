@@ -16,6 +16,7 @@ import { Metadata } from "next"
 import Image from "next/image"
 import React, { useMemo } from "react"
 import AuditRadarChart from "@/components/AuditRadarChart"
+import { ForensicMetricTiles } from "@/components/ForensicMetricTiles"
 import {
     ShieldCheck,
     ExternalLink,
@@ -71,7 +72,7 @@ interface Product {
     audit_note: string
     price: number
     offers: Offer[] | string
-    /** Serper 舆情条数，用于结构化数据 ratingCount */
+    /** 舆情片段条数，用于结构化数据 ratingCount */
     review_count?: number
     /** 与 registry 合并逻辑一致；用于解剖图货架与 quizShelf 对齐 */
     category?: string | null
@@ -464,12 +465,33 @@ export default async function ProductAuditPage({
 
     const minPriceIndex = offers.length > 0 ? 0 : -1
 
+    /** Radar + quick tiles: 0–10 forensic scores from audit pipeline (PDP text + corpus → LLM). */
     const radarData = [
-        { subject: "SUPPORT", A: scores.support },
-        { subject: "COOLING", A: scores.cooling },
-        { subject: "PRESSURE", A: scores.pressure },
-        { subject: "DURABILITY", A: scores.durability },
-        { subject: "INTEGRITY", A: scores.overall }
+        {
+            subject: "SUPPORT",
+            A: scores.support,
+            hint: "Support / spinal alignment cues from captured PDP specs and comfort-layer claims, scored 0–10 by the forensic audit model—not a clinical measurement."
+        },
+        {
+            subject: "COOLING",
+            A: scores.cooling,
+            hint: "Thermal / breathability signals inferred from foams, covers, and cooling marketing language in the listing and corroborating snippets (0–10 model estimate)."
+        },
+        {
+            subject: "PRESSURE",
+            A: scores.pressure,
+            hint: "Pressure relief and comfort-layer themes derived from listing copy + community evidence, normalized to the same 0–10 rubric as other axes."
+        },
+        {
+            subject: "DURABILITY",
+            A: scores.durability,
+            hint: "Warranty, density/firmness build cues, and durability-related language in captured evidence—heuristic 0–10, not accelerated wear testing."
+        },
+        {
+            subject: "INTEGRITY",
+            A: scores.overall,
+            hint: "Composite “overall” index (0–10) from the same audit pass: synthesizes the five-axis judgment against PDP + corpus text; not a third-party certification score."
+        }
     ]
 
     const hasListingImage = Boolean(
@@ -617,20 +639,7 @@ export default async function ProductAuditPage({
                                     {product.model}
                                 </span>
                             </h1>
-                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 sm:gap-6 border-t border-slate-100 pt-6 sm:pt-8">
-                                {radarData.slice(0, 4).map((m, i) => (
-                                    <div key={i} className="space-y-1">
-                                        <div className="text-[9px] font-black text-slate-400 uppercase tracking-widest">
-                                            {m.subject}
-                                        </div>
-                                        <div
-                                            className={`text-3xl font-black italic ${m.A === 0 ? "text-rose-500 font-mono text-xl not-italic" : "text-slate-950"}`}
-                                        >
-                                            {m.A === 0 ? "PENDING" : m.A}
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
+                            <ForensicMetricTiles items={radarData.slice(0, 4)} />
                         </div>
 
                         {/* 3. Radar Chart */}
@@ -638,6 +647,15 @@ export default async function ProductAuditPage({
                             <div className="h-[240px] sm:h-[300px] md:h-[350px] w-full min-h-0">
                                 <AuditRadarChart data={radarData} />
                             </div>
+                            <p className="mt-4 text-[9px] font-mono uppercase tracking-wider text-slate-500">
+                                Hover chart axes or the four metric tiles for
+                                methodology. Scores are 0–10 model estimates from
+                                listing + corpus evidence (
+                                <span className="text-slate-400">
+                                    not lab-tested
+                                </span>
+                                ).
+                            </p>
                         </section>
 
                         <LayerStack product={product} specs={technicalSpecs} />
