@@ -1,14 +1,16 @@
 # -*- coding: utf-8 -*-
 """
-Bulk-fill brand_intelligence from public.brand_social_corpus + DeepSeek（不经过 Serper）。
+Bulk-fill brand_intelligence from public.brand_social_corpus + LLM（不经过 Serper）。
 
-每个 registry 产品：按 brand_slug + slug 读取 corpus → 按平台块调用 DeepSeek → upsert brand_intelligence。
+每个 registry 产品：按 brand_slug + slug 读取 corpus → 按平台块调用 LLM（与 forensic_engine 一致：
+优先 Gemini，用尽重试或熔断后回退 DeepSeek）→ upsert brand_intelligence。
 
 前置：
   - public.brand_social_corpus 已有数据（见 brand_social_corpus_ingest.py --from-registry）。
   - public.brand_intelligence 表已存在。
   - SUPABASE_KEY 建议为 service_role。
-  - DEEPSEEK_API_KEY；503/429 等可自动重试。
+  - DEEPSEEK_API_KEY（兜底必填）；可选 GEMINI_API_KEY / GOOGLE_API_KEY 走 Gemini 优先。
+  - 可选 GEMINI_MIN_INTERVAL_SEC（默认 1.5）：两次 Gemini 请求之间的最小间隔，降低 RPM 触顶概率（与 forensic_engine 同进程共享节流时钟）。
 
 用法：
   cd src/scripts
@@ -17,7 +19,7 @@ Bulk-fill brand_intelligence from public.brand_social_corpus + DeepSeek（不经
   python brand_intel_bulk_ingest.py --slug saatva-classic
   python brand_intel_bulk_ingest.py --dry-run
   python brand_intel_bulk_ingest.py --skip-llm         # 占位行，无 LLM
-  CI：.github/workflows/brand-social-corpus-weekly.yml（Step 2 需 DEEPSEEK_API_KEY）
+  CI：.github/workflows/brand-social-corpus-weekly.yml（Step 2 需 DEEPSEEK_API_KEY；可选 Gemini）
 """
 from __future__ import annotations
 
@@ -89,6 +91,221 @@ def _parse_json_object_text(raw: str) -> dict[str, Any]:
     return json.loads(text)
 
 
+def _deepseek_error_retryable(exc: BaseException) -> bool:
+    if isinstance(exc, httpx.HTTPStatusError):
+        return exc.response.status_code in (408, 425, 429, 500, 502, 503, 504)
+    s = str(exc).lower()
+    return any(
+        x in s
+        for x in (
+            "timeout",
+            "timed out",
+            "connection",
+            "reset",
+            "temporar",
+            "503",
+            "429",
+            "502",
+            "504",
+            "unavailable",
+            "overloaded",
+            "rate",
+            "quota",
+            "try again",
+        )
+    )
+
+
+def _gemini_brand_intel_json_once(user: str, system: str) -> dict[str, Any]:
+    """同步调用 Gemini generateContent（与 forensic_engine 契约一致）。"""
+    import forensic_engine as fe
+
+    fe._gemini_rate_limit_wait_sync()
+    try:
+        api_key = fe._gemini_api_key()
+        if not api_key:
+            raise ValueError("未配置 GEMINI_API_KEY / GOOGLE_API_KEY")
+        model = fe._gemini_model_id()
+        if not re.match(r"^[a-zA-Z0-9_.-]+$", model):
+            raise ValueError(f"非法 GEMINI_MODEL: {model!r}")
+        url = f"{fe.GEMINI_GENERATE_BASE}/{model}:generateContent"
+        body: dict[str, Any] = {
+            "contents": [{"role": "user", "parts": [{"text": user}]}],
+            "generationConfig": {
+                "temperature": 0.2,
+                "responseMimeType": "application/json",
+            },
+        }
+        if system and str(system).strip():
+            body["systemInstruction"] = {"parts": [{"text": str(system).strip()}]}
+        timeout = httpx.Timeout(connect=25.0, read=180.0, write=30.0, pool=20.0)
+        with httpx.Client(timeout=timeout, trust_env=True) as client:
+            resp = client.post(url, params={"key": api_key}, json=body)
+        if resp.status_code == 429:
+            raise RuntimeError(f"Gemini 429 限流: {(resp.text or '')[:200]}")
+        resp.raise_for_status()
+        data = resp.json()
+        pf = data.get("promptFeedback") or {}
+        br = pf.get("blockReason")
+        if br:
+            raise RuntimeError(f"Gemini 提示被拦截: {br}")
+        cands = data.get("candidates") or []
+        if not cands:
+            raise RuntimeError("Gemini 无 candidates 返回")
+        cand = cands[0]
+        fr = cand.get("finishReason")
+        if fr:
+            fru = str(fr).upper().replace(" ", "_")
+            if fru not in ("STOP", "MAX_TOKENS"):
+                raise RuntimeError(f"Gemini finishReason={fr}")
+        pm = cand.get("content") or {}
+        parts = pm.get("parts") or []
+        text = "".join(
+            str(p.get("text", "")) for p in parts if isinstance(p, dict)
+        )
+        if not text.strip():
+            raise RuntimeError("Gemini 返回空内容")
+        from forensic_engine import ForensicAuditEngine
+
+        return ForensicAuditEngine._parse_llm_json_text(text)
+    finally:
+        fe._gemini_mark_request_complete()
+
+
+def _gemini_brand_intel_json_retries(
+    user: str, system: str, attempts: int
+) -> dict[str, Any]:
+    last_exc: BaseException | None = None
+    for i in range(attempts):
+        try:
+            return _gemini_brand_intel_json_once(user, system)
+        except Exception as e:
+            last_exc = e
+            if i < attempts - 1:
+                delay = 2.0 * (2**i)
+                print(
+                    f"  ⏳ Gemini 第 {i + 1}/{attempts} 次失败，{delay:.1f}s 后重试: {e!s}"
+                )
+                time.sleep(delay)
+    assert last_exc is not None
+    raise last_exc
+
+
+def _deepseek_brand_intel_parsed_once(api_key: str, user: str) -> dict[str, Any]:
+    from forensic_engine import _DEEPSEEK_BRAND_INTEL_SYSTEM
+
+    timeout = httpx.Timeout(connect=20.0, read=120.0, write=30.0, pool=20.0)
+    with httpx.Client(timeout=timeout, trust_env=True) as client:
+        resp = client.post(
+            DEEPSEEK_CHAT_URL,
+            headers={
+                "Authorization": f"Bearer {api_key}",
+                "Content-Type": "application/json",
+            },
+            json={
+                "model": DEEPSEEK_MODEL_ID,
+                "messages": [
+                    {"role": "system", "content": _DEEPSEEK_BRAND_INTEL_SYSTEM},
+                    {"role": "user", "content": user},
+                ],
+                "response_format": {"type": "json_object"},
+                "temperature": 0.2,
+            },
+        )
+        resp.raise_for_status()
+        data = resp.json()
+    content = (
+        data.get("choices", [{}])[0].get("message", {}).get("content", "") or ""
+    )
+    if not content.strip():
+        raise RuntimeError("DeepSeek 返回空内容")
+    return _parse_json_object_text(content)
+
+
+def _deepseek_brand_intel_parsed_with_retries(
+    api_key: str,
+    user: str,
+    max_retries: int,
+    base_delay_s: float,
+) -> dict[str, Any]:
+    last: BaseException | None = None
+    attempts = max(1, int(max_retries))
+    for attempt in range(1, attempts + 1):
+        try:
+            return _deepseek_brand_intel_parsed_once(api_key, user)
+        except Exception as e:
+            last = e
+            if attempt >= attempts or not _deepseek_error_retryable(e):
+                raise
+            delay = min(120.0, float(base_delay_s) * (2 ** (attempt - 1)))
+            print(
+                f"  ⏳ DeepSeek 可重试错误（{attempt}/{attempts}），{delay:.1f}s 后重试: {e!s}"
+            )
+            time.sleep(delay)
+    assert last is not None
+    raise last
+
+
+def brand_intel_parsed_json_route_sync(
+    user: str,
+    deepseek_api_key: str,
+    deepseek_max_retries: int,
+    base_delay_s: float,
+) -> dict[str, Any]:
+    """
+    与 forensic_engine._brand_intel_json_route 同策略（同步版），
+    熔断计数与 forensic_engine 模块全局共享。
+    """
+    import forensic_engine as fe
+
+    from forensic_engine import _DEEPSEEK_BRAND_INTEL_SYSTEM
+
+    threshold = fe._gemini_circuit_threshold()
+    attempts = fe._gemini_primary_attempts()
+
+    if fe._GEMINI_CIRCUIT_OPEN and fe._gemini_api_key():
+        print(
+            f"  ⚡ Gemini 熔断中（连续失败 ≥{threshold}），"
+            f"本单直接使用 DeepSeek。"
+        )
+        out = _deepseek_brand_intel_parsed_with_retries(
+            deepseek_api_key, user, deepseek_max_retries, base_delay_s
+        )
+        fe._GEMINI_FAILURE_STREAK = 0
+        fe._GEMINI_CIRCUIT_OPEN = False
+        return out
+
+    if fe._gemini_api_key():
+        try:
+            print(
+                f"  🧠 brand_intel：Gemini（{fe._gemini_model_id()}）最多 {attempts} 次…"
+            )
+            parsed = _gemini_brand_intel_json_retries(
+                user, _DEEPSEEK_BRAND_INTEL_SYSTEM, attempts
+            )
+            fe._GEMINI_FAILURE_STREAK = 0
+            fe._GEMINI_CIRCUIT_OPEN = False
+            return parsed
+        except Exception as ge:
+            print(f"  ⚠️ Gemini brand_intel 失败（已用尽重试）: {ge}")
+            fe._GEMINI_FAILURE_STREAK += 1
+            if fe._GEMINI_FAILURE_STREAK >= threshold:
+                fe._GEMINI_CIRCUIT_OPEN = True
+                print(
+                    "  🔌 Gemini 熔断已打开：后续将暂跳过 Gemini，"
+                    "直至熔断路径成功完成一单后再恢复。"
+                )
+
+    print("  🧠 brand_intel：回退 DeepSeek…")
+    parsed = _deepseek_brand_intel_parsed_with_retries(
+        deepseek_api_key, user, deepseek_max_retries, base_delay_s
+    )
+    if fe._GEMINI_CIRCUIT_OPEN:
+        fe._GEMINI_FAILURE_STREAK = 0
+        fe._GEMINI_CIRCUIT_OPEN = False
+    return parsed
+
+
 def _rows_from_parsed_items(
     parsed: dict[str, Any], density_map: dict[str, int]
 ) -> list[dict[str, Any]]:
@@ -118,103 +335,6 @@ def _rows_from_parsed_items(
     return out
 
 
-def _deepseek_error_retryable(exc: BaseException) -> bool:
-    if isinstance(exc, httpx.HTTPStatusError):
-        return exc.response.status_code in (408, 425, 429, 500, 502, 503, 504)
-    s = str(exc).lower()
-    return any(
-        x in s
-        for x in (
-            "timeout",
-            "timed out",
-            "connection",
-            "reset",
-            "temporar",
-            "503",
-            "429",
-            "502",
-            "504",
-            "unavailable",
-            "overloaded",
-            "rate",
-            "quota",
-            "try again",
-        )
-    )
-
-
-def deepseek_batch_extract_once(
-    api_key: str, brand: str, model: str, blocks: list[dict[str, Any]]
-) -> list[dict[str, Any]]:
-    from forensic_engine import _DEEPSEEK_BRAND_INTEL_SYSTEM
-
-    trimmed, ctx, density_map = _trimmed_platforms_for_llm(brand, model, blocks)
-    if not trimmed:
-        return []
-    user = (
-        "INPUT_JSON:\n"
-        + ctx
-        + "\n\nReturn exactly one JSON object with top-level key \"items\" only, "
-        "per your system instructions."
-    )
-    timeout = httpx.Timeout(connect=20.0, read=120.0, write=30.0, pool=20.0)
-    with httpx.Client(timeout=timeout, trust_env=True) as client:
-        resp = client.post(
-            DEEPSEEK_CHAT_URL,
-            headers={
-                "Authorization": f"Bearer {api_key}",
-                "Content-Type": "application/json",
-            },
-            json={
-                "model": DEEPSEEK_MODEL_ID,
-                "messages": [
-                    {"role": "system", "content": _DEEPSEEK_BRAND_INTEL_SYSTEM},
-                    {"role": "user", "content": user},
-                ],
-                "response_format": {"type": "json_object"},
-                "temperature": 0.2,
-            },
-        )
-        resp.raise_for_status()
-        data = resp.json()
-    content = (
-        data.get("choices", [{}])[0].get("message", {}).get("content", "") or ""
-    )
-    if not content.strip():
-        raise RuntimeError("DeepSeek 返回空内容")
-    parsed = _parse_json_object_text(content)
-    return _rows_from_parsed_items(parsed, density_map)
-
-
-def deepseek_batch_extract_with_retries(
-    api_key: str,
-    brand: str,
-    model: str,
-    blocks: list[dict[str, Any]],
-    max_retries: int,
-    base_delay_s: float,
-) -> list[dict[str, Any]]:
-    trimmed, _, _ = _trimmed_platforms_for_llm(brand, model, blocks)
-    if not trimmed:
-        return []
-    last: BaseException | None = None
-    attempts = max(1, int(max_retries))
-    for attempt in range(1, attempts + 1):
-        try:
-            return deepseek_batch_extract_once(api_key, brand, model, blocks)
-        except Exception as e:
-            last = e
-            if attempt >= attempts or not _deepseek_error_retryable(e):
-                raise
-            delay = min(120.0, float(base_delay_s) * (2 ** (attempt - 1)))
-            print(
-                f"  ⏳ DeepSeek 可重试错误（{attempt}/{attempts}），{delay:.1f}s 后重试: {e!s}"
-            )
-            time.sleep(delay)
-    assert last is not None
-    raise last
-
-
 def extract_brand_intel_llm_rows(
     brand: str,
     model: str,
@@ -223,12 +343,22 @@ def extract_brand_intel_llm_rows(
     max_retries: int,
     base_delay_s: float,
 ) -> list[dict[str, Any]]:
+    trimmed, ctx, density_map = _trimmed_platforms_for_llm(brand, model, blocks)
+    if not trimmed:
+        return []
     dk = (deepseek_key or "").strip()
     if not dk:
         raise RuntimeError("未配置 DEEPSEEK_API_KEY")
-    return deepseek_batch_extract_with_retries(
-        dk, brand, model, blocks, max_retries, base_delay_s
+    user = (
+        "INPUT_JSON:\n"
+        + ctx
+        + "\n\nReturn exactly one JSON object with top-level key \"items\" only, "
+        "per your system instructions."
     )
+    parsed = brand_intel_parsed_json_route_sync(
+        user, dk, max_retries, base_delay_s
+    )
+    return _rows_from_parsed_items(parsed, density_map)
 
 
 def upsert_rows(
@@ -289,7 +419,7 @@ def fetch_products(
 
 def main(argv: list[str]) -> int:
     p = argparse.ArgumentParser(
-        description="Bulk ingest brand_intelligence from brand_social_corpus + DeepSeek（无 Serper）。"
+        description="Bulk ingest brand_intelligence from brand_social_corpus + LLM（Gemini 优先，DeepSeek 兜底，无 Serper）。"
     )
     p.add_argument(
         "--limit",
@@ -386,7 +516,7 @@ def main(argv: list[str]) -> int:
                     args.deepseek_retry_base_seconds,
                 )
             except Exception as e:
-                print(f"  ⚠️ LLM 失败（DeepSeek 重试后仍不可用）: {e}")
+                print(f"  ⚠️ LLM 失败（Gemini / DeepSeek 重试后仍不可用）: {e}")
                 continue
 
         if not rows:

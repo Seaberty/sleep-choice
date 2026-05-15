@@ -3,6 +3,8 @@ import os
 import json
 import asyncio
 import hashlib
+import sys
+import time
 import httpx
 import re
 from pathlib import Path
@@ -21,6 +23,21 @@ _ENV_FILE = _PROJECT_ROOT / ".env.local"
 if not _ENV_FILE.is_file():
     _ENV_FILE = Path(__file__).resolve().parents[1] / ".env.local"
 load_dotenv(dotenv_path=_ENV_FILE)
+
+_scripts_dir = Path(__file__).resolve().parent
+if str(_scripts_dir) not in sys.path:
+    sys.path.insert(0, str(_scripts_dir))
+
+from gemini_throttle import (
+    _gemini_mark_request_complete,
+    _gemini_rate_limit_wait_async,
+    _gemini_rate_limit_wait_sync,
+)
+
+from prompts.forensic_llm_prompts import (
+    _DEEPSEEK_BRAND_INTEL_SYSTEM,
+    _DEEPSEEK_FORENSIC_AUDIT_SYSTEM,
+)
 
 
 def sniff_image_format(data: bytes) -> tuple[str | None, str]:
@@ -251,10 +268,44 @@ async def finalize_coupon_for_store(page_url: str, token: str | None) -> str | N
     return token
 
 
-# --- LLM 审计 / 情报（DeepSeek Chat）---
+# --- LLM 审计 / 情报：首选 Gemini（Google AI），失败再 DeepSeek Chat ---
 DEEPSEEK_MODEL_ID = "deepseek-chat"
 DEEPSEEK_AUDIT_LABEL = "DeepSeek-Chat"
 DEEPSEEK_CHAT_URL = "https://api.deepseek.com/chat/completions"
+
+GEMINI_AUDIT_LABEL = "Gemini"
+_GEMINI_MODEL_DEFAULT = "gemini-2.5-flash"
+GEMINI_GENERATE_BASE = "https://generativelanguage.googleapis.com/v1beta/models"
+
+# 连续若干次「Gemini 用尽重试仍失败」后熔断：后续任务暂跳过 Gemini，仅用 DeepSeek；熔断路径成功一次后自动恢复再试 Gemini。
+_GEMINI_FAILURE_STREAK = 0
+_GEMINI_CIRCUIT_OPEN = False
+
+
+def _gemini_api_key() -> str:
+    return (os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY") or "").strip()
+
+
+def _gemini_model_id() -> str:
+    m = (os.getenv("GEMINI_MODEL") or _GEMINI_MODEL_DEFAULT).strip()
+    return m or _GEMINI_MODEL_DEFAULT
+
+
+def _gemini_primary_attempts() -> int:
+    try:
+        n = int((os.getenv("GEMINI_AUDIT_MAX_ATTEMPTS") or "3").strip())
+    except ValueError:
+        n = 3
+    return max(1, min(8, n))
+
+
+def _gemini_circuit_threshold() -> int:
+    try:
+        n = int((os.getenv("GEMINI_CIRCUIT_FAILURE_STREAK") or "5").strip())
+    except ValueError:
+        n = 5
+    return max(2, min(50, n))
+
 
 # 与 src/types/product.ts 中 AuditScores 对齐（仅允许这五个维度写入 audit_scores）
 _AUDIT_SCORE_KEYS: tuple[str, ...] = (
@@ -265,51 +316,6 @@ _AUDIT_SCORE_KEYS: tuple[str, ...] = (
     "durability",
 )
 
-_DEEPSEEK_FORENSIC_AUDIT_SYSTEM = """You are a strict JSON generator for a mattress forensic audit pipeline.
-Your entire reply MUST be one JSON object only: no markdown code fences, no prose before or after, no comments.
-
-Schema (keys and nesting are mandatory):
-
-1) audit_scores — object with EXACTLY these five keys, all JSON numbers, no extras:
-   "overall", "support", "cooling", "pressure", "durability"
-   Each value is the 10-point forensic scale from 0.0 through 10.0 (one decimal recommended).
-   Do NOT encode the 10-point scale as a 0–1 fraction; use 0–10 directly.
-
-2) technical_specs — object with EXACTLY these seven keys, all string values:
-   "Construction", "Firmness", "Support_Core", "Comfort_Layer", "Trial", "Warranty", "Certifications"
-   Certifications: comma-separated claims traceable to the provided listing or brand copy; if none, use exactly:
-   Not stated in captured listing
-
-3) specs_matrix — object whose values are all strings, non-empty forensic prose.
-   REQUIRED keys: "Spinal_Alignment", "Edge_Support_Integrity", "Motion_Transfer_Damping", "Pressure_Relief_Index"
-   You may add more string keys with forensic indices if useful.
-
-4) pros — JSON array of short non-empty strings (strings only, not objects).
-5) cons — same as pros.
-
-6) audit_note — single string, clinical forensic tone, at most ~60 words.
-7) summary_log — single string, chronological steps using tokens like [T-00:00:00].
-
-8) seo_title — string, at most 60 characters, must include the words Forensic Audit and Review.
-9) seo_description — string, at most 155 characters.
-10) seo_keywords — string, 5–8 comma-separated lowercase keywords.
-11) detected_coupon — string (empty string if none).
-12) promo_text — string (empty string if none).
-
-Hard rules: valid JSON only; double-quoted keys; no trailing commas; no NaN or Infinity; do not rename or omit audit_scores keys."""
-
-_DEEPSEEK_BRAND_INTEL_SYSTEM = """You are a strict JSON API for mattress brand intelligence (consumer research).
-Your entire reply MUST be one JSON object only: no markdown fences, no commentary.
-
-Top-level: exactly one key "items" whose value is a JSON array.
-
-For EACH object in input.platforms (same order, same length), output one object in "items" with EXACTLY these keys:
-- "source_platform" (string): MUST exactly match that platform's input source_platform (same spelling and case).
-- "sentiment_score" (number): between 0.0 and 1.0 inclusive. If evidence is thin or contradictory, use about 0.45–0.55.
-- "key_issue_tags" (array of strings): length 2 to 8. Each tag: only ASCII letters, digits, and underscores; length 2–40; use forms like Edge_Support, Off_gassing, Thin_Signal. No commas, quotes, slashes, or spaces inside a tag. No empty strings.
-- "verdict_summary" (string): one neutral forensic paragraph, at most 85 words, themes only, no URLs, no invented facts.
-
-Do not add other top-level keys. Do not omit any input platform."""
 
 _CTRL_OR_INVISIBLE = re.compile(r"[\x00-\x1f\x7f\u200b-\u200f\ufeff]")
 
@@ -2770,7 +2776,187 @@ class ForensicAuditEngine:
                 data['error_log'] = str(e)
             finally:
                 await _safe_close_playwright_browser(context, browser)
-        return data 
+        return data
+
+    async def _gemini_generate_json_once(
+        self, user: str, *, system: str | None = None
+    ) -> dict:
+        """Google Gemini generateContent（JSON MIME），单次请求。"""
+        await _gemini_rate_limit_wait_async()
+        try:
+            api_key = _gemini_api_key()
+            if not api_key:
+                raise ValueError("未配置 GEMINI_API_KEY / GOOGLE_API_KEY")
+            model = _gemini_model_id()
+            if not re.match(r"^[a-zA-Z0-9_.-]+$", model):
+                raise ValueError(f"非法 GEMINI_MODEL: {model!r}")
+            url = f"{GEMINI_GENERATE_BASE}/{model}:generateContent"
+            body: dict[str, Any] = {
+                "contents": [{"role": "user", "parts": [{"text": user}]}],
+                "generationConfig": {
+                    "temperature": 0.2,
+                    "responseMimeType": "application/json",
+                },
+            }
+            if system and str(system).strip():
+                body["systemInstruction"] = {"parts": [{"text": str(system).strip()}]}
+
+            timeout = httpx.Timeout(connect=25.0, read=180.0, write=30.0, pool=20.0)
+            async with httpx.AsyncClient(timeout=timeout, trust_env=True) as client:
+                resp = await client.post(url, params={"key": api_key}, json=body)
+            if resp.status_code == 429:
+                raise RuntimeError(f"Gemini 429 限流: {(resp.text or '')[:200]}")
+            resp.raise_for_status()
+            data = resp.json()
+            pf = data.get("promptFeedback") or {}
+            br = pf.get("blockReason")
+            if br:
+                raise RuntimeError(f"Gemini 提示被拦截: {br}")
+            cands = data.get("candidates") or []
+            if not cands:
+                raise RuntimeError("Gemini 无 candidates 返回")
+            cand = cands[0]
+            fr = cand.get("finishReason")
+            if fr:
+                fru = str(fr).upper().replace(" ", "_")
+                if fru not in ("STOP", "MAX_TOKENS"):
+                    raise RuntimeError(f"Gemini finishReason={fr}")
+            pm = cand.get("content") or {}
+            parts = pm.get("parts") or []
+            text = "".join(
+                str(p.get("text", "")) for p in parts if isinstance(p, dict)
+            )
+            if not text.strip():
+                raise RuntimeError("Gemini 返回空内容")
+            return self._parse_llm_json_text(text)
+        finally:
+            _gemini_mark_request_complete()
+
+    async def _gemini_json_with_retries(
+        self, user: str, *, system: str | None, attempts: int
+    ) -> dict:
+        last_exc: BaseException | None = None
+        for i in range(attempts):
+            try:
+                return await self._gemini_generate_json_once(user, system=system)
+            except Exception as e:
+                last_exc = e
+                if i < attempts - 1:
+                    delay = 2.0 * (2**i)
+                    print(
+                        f"  ⏳ Gemini 第 {i + 1}/{attempts} 次失败，{delay:.1f}s 后重试: {e!s}"
+                    )
+                    await asyncio.sleep(delay)
+        assert last_exc is not None
+        raise last_exc
+
+    async def _forensic_audit_llm_route(
+        self, audit_prompt: str, audit_context: str
+    ) -> tuple[dict, str]:
+        """法医审计 JSON：优先 Gemini（可配置次数），失败或熔断后 DeepSeek。"""
+        global _GEMINI_FAILURE_STREAK, _GEMINI_CIRCUIT_OPEN
+
+        user_full = (
+            f"{audit_prompt.strip()}\n\n--- EVIDENCE ---\n{audit_context.strip()}\n\n"
+            "Output exactly one JSON object as defined in your system instructions."
+        )
+        threshold = _gemini_circuit_threshold()
+        attempts = _gemini_primary_attempts()
+
+        if _GEMINI_CIRCUIT_OPEN and _gemini_api_key():
+            print(
+                f"⚡ Gemini 熔断中（连续失败 ≥{threshold}），本单直接使用 "
+                f"{DEEPSEEK_AUDIT_LABEL}。"
+            )
+            report = await self.call_deepseek_audit(audit_prompt, audit_context)
+            _GEMINI_FAILURE_STREAK = 0
+            _GEMINI_CIRCUIT_OPEN = False
+            return report, DEEPSEEK_AUDIT_LABEL
+
+        if _gemini_api_key():
+            try:
+                print(
+                    f"🧠 启动 {GEMINI_AUDIT_LABEL}（{_gemini_model_id()}）审计"
+                    f"（最多 {attempts} 次）…"
+                )
+                report = await self._gemini_json_with_retries(
+                    user_full,
+                    system=_DEEPSEEK_FORENSIC_AUDIT_SYSTEM,
+                    attempts=attempts,
+                )
+                _GEMINI_FAILURE_STREAK = 0
+                _GEMINI_CIRCUIT_OPEN = False
+                return report, GEMINI_AUDIT_LABEL
+            except Exception as ge:
+                print(f"⚠️ Gemini 审计失败（已用尽重试）: {ge}")
+                _GEMINI_FAILURE_STREAK += 1
+                if _GEMINI_FAILURE_STREAK >= threshold:
+                    _GEMINI_CIRCUIT_OPEN = True
+                    print(
+                        "🔌 Gemini 熔断已打开：后续任务将暂跳过 Gemini，"
+                        "直至熔断路径成功完成一单后再恢复。"
+                    )
+
+        print(
+            f"🧠 回退 {DEEPSEEK_AUDIT_LABEL}（{DEEPSEEK_MODEL_ID}）深度审计…"
+        )
+        report = await self.call_deepseek_audit(audit_prompt, audit_context)
+        if _GEMINI_CIRCUIT_OPEN:
+            _GEMINI_FAILURE_STREAK = 0
+            _GEMINI_CIRCUIT_OPEN = False
+        return report, DEEPSEEK_AUDIT_LABEL
+
+    async def _brand_intel_json_route(self, user: str) -> dict:
+        """品牌情报批量 JSON：优先 Gemini，失败或熔断后 DeepSeek。"""
+        global _GEMINI_FAILURE_STREAK, _GEMINI_CIRCUIT_OPEN
+
+        threshold = _gemini_circuit_threshold()
+        attempts = _gemini_primary_attempts()
+
+        if _GEMINI_CIRCUIT_OPEN and _gemini_api_key():
+            print(
+                f"⚡ Gemini 熔断中（连续失败 ≥{threshold}），"
+                f"brand_intel 本单直接使用 {DEEPSEEK_AUDIT_LABEL}。"
+            )
+            parsed = await self._deepseek_chat_json_object(
+                user, system=_DEEPSEEK_BRAND_INTEL_SYSTEM
+            )
+            _GEMINI_FAILURE_STREAK = 0
+            _GEMINI_CIRCUIT_OPEN = False
+            return parsed
+
+        if _gemini_api_key():
+            try:
+                print(
+                    f"🧠 brand_intel：{GEMINI_AUDIT_LABEL}（{_gemini_model_id()}）"
+                    f" 最多 {attempts} 次…"
+                )
+                parsed = await self._gemini_json_with_retries(
+                    user,
+                    system=_DEEPSEEK_BRAND_INTEL_SYSTEM,
+                    attempts=attempts,
+                )
+                _GEMINI_FAILURE_STREAK = 0
+                _GEMINI_CIRCUIT_OPEN = False
+                return parsed
+            except Exception as ge:
+                print(f"⚠️ Gemini brand_intel 失败（已用尽重试）: {ge}")
+                _GEMINI_FAILURE_STREAK += 1
+                if _GEMINI_FAILURE_STREAK >= threshold:
+                    _GEMINI_CIRCUIT_OPEN = True
+                    print(
+                        "🔌 Gemini 熔断已打开：后续任务将暂跳过 Gemini，"
+                        "直至熔断路径成功完成一单后再恢复。"
+                    )
+
+        print(f"🧠 brand_intel：回退 {DEEPSEEK_AUDIT_LABEL}…")
+        parsed = await self._deepseek_chat_json_object(
+            user, system=_DEEPSEEK_BRAND_INTEL_SYSTEM
+        )
+        if _GEMINI_CIRCUIT_OPEN:
+            _GEMINI_FAILURE_STREAK = 0
+            _GEMINI_CIRCUIT_OPEN = False
+        return parsed
 
     @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=2, min=5, max=15))
     async def _deepseek_chat_json_object(
@@ -2860,9 +3046,7 @@ class ForensicAuditEngine:
             "per your system instructions."
         )
         try:
-            parsed = await self._deepseek_chat_json_object(
-                user, system=_DEEPSEEK_BRAND_INTEL_SYSTEM
-            )
+            parsed = await self._brand_intel_json_route(user)
             items = parsed.get("items") or []
             out = []
             density_map = {x["source_platform"]: x["signal_density"] for x in trimmed}
@@ -3008,17 +3192,14 @@ Act as a senior biomechanical mattress auditor. Using the evidence block:
 - detected_coupon and promo_text as strings (use empty string when absent).
 """
 
-        audit_llm_label = DEEPSEEK_AUDIT_LABEL
+        audit_llm_label: str
         try:
-            print(
-                f"🧠 启动 {DEEPSEEK_AUDIT_LABEL}（{DEEPSEEK_MODEL_ID}）深度审计..."
-            )
-            report = await self.call_deepseek_audit(
+            report, audit_llm_label = await self._forensic_audit_llm_route(
                 audit_prompt, audit_context
             )
         except Exception as ds_err:
-            print(f"❌ DeepSeek 审计失败: {ds_err}")
-            raise RuntimeError(f"LLM 审计失败 — DeepSeek: {ds_err!s}") from ds_err
+            print(f"❌ LLM 审计失败: {ds_err}")
+            raise RuntimeError(f"LLM 审计失败: {ds_err!s}") from ds_err
 
         try:
             # 逻辑层：生成专业日志与数据校正
@@ -3041,7 +3222,11 @@ Act as a senior biomechanical mattress auditor. Using the evidence block:
                 "audit_hash": self.generate_hash(),
                 "evidence_size": len(audit_context),
                 "model": audit_llm_label,
-                "api_model_id": DEEPSEEK_MODEL_ID,
+                "api_model_id": (
+                    _gemini_model_id()
+                    if audit_llm_label == GEMINI_AUDIT_LABEL
+                    else DEEPSEEK_MODEL_ID
+                ),
                 "timestamp": datetime.now(UTC).isoformat(),
                 "specs_matrix": report.get('specs_matrix', {}), # 这里对应前端的 Forensic Analysis
                 "protocol": "v3.0-forensic",
