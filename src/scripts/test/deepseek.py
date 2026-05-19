@@ -16,6 +16,7 @@ if env_path.exists():
 else:
     print(f"❌ 找不到配置文件: {env_path}")
 
+
 # 2. 可选代理（直连 api.deepseek.com 通常不需要；若环境限制再取消注释）
 # os.environ["HTTP_PROXY"] = "http://127.0.0.1:10801"
 # os.environ["HTTPS_PROXY"] = "http://127.0.0.1:10801"
