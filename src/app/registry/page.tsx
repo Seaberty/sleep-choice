@@ -2,10 +2,9 @@ import { isListableAuditProduct } from "@/lib/audit-list-eligibility"
 import { supabase } from "@/lib/supabase"
 import Link from "next/link"
 import { Metadata } from "next"
+import { AddToCompareButton } from "@/components/compare/add-to-compare-button"
 import {
-    Database,
     Search,
-    Filter,
     Activity,
     ShieldCheck,
     ArrowUpRight,
@@ -201,8 +200,13 @@ export default async function RegistryPage({ searchParams }: Props) {
                         <div className="col-span-3 text-center">
                             Sync_Timestamp
                         </div>
-                        <div className="col-span-2 text-right pr-4">
-                            Report_Link
+                        <div className="col-span-2 flex items-center justify-between gap-4 px-2 pr-4 pl-4">
+                            <span className="flex-1 text-center">
+                                Compare_Matrix
+                            </span>
+                            <span className="flex-1 text-right">
+                                Report_Link
+                            </span>
                         </div>
                     </div>
 
@@ -221,56 +225,81 @@ export default async function RegistryPage({ searchParams }: Props) {
                                 </span>
                             </div>
                         ) : (
-                            listProducts.map((p) => (
-                                <Link
-                                    key={p.id}
-                                    href={`/registry/${p.slug}`}
-                                    className="group grid grid-cols-1 items-center gap-y-6 border-l-0 border-blue-600 p-4 transition-all hover:bg-slate-50 hover:border-l-[8px] sm:p-6 md:grid-cols-12 md:gap-y-0 md:p-10 md:hover:border-l-[12px]"
-                                >
-                                    <div className="col-span-5 mb-6 md:mb-0">
-                                        <div className="flex items-center gap-6">
-                                            <div className="hidden md:flex w-12 h-12 items-center justify-center bg-slate-50 border border-slate-100 text-slate-200 group-hover:text-blue-600 transition-all">
-                                                <QrCode className="w-6 h-6" />
+                            listProducts.map((p) => {
+                                const href = `/registry/${p.slug}`
+                                const title = `${p.brand} ${p.model}`
+                                return (
+                                    <div
+                                        key={p.id}
+                                        className="group grid grid-cols-1 items-center gap-y-6 border-l-0 border-blue-600 p-4 transition-all hover:bg-slate-50 hover:border-l-[8px] sm:p-6 md:grid-cols-12 md:gap-y-0 md:p-10 md:hover:border-l-[12px]"
+                                    >
+                                        <Link
+                                            href={href}
+                                            className="col-span-5 mb-6 block min-w-0 rounded-sm outline-none ring-blue-600/0 transition-[color,box-shadow] focus-visible:ring-4 focus-visible:ring-blue-600/25 md:mb-0"
+                                        >
+                                            <div className="flex items-center gap-6">
+                                                <div className="hidden md:flex h-12 w-12 shrink-0 items-center justify-center border border-slate-100 bg-slate-50 text-slate-200 transition-colors group-hover:text-blue-600">
+                                                    <QrCode className="h-6 w-6" />
+                                                </div>
+                                                <div className="min-w-0">
+                                                    <span className="mb-2 block text-[9px] font-black uppercase tracking-[0.3em] text-blue-600">
+                                                        {p.brand}
+                                                    </span>
+                                                    <h3 className="break-words text-xl font-[1000] uppercase leading-none tracking-tighter text-slate-950 sm:text-2xl md:text-4xl">
+                                                        {p.model}
+                                                    </h3>
+                                                </div>
                                             </div>
-                                            <div>
-                                                <span className="text-[9px] font-black text-blue-600 uppercase tracking-[0.3em] mb-2 block">
-                                                    {p.brand}
-                                                </span>
-                                                <h3 className="break-words text-xl font-[1000] uppercase leading-none tracking-tighter text-slate-950 sm:text-2xl md:text-4xl">
-                                                    {p.model}
-                                                </h3>
-                                            </div>
-                                        </div>
-                                    </div>
+                                        </Link>
 
-                                    <div className="col-span-2 mb-6 text-center md:mb-0">
-                                        <div className="relative inline-block">
+                                        <Link
+                                            href={href}
+                                            className="col-span-2 mb-6 flex justify-center rounded-sm outline-none ring-blue-600/0 focus-visible:ring-4 focus-visible:ring-blue-600/25 md:mb-0"
+                                        >
                                             <span className="text-3xl font-mono font-bold italic tracking-tighter text-slate-950 transition-colors group-hover:text-blue-600 sm:text-4xl md:text-5xl">
                                                 {p.audit_scores?.overall?.toFixed(
                                                     1
                                                 ) || "0.0"}
                                             </span>
+                                        </Link>
+
+                                        <Link
+                                            href={href}
+                                            className="col-span-3 mb-8 flex justify-center rounded-sm outline-none ring-blue-600/0 focus-visible:ring-4 focus-visible:ring-blue-600/25 tabular-nums font-mono text-[11px] font-bold uppercase text-slate-400 transition-colors group-hover:text-slate-950 md:mb-0"
+                                        >
+                                            {new Date(
+                                                p.updated_at
+                                            ).toLocaleDateString("en-US", {
+                                                month: "short",
+                                                day: "2-digit",
+                                                year: "numeric"
+                                            })}
+                                        </Link>
+
+                                        <div className="col-span-2 flex flex-row items-center justify-between gap-4 px-0 sm:px-1 md:px-2 md:pr-4">
+                                            <div className="flex min-w-0 flex-1 justify-center">
+                                                <AddToCompareButton
+                                                    slug={p.slug}
+                                                    productTitle={title}
+                                                    variant="compact"
+                                                />
+                                            </div>
+                                            <div className="flex shrink-0 justify-end">
+                                                <Link
+                                                    href={href}
+                                                    className="inline-flex max-w-full flex-wrap items-center justify-end gap-2 border-b-4 border-slate-950 pb-1 text-[10px] font-black uppercase tracking-[0.15em] text-slate-950 outline-none transition-[color,border-color] group-hover:border-blue-600 group-hover:text-blue-600 focus-visible:ring-4 focus-visible:ring-blue-600/25 sm:gap-3 sm:text-[11px] sm:tracking-[0.2em]"
+                                                >
+                                                    Open_Log{" "}
+                                                    <ArrowUpRight
+                                                        className="h-4 w-4 shrink-0"
+                                                        aria-hidden
+                                                    />
+                                                </Link>
+                                            </div>
                                         </div>
                                     </div>
-
-                                    <div className="col-span-3 text-center mb-8 md:mb-0 tabular-nums font-mono text-[11px] font-bold text-slate-400 group-hover:text-slate-950 uppercase transition-colors">
-                                        {new Date(
-                                            p.updated_at
-                                        ).toLocaleDateString("en-US", {
-                                            month: "short",
-                                            day: "2-digit",
-                                            year: "numeric"
-                                        })}
-                                    </div>
-
-                                    <div className="col-span-2 text-right md:text-right">
-                                        <span className="inline-flex max-w-full flex-wrap items-center justify-end gap-2 border-b-4 border-slate-950 pb-1 text-[10px] font-black uppercase tracking-[0.15em] text-slate-950 transition-all group-hover:border-blue-600 group-hover:text-blue-600 sm:gap-3 sm:text-[11px] sm:tracking-[0.2em]">
-                                            Open_Log{" "}
-                                            <ArrowUpRight className="w-4 h-4" />
-                                        </span>
-                                    </div>
-                                </Link>
-                            ))
+                                )
+                            })
                         )}
                     </div>
                 </div>
