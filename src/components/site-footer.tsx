@@ -184,7 +184,7 @@ export function SiteFooter() {
                                     href="/registry#registry-search"
                                     className="hover:text-blue-600 flex items-center justify-between group"
                                 >
-                                    Verified Registry{" "}
+                                    Registry{" "}
                                     <ArrowRight className="w-3 h-3 opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all" />
                                 </Link>
                                 <Link
@@ -195,41 +195,23 @@ export function SiteFooter() {
                                     <ArrowRight className="w-3 h-3 opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all" />
                                 </Link>
                                 <Link
-                                    href="/intelligence"
+                                    href="/compare"
                                     className="hover:text-blue-600"
                                 >
-                                    Intelligence Center
-                                </Link>
-                                <Link
-                                    href="/lab"
-                                    className="hover:text-blue-600"
-                                >
-                                    Testing Protocols
-                                </Link>
-                                <Link
-                                    href="/deals"
-                                    className="text-emerald-600 hover:text-emerald-700 flex items-center gap-2"
-                                >
-                                    Real-time Arbitrage{" "}
-                                    <span className="w-1 h-1 bg-emerald-500 rounded-full animate-pulse shadow-[0_0_8px_rgba(16,185,129,0.8)]" />
-                                </Link>
-                                <Link
-                                    href="/docs"
-                                    className="hover:text-blue-600"
-                                >
-                                    Technical Docs
-                                </Link>
-                                <Link
-                                    href="/registry"
-                                    className="hover:text-blue-600"
-                                >
-                                    Registry Archive
+                                    Compare
                                 </Link>
                                 <Link
                                     href="/guides"
                                     className="hover:text-blue-600"
                                 >
                                     Buying Guides
+                                </Link>
+                                <Link
+                                    href="/deals"
+                                    className="text-emerald-600 hover:text-emerald-700 flex items-center gap-2"
+                                >
+                                    Deals{" "}
+                                    <span className="w-1 h-1 bg-emerald-500 rounded-full animate-pulse shadow-[0_0_8px_rgba(16,185,129,0.8)]" />
                                 </Link>
                             </nav>
                         </div>
@@ -252,13 +234,6 @@ export function SiteFooter() {
                                 >
                                     <span className="w-1 h-1 bg-slate-300 rounded-full"></span>
                                     Match_Engine
-                                </Link>
-                                <Link
-                                    href="/compare"
-                                    className="hover:text-blue-600 transition-colors flex items-center gap-2"
-                                >
-                                    <span className="w-1 h-1 bg-slate-300 rounded-full"></span>
-                                    Audit_Comparison
                                 </Link>
                                 <Link
                                     href="/methodology"

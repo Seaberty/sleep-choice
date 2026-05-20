@@ -216,9 +216,9 @@ export default function LabPageClient({
                             <div className="mt-6 flex items-start gap-3 border border-blue-100/50 bg-blue-50/50 px-4 py-3">
                                 <Binary className="mt-0.5 h-4 w-4 shrink-0 text-blue-400" />
                                 <p className="text-[8px] font-bold uppercase leading-tight tracking-tight text-blue-900/60 md:text-[9px]">
-                                    Figures above mirror the site-wide registry
-                                    uplink (same source as the header trust
-                                    strip). Not a separate simulated counter.
+                                    Figures mirror the header trust strip (registry
+                                    uplink). This page is not in the main nav during
+                                    launch — scoring details live on /methodology.
                                 </p>
                             </div>
                         </div>

@@ -86,13 +86,13 @@
         "heading": "Cross-Platform Signals vs audit note",
         "paragraphs": [
           "Cross-Platform Signals summarize brand_social_corpus snippets (Reddit-first) into sentiment and issue tags. They add community color but do not override the main audit note written during batch sync.",
-          "Visit /intelligence for a feed of recent platform batches across the catalog."
+          "Signals also surface on each registry dossier when corpus rows exist (no separate index page in the main nav)."
         ]
       },
       {
-        "heading": "Journal entries and compare matrices",
+        "heading": "Compare matrices",
         "paragraphs": [
-          "Product dossiers live at /registry/[slug] (legacy /journal URLs redirect there).",
+          "Product dossiers live at /registry/[slug].",
           "For purchase decisions between two SKUs, prefer /compare/[pair] pages with editorial intros and identical spec rows."
         ]
       }

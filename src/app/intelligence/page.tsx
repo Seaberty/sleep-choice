@@ -8,7 +8,8 @@ export const metadata: Metadata = {
     title: "Intelligence Center",
     description:
         "Cross-platform review signals (Reddit, Amazon, Trustpilot, SleepLine) distilled into structured sentiment, issue tags, and short verdicts.",
-    alternates: { canonical: "/intelligence" }
+    alternates: { canonical: "/intelligence" },
+    robots: { index: false, follow: true }
 }
 
 function sentimentLabel(score: number): string {

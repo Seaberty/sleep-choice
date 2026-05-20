@@ -30,9 +30,9 @@ _SCRIPTS_DIR = Path(__file__).resolve().parent.parent
 if str(_SCRIPTS_DIR) not in sys.path:
     sys.path.insert(0, str(_SCRIPTS_DIR))
 
+from reddit_reply_engine import analyze_thread, generate_reply_draft  # noqa: E402
 from reddit_rss_monitor import (  # noqa: E402
     format_alert_email_body,
-    generate_reply_logic,
     load_env,
     send_email,
 )
@@ -69,10 +69,12 @@ def main() -> None:
     print(f"[ok] 已读取配置：发件人={user!r}，收件人={to_addr!r}", flush=True)
 
     stamp = datetime.now().astimezone().strftime("%Y-%m-%d %H:%M:%S %Z")
-    sample_note = generate_reply_logic(
+    analysis = analyze_thread(
+        "[样例] Saatva vs. lower back pain — worth it?",
+        "Side sleeper considering Saatva Classic. hot sleeper.",
         ["Saatva", "hot sleeper"],
-        "Saatva classic vs night sweats",
     )
+    sample_note = generate_reply_draft(analysis)
     print("[ok] 样例 Copy & Paste 块已通过无 URL 校验", flush=True)
 
     if args.dry_run:

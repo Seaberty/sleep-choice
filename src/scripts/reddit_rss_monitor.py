@@ -33,9 +33,11 @@ Run from repository root::
 
 State file (repository root): ``processed_posts.json``
 
-**Strategy:** ``KEYWORDS_HIGH`` hit → immediate email. Each alert includes a
-**Copy & Paste Audit Note** from ``generate_reply_logic`` (fixed killer copy per
-brand lane — no URLs; Google search guidance for SleepChoiceGuide + product terms).
+**Strategy:** ``KEYWORDS_HIGH`` hit → classify thread topic → email only when
+relevant to the affiliate catalog (see ``reddit_reply_engine.py``). Each alert
+includes a contextual **Copy & Paste Audit Note** (not fixed brand scripts).
+
+Set ``REDDIT_ALERT_SKIP_IRRELEVANT=0`` to still email off-topic hits with a SKIP draft.
 """
 
 from __future__ import annotations
@@ -61,8 +63,17 @@ from email.message import EmailMessage
 from pathlib import Path
 from typing import Any
 
-import feedparser
 from dotenv import load_dotenv
+
+from reddit_reply_engine import (
+    BRAND_KEYWORDS,
+    INTENT_KEYWORDS,
+    ThreadAnalysis,
+    analyze_thread,
+    assert_reply_copy_safe,
+    format_analysis_header,
+    generate_reply_draft,
+)
 
 # -----------------------------------------------------------------------------
 # Paths & constants
@@ -80,17 +91,10 @@ RSS_FEEDS = [
     "https://www.reddit.com/r/Bedding/comments/.rss",
 ]
 
-# --- Monitoring keywords ---
-KEYWORDS_HIGH: list[str] = [
-    "Saatva",
-    "Sleep & Beyond",
-    "FluffCo",
-    "MyMerino",
-    # High-intent thermal / wool signals (promoted from the old NORMAL list)
-    "night sweats",
-    "hot sleeper",
-    "natural materials",
-]
+# --- Monitoring keywords (brand + intent; intent gated by topic in reply engine) ---
+KEYWORDS_HIGH: list[str] = list(
+    dict.fromkeys([*BRAND_KEYWORDS, *INTENT_KEYWORDS])
+)
 KEYWORDS_NORMAL: list[str] = []
 
 KEYWORDS_HIGH_SET = frozenset(KEYWORDS_HIGH)
@@ -107,174 +111,46 @@ SMTP_DIRECT_TIMEOUT_SEC = 60
 SMTP_DIRECT_TIMEOUT_SHORT_SEC = 15
 
 
-# Reply lane order when multiple HIGH keywords hit (thermal/wool before value before Saatva).
-_REPLY_LANE_ORDER: tuple[str, ...] = ("sleep_beyond", "fluffco", "saatva")
-
-# Substrings (lowercase) that map a thread to a killer-copy lane.
-_LANE_TRIGGERS: dict[str, tuple[str, ...]] = {
-    "sleep_beyond": (
-        "sleep & beyond",
-        "sleep and beyond",
-        "mymerino",
-        "night sweats",
-        "hot sleeper",
-        "natural materials",
-    ),
-    "fluffco": ("fluffco",),
-    "saatva": ("saatva",),
-}
-
-# Product terms appended to SleepChoiceGuide in Google search guidance (no URLs).
-SEARCH_PRODUCT_KEYWORDS: dict[str, str] = {
-    "sleep_beyond": "Sleep and Beyond MyMerino comforter",
-    "fluffco": "FluffCo down alternative comforter",
-    "saatva": "Saatva Classic mattress",
-}
-DEFAULT_SEARCH_PRODUCT_KEYWORD = "mattress forensic audit"
-
-# Banned in all user-facing reply / copy-paste text (Reddit AutoModerator-safe).
-_COPY_URL_PATTERN = re.compile(r"(?i)(https?://|www\.|\b[a-z0-9][-a-z0-9]*\.com\b)")
-
-# Structured reply lanes: auditor tone + search guidance + engagement hook.
-KILLER_COPY_LANES: dict[str, dict[str, str]] = {
-    "sleep_beyond": {
-        "body": (
-            "Not affiliated — just how I read these threads.\n\n"
-            "If you're waking up clammy, memory foam is often the quiet culprit: it stores "
-            "latent heat and humidity instead of moving vapor off your skin. Merino wool "
-            "works more like evaporation — the fiber pulls moisture into the loft and releases "
-            "it, which is a different physics stack than \"gel-infused cooling\" marketing.\n\n"
-            "Sleep & Beyond's MyMerino line is where I usually point hot-sleeper posts: lighter "
-            "comforter weight, same wicking idea, fewer polyester shells parked on your body."
-        ),
-        "hook": (
-            "Are you still stuck in the foam cycle, or have you tried natural fibers yet? "
-            "Let me know."
-        ),
-    },
-    "fluffco": {
-        "body": (
-            "Third-party read, not a sales pitch.\n\n"
-            "A lot of \"hotel cloud\" comforters are really synthetic clusters that collapse "
-            "after a few months — you get flat fill, cold spots, and that weird clumpy wash "
-            "feel. Down-alternative baffle layouts (what FluffCo pushes on the DTC side) "
-            "aim to keep loft pockets intact so weight stays distributed instead of matting "
-            "into one slab.\n\n"
-            "Worth comparing listing specs vs owner posts on loft retention before you chase "
-            "thread count alone."
-        ),
-        "hook": (
-            "What loft level are you aiming for in your sleep setup? Let me know."
-        ),
-    },
-    "saatva": {
-        "body": (
-            "Independent notes — I don't sell mattresses.\n\n"
-            "Saatva threads that age well usually aren't about \"luxury coils\"; they're about "
-            "the firmness trap (weeks 1–3 often read firmer than floor models) and the $99 return "
-            "processing fee people forget to bake into true cost. Forensic diffs that matter: "
-            "coil gauge + comfort-layer density vs what the ad copy implies, not the hero photo.\n\n"
-            "If heat and softening show up together, I'd line up material data on the Classic "
-            "against a natural-fill path before swapping entire coil classes."
-        ),
-        "hook": (
-            "Did you end up pulling the trigger on the Classic, or are you still "
-            "debating the firmness levels? Let me know."
-        ),
-    },
-}
-
-
-def google_search_guidance(lane_key: str | None) -> str:
-    """Brand search CTA — no hyperlinks (Reddit paste-safe)."""
-    product = (
-        SEARCH_PRODUCT_KEYWORDS.get(lane_key or "", DEFAULT_SEARCH_PRODUCT_KEYWORD)
-        if lane_key
-        else DEFAULT_SEARCH_PRODUCT_KEYWORD
-    )
-    return (
-        f"Search Google for [SleepChoiceGuide + {product}] to see the forensic data."
+def _skip_irrelevant_alerts_enabled() -> bool:
+    return os.getenv("REDDIT_ALERT_SKIP_IRRELEVANT", "1").strip().lower() in (
+        "1",
+        "true",
+        "yes",
+        "on",
     )
 
 
-def assert_reply_copy_safe(text: str, *, context: str = "reply") -> None:
-    """Fail fast if paste-ready copy accidentally contains URL-like strings."""
-    if _COPY_URL_PATTERN.search(text):
-        raise ValueError(
-            f"{context} contains a banned URL pattern (http/www/.com): {text[:200]!r}..."
-        )
-
-
-def _assemble_killer_copy(lane_key: str) -> str:
-    lane = KILLER_COPY_LANES[lane_key]
-    out = (
-        f"{lane['body']}\n\n"
-        f"{google_search_guidance(lane_key)}\n\n"
-        f"{lane['hook']}"
+def format_copy_paste_audit_note(
+    matches: list[str],
+    haystack: str,
+    *,
+    title: str = "",
+    summary: str = "",
+) -> str:
+    """Contextual draft for email alerts (topic-aware, not fixed lanes)."""
+    t = title.strip() or haystack.split("\n", 1)[0].strip()
+    s = summary.strip()
+    if not s and "\n" in haystack:
+        s = haystack.split("\n", 1)[1].strip()
+    analysis = analyze_thread(
+        t,
+        s,
+        matches,
+        skip_irrelevant_alerts=_skip_irrelevant_alerts_enabled(),
     )
-    assert_reply_copy_safe(out, context=f"killer_copy:{lane_key}")
-    return out
+    return generate_reply_draft(analysis)
 
 
-def _killer_copy_sleep_beyond() -> str:
-    return _assemble_killer_copy("sleep_beyond")
-
-
-def _killer_copy_fluffco() -> str:
-    return _assemble_killer_copy("fluffco")
-
-
-def _killer_copy_saatva() -> str:
-    return _assemble_killer_copy("saatva")
-
-
-_KILLER_COPY_BUILDERS: dict[str, Any] = {
-    "sleep_beyond": _killer_copy_sleep_beyond,
-    "fluffco": _killer_copy_fluffco,
-    "saatva": _killer_copy_saatva,
-}
-
-
-def _resolve_reply_lane(haystack_lower: str, match_set: set[str]) -> str | None:
-    """First matching lane in priority order."""
-    for lane in _REPLY_LANE_ORDER:
-        for trigger in _LANE_TRIGGERS[lane]:
-            if trigger in haystack_lower:
-                return lane
-            if any(trigger in m.lower() for m in match_set):
-                return lane
-    return None
-
-
-def generate_reply_logic(matches: list[str], haystack: str) -> str:
-    """
-    Fixed killer copy for the matched brand lane — no database reads.
-
-    Lane priority: Sleep & Beyond / thermal > FluffCo > Saatva.
-    """
-    h = haystack.lower()
-    ms = set(matches)
-    lane = _resolve_reply_lane(h, ms)
-    if lane and lane in _KILLER_COPY_BUILDERS:
-        return _KILLER_COPY_BUILDERS[lane]()
-    out = (
-        "Keyword hit but no lane mapping on my side.\n\n"
-        f"{google_search_guidance(None)}\n\n"
-        "What product category is the thread actually about — mattress, topper, or bedding? "
-        "Let me know."
+def audit_appendix(
+    matches: list[str],
+    haystack: str,
+    *,
+    title: str = "",
+    summary: str = "",
+) -> str:
+    return format_copy_paste_audit_note(
+        matches, haystack, title=title, summary=summary
     )
-    assert_reply_copy_safe(out, context="killer_copy:default")
-    return out
-
-
-def format_copy_paste_audit_note(matches: list[str], haystack: str) -> str:
-    """Copy-and-paste block for email alerts."""
-    return generate_reply_logic(matches, haystack)
-
-
-def audit_appendix(matches: list[str], haystack: str) -> str:
-    """Alias for ``format_copy_paste_audit_note``."""
-    return format_copy_paste_audit_note(matches, haystack)
 
 
 def reddit_rss_request_headers() -> dict[str, str]:
@@ -441,19 +317,33 @@ def reply_material_block(
     post_link: str,
     entry_id: str,
     haystack: str,
+    *,
+    title: str = "",
+    summary: str = "",
 ) -> str:
     """
-    Alert footer: operator post link + paste-safe reply note (no URL in note).
+    Alert footer: classification + operator post link + paste-safe draft.
     """
-    topics = ", ".join(matches)
-    notes = format_copy_paste_audit_note(matches, haystack)
+    t = title.strip() or haystack.split("\n", 1)[0].strip()
+    s = summary.strip()
+    if not s and "\n" in haystack:
+        s = haystack.split("\n", 1)[1].strip()
+    analysis = analyze_thread(
+        t,
+        s,
+        matches,
+        skip_irrelevant_alerts=_skip_irrelevant_alerts_enabled(),
+    )
+    notes = generate_reply_draft(analysis)
     assert_reply_copy_safe(notes, context="copy_paste_audit_note")
     link_line = post_link.strip() if post_link.strip() else "(none)"
+    kw_line = ", ".join(matches)
     return (
-        f"[Detected Topic]: {topics}\n"
+        f"[Keywords]: {kw_line}\n"
+        f"{format_analysis_header(analysis)}\n"
         f"[Post link]: {link_line}\n"
         f"[Entry id]: {entry_id or '(unknown)'}\n\n"
-        f"[Copy & Paste Audit Note]\n"
+        f"[Suggested reply draft]\n"
         f"────────────────────────────────────────\n"
         f"{notes}\n"
         f"────────────────────────────────────────\n"
@@ -470,7 +360,14 @@ def format_alert_email_body(
 ) -> str:
     """Email alert: includes Reddit post URL for you; paste block stays URL-free."""
     haystack = f"{title}\n{summary}"
-    block = reply_material_block(matches, post_link, entry_id, haystack)
+    block = reply_material_block(
+        matches,
+        post_link,
+        entry_id,
+        haystack,
+        title=title,
+        summary=summary,
+    )
     link_line = post_link.strip() if post_link.strip() else "(none)"
     return (
         f"Title: {title}\n"
@@ -487,12 +384,14 @@ def format_alert_email_body(
 # -----------------------------------------------------------------------------
 
 
-def fetch_feed(url: str, timeout: int = FETCH_TIMEOUT_SEC) -> feedparser.FeedParserDict:
+def fetch_feed(url: str, timeout: int = FETCH_TIMEOUT_SEC):
     """
     Download and parse a feed URL with timeout and a polite User-Agent.
 
     Raises urllib.error.URLError on network failure, TimeoutError on timeout.
     """
+    import feedparser
+
     req = urllib.request.Request(
         url,
         headers=reddit_rss_request_headers(),
@@ -903,6 +802,7 @@ def process_cycle(processed: set[str]) -> None:
     n_feed_entries = len(pairs)
     n_skip_tracked = 0
     n_no_keyword = 0
+    n_skip_irrelevant = 0
     n_alerted = 0
     n_email_failed = 0
 
@@ -932,6 +832,25 @@ def process_cycle(processed: set[str]) -> None:
             n_no_keyword += 1
             continue
 
+        analysis = analyze_thread(
+            title,
+            summary_plain or "",
+            high_hits,
+            skip_irrelevant_alerts=_skip_irrelevant_alerts_enabled(),
+        )
+        if not analysis.should_alert:
+            processed.add(eid)
+            dirty = True
+            n_skip_irrelevant += 1
+            logger.info(
+                "SKIP irrelevant (no email) | topic=%s | keywords=%s | id=%s | %s",
+                analysis.topic,
+                ", ".join(high_hits),
+                eid,
+                analysis.skip_reason or "",
+            )
+            continue
+
         body = format_alert_email_body(
             title,
             post_link,
@@ -940,9 +859,15 @@ def process_cycle(processed: set[str]) -> None:
             feed_url,
             high_hits,
         )
-        subject = f"[Reddit] {', '.join(high_hits)} — {title[:80]}"
+        subject = (
+            f"[Reddit/{analysis.action}] {analysis.topic} | "
+            f"{', '.join(high_hits)} — {title[:60]}"
+        )
         logger.info(
-            "HIGH match → email | keywords=%s | id=%s | title=%r",
+            "HIGH match → email | action=%s topic=%s lane=%s | keywords=%s | id=%s | title=%r",
+            analysis.action,
+            analysis.topic,
+            analysis.lane or "-",
             ", ".join(high_hits),
             eid,
             title[:120],
@@ -963,14 +888,31 @@ def process_cycle(processed: set[str]) -> None:
 
     logger.info(
         "Cycle done: entries=%d, skip_tracked=%d, no_match=%d, "
-        "alerted=%d, failed=%d | poll=%ss",
+        "skip_irrelevant=%d, alerted=%d, failed=%d | poll=%ss",
         n_feed_entries,
         n_skip_tracked,
         n_no_keyword,
+        n_skip_irrelevant,
         n_alerted,
         n_email_failed,
         POLL_INTERVAL_SEC,
     )
+
+
+def preview_reply(title: str, summary: str, keywords: str) -> None:
+    """CLI helper: classify a thread and print the draft without RSS."""
+    matches = [k.strip() for k in keywords.split(",") if k.strip()]
+    if not matches:
+        matches = matched_keywords(f"{title}\n{summary}", KEYWORDS_ALL)
+    analysis = analyze_thread(
+        title,
+        summary,
+        matches,
+        skip_irrelevant_alerts=_skip_irrelevant_alerts_enabled(),
+    )
+    print(format_analysis_header(analysis))
+    print()
+    print(generate_reply_draft(analysis))
 
 
 def run_once() -> None:
@@ -1024,10 +966,25 @@ def main() -> None:
         action="store_true",
         help="Run a single poll cycle then exit (for GitHub Actions / cron).",
     )
+    parser.add_argument(
+        "--preview",
+        action="store_true",
+        help="Print topic classification + reply draft for --title/--summary (no RSS).",
+    )
+    parser.add_argument("--title", default="", help="Post title for --preview.")
+    parser.add_argument("--summary", default="", help="Post body for --preview.")
+    parser.add_argument(
+        "--keywords",
+        default="",
+        help="Comma-separated keyword hits for --preview (default: auto-detect).",
+    )
     args = parser.parse_args()
 
     try:
-        if args.once:
+        if args.preview:
+            load_env()
+            preview_reply(args.title, args.summary, args.keywords)
+        elif args.once:
             run_once()
         else:
             run_forever()

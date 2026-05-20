@@ -6,7 +6,8 @@ export const metadata: Metadata = {
     title: "Testing Protocols",
     description:
         "Live index metrics from aggregated review intelligence—see methodology for how scores are modeled without bench hardware.",
-    alternates: { canonical: "/lab" }
+    alternates: { canonical: "/methodology" },
+    robots: { index: false, follow: true }
 }
 
 export default async function LabPage() {

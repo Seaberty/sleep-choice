@@ -1,11 +1,9 @@
 import Link from "next/link"
 import {
     BookOpen,
-    FlaskConical,
     Scale,
     GitCompare,
     Database,
-    FileText,
     ArrowRight,
     Activity
 } from "lucide-react"
@@ -14,8 +12,9 @@ import type { Metadata } from "next"
 export const metadata: Metadata = {
     title: "Technical Docs · Protocol Library",
     description:
-        "Index of SleepChoice Guide audit protocols: methodology, lab scoring, disclosure, comparison tools, and data interfaces.",
-    alternates: { canonical: "/docs" }
+        "Index of SleepChoice Guide audit protocols: methodology, disclosure, comparison tools, and registry.",
+    alternates: { canonical: "/methodology" },
+    robots: { index: false, follow: true }
 }
 
 export default function TechnicalDocsPage() {
@@ -27,33 +26,27 @@ export default function TechnicalDocsPage() {
             icon: BookOpen
         },
         {
-            href: "/lab",
-            title: "Testing Protocols",
-            desc: "Live lab metrics and how registry scores align to protocols.",
-            icon: FlaskConical
-        },
-        {
             href: "/disclosure",
             title: "Full Disclosure",
             desc: "Affiliate and algorithmic transparency for this facility.",
             icon: Scale
         },
         {
-            href: "/compare",
-            title: "Audit Comparison",
-            desc: "Side-by-side profiles from the verified registry index.",
-            icon: GitCompare
+            href: "/registry",
+            title: "Registry",
+            desc: "Canonical product audit dossiers.",
+            icon: Database
         },
         {
-            href: "/registry",
-            title: "Verified Registry",
-            desc: "Canonical indexed audit dossiers (review-synthesized intelligence).",
-            icon: Database
+            href: "/compare",
+            title: "Compare",
+            desc: "Side-by-side audit matrices and popular pairs.",
+            icon: GitCompare
         },
         {
             href: "/guides",
             title: "Buying Guides",
-            desc: "Long-form SEO playbooks linking to registry, compare, and quiz flows.",
+            desc: "Long-form playbooks linking to registry, compare, and quiz.",
             icon: BookOpen
         }
     ]
