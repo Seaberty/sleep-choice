@@ -1,0 +1,52 @@
+# Weekly promo bundle: JSON + Reddit drafts + Pinterest PNGs (artifact download).
+# Cron: Sunday 20:00 UTC (before intelligence pipeline at 21:00 UTC).
+name: Promo assets — weekly
+
+on:
+  schedule:
+    - cron: "0 20 * * 0"
+  workflow_dispatch:
+
+concurrency:
+  group: promo-assets-weekly-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  export:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: src/scripts
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: requirements.txt
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r ${{ github.workspace }}/requirements.txt
+
+      - name: Generate promo assets
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+          NEXT_PUBLIC_SITE_URL: ${{ secrets.NEXT_PUBLIC_SITE_URL }}
+        run: |
+          python promo_assets.py \
+            --output-dir ./promo_output \
+            --base-url "${{ secrets.NEXT_PUBLIC_SITE_URL }}"
+
+      - name: Upload promo_output artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: promo_output-${{ github.run_number }}
+          path: src/scripts/promo_output/
+          retention-days: 14
+          if-no-files-found: error

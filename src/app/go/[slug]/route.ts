@@ -1,6 +1,11 @@
 import { NextResponse } from "next/server"
 import { supabase, supabaseAdmin } from "@/lib/supabase"
 import { appendCouponToMerchantUrl } from "@/lib/merchant-coupon-url"
+import {
+    affiliateDeepLinkPrefix,
+    isSaatvaCjConfigured
+} from "@/lib/affiliate-deep-link"
+import { isApprovedAffiliateBrand } from "@/lib/affiliate-config"
 
 export const dynamic = "force-dynamic"
 
@@ -38,25 +43,6 @@ async function incrementOfferClickCount(offerId: string): Promise<void> {
     }
 }
 
-/**
- * CJ「deep link」前缀：必须以 ?url= 结尾；完整目的地 URL 再做 encodeURIComponent。
- * Sleep & Beyond：验证 PID 101698024 + Link ID 13814555。
- * Saatva：在面板确认 Link ID 后写入 AFFILIATE_CJ_SAATVA。
- */
-function cjDeepLinkPrefix(siteName: string): string | undefined {
-    const map: Record<string, string | undefined> = {
-        FluffCo:
-        process.env.AFFILIATE_IMPACT_FUFFCO ??
-        "https://fluffco.pxf.io/c/6815113/3012270/26581?u=",
-        "Sleep & Beyond":
-            process.env.AFFILIATE_CJ_SLEEP_AND_BEYOND ??
-            "https://www.tkqlhce.com/click-101698024-13814555?url=",
-        Saatva: process.env.AFFILIATE_CJ_SAATVA,
-    }
-    const key = siteName.trim()
-    return map[key]
-}
-
 function isPrefetchRequest(request: Request): boolean {
     const purpose =
         request.headers.get("purpose") ||
@@ -88,6 +74,7 @@ export async function GET(
         .select(
             `
       slug,
+      brand,
       official_link,
       product_offers (
         id,
@@ -121,9 +108,11 @@ export async function GET(
     }
 
     const siteName = offer?.site_name?.trim() ?? ""
+    const brand =
+        typeof data.brand === "string" ? data.brand.trim() : ""
     targetUrl = appendCouponToMerchantUrl(
         targetUrl,
-        siteName,
+        siteName || brand,
         offer?.coupon_code
     )
 
@@ -131,7 +120,19 @@ export async function GET(
         void incrementOfferClickCount(offer.id)
     }
 
-    const affiliateBase = cjDeepLinkPrefix(siteName)
+    const affiliateBase = affiliateDeepLinkPrefix(siteName, brand)
+
+    if (
+        brand === "Saatva" &&
+        isApprovedAffiliateBrand(brand) &&
+        !isSaatvaCjConfigured() &&
+        !skipClickTracking
+    ) {
+        console.warn(
+            "[go] Saatva click without AFFILIATE_CJ_SAATVA — redirecting direct (0 commission). slug=",
+            slug
+        )
+    }
 
     if (affiliateBase) {
         return NextResponse.redirect(

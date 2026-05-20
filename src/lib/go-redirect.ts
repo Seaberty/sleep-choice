@@ -4,15 +4,17 @@
  * → 最终链接 https://go.sleepchoiceguide.com/go/{slug}
  */
 
+import {
+    APPROVED_AFFILIATE_BRANDS,
+    isApprovedAffiliateBrand
+} from "@/lib/affiliate-config"
+
+export { APPROVED_AFFILIATE_BRANDS }
+
 /**
- * 商品卡等「直链商户 URL」场景：命中品牌则改走 `/go/[slug]`，由 route 按 DB `site_name` 套 CJ。
+ * 商品卡等「直链商户 URL」场景：命中品牌则改走 `/go/[slug]`，由 route 按 DB `site_name` / brand 套 CJ。
  * 审计详情页侧栏已统一经 `getAffiliateLink` → `/go/[slug]`。
  */
-export const APPROVED_AFFILIATE_BRANDS = new Set([
-    "Saatva",
-    "FluffCo",
-    "Sleep & Beyond"
-])
 
 export function productGoLink(slug: string): string {
     const origin = process.env.NEXT_PUBLIC_GO_REDIRECT_ORIGIN?.replace(
@@ -33,7 +35,7 @@ export function outboundDealLink(
     brand: string | undefined,
     directMerchantUrl: string
 ): string {
-    if (brand && APPROVED_AFFILIATE_BRANDS.has(brand)) {
+    if (isApprovedAffiliateBrand(brand)) {
         return productGoLink(slug)
     }
     return directMerchantUrl

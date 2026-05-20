@@ -1,9 +1,10 @@
 {
-    "last_updated": "2026-01-07T22:00:00Z",
-    "version": "1.0.0",
+    "last_updated": "2026-05-20T00:00:00Z",
+    "version": "1.1.0",
     "reddit_audit_slugs": {
-        "thermal": "",
-        "fluffco_value": ""
+        "sleep_beyond": "sleep-and-beyond-mymerino-comforter",
+        "fluffco": "fluffco-down-alternative-comforter",
+        "saatva": "saatva-classic"
     },
     "products": {
         "saatva-classic": {
@@ -11,115 +12,44 @@
             "brand": "Saatva",
             "name": "Classic Hybrid",
             "price": 1295,
-            "rating": 4.9,
-            "tag": "Overall Best Pick",
-            "isBestSeller": true,
             "audit_scores": {
-                "overall": 9.2,
-                "support": 9.8,
-                "cooling": 8.5,
-                "pressure": 9.2,
-                "durability": 8.0
-            },
-            "metrics": {
-                "support": 9.8,
-                "cooling": 8.5,
-                "pressure": 9.2
+                "overall": 8.5,
+                "support": 9.0,
+                "cooling": 8.0,
+                "pressure": 8.5,
+                "durability": 8.5
             },
             "pros": [
                 "Organic Cotton Cover",
                 "Lifetime Warranty",
                 "Free White-Glove Delivery"
-            ],
-            "offers": [
-                {
-                    "site": "Official Store",
-                    "price": 1295,
-                    "promo": "$200 OFF CODE",
-                    "primary": true,
-                    "url": "/api/dispatch/saatva-classic"
-                },
-                {
-                    "site": "Amazon",
-                    "price": 1395,
-                    "primary": false,
-                    "url": "https://amazon.com/dp/example1"
-                }
             ]
         },
-        "saatva-hd": {
-            "id": "saatva-hd",
-            "brand": "Saatva",
-            "name": "HD / RX Hybrid",
+        "sleep-and-beyond-mymerino-comforter": {
+            "id": "sleep-and-beyond-mymerino-comforter",
+            "brand": "Sleep & Beyond",
+            "name": "MyMerino Comforter",
+            "price": 399,
             "audit_scores": {
-                "overall": 9.2,
-                "support": 9.8,
-                "cooling": 8.5,
-                "pressure": 9.2,
-                "durability": 8.0
+                "overall": 8.8,
+                "support": 8.0,
+                "cooling": 9.0,
+                "pressure": 8.5,
+                "durability": 8.5
             }
         },
-        "helix-midnight-luxe": {
-            "id": "helix-midnight-luxe",
-            "brand": "Helix",
-            "name": "Midnight Luxe",
-            "price": 1899,
-            "rating": 4.8,
-            "tag": "Best for Side Sleepers",
-            "isBestSeller": false,
-            "metrics": {
-                "support": 9.2,
-                "cooling": 9.5,
-                "pressure": 9.7
-            },
-            "pros": [
-                "Zoned Lumbar Support",
-                "Tencel Cooling Cover",
-                "Greenguard Gold Certified"
-            ],
-            "offers": [
-                {
-                    "site": "Official Store",
-                    "price": 1899,
-                    "promo": "25% OFF + PILLOWS",
-                    "primary": true,
-                    "url": "/api/dispatch/helix-midnight"
-                },
-                {
-                    "site": "Walmart",
-                    "price": 1950,
-                    "primary": false,
-                    "url": "https://walmart.com/example2"
-                }
-            ]
-        },
-        "dreamcloud-premier": {
-            "id": "dreamcloud-premier",
-            "brand": "DreamCloud",
-            "name": "Premier Hybrid",
-            "price": 1099,
-            "rating": 4.7,
-            "tag": "Best Value Luxury",
-            "isBestSeller": true,
-            "metrics": {
-                "support": 9.0,
-                "cooling": 8.8,
-                "pressure": 9.0
-            },
-            "pros": [
-                "Cashmere Blend Cover",
-                "365-Night Trial",
-                "Forever Warranty"
-            ],
-            "offers": [
-                {
-                    "site": "Official Store",
-                    "price": 1099,
-                    "promo": "40% OFF FLASH DEAL",
-                    "primary": true,
-                    "url": "/api/dispatch/dreamcloud-premier"
-                }
-            ]
+        "fluffco-down-alternative-comforter": {
+            "id": "fluffco-down-alternative-comforter",
+            "brand": "FluffCo",
+            "name": "Down Alternative Comforter",
+            "price": 189,
+            "audit_scores": {
+                "overall": 8.5,
+                "support": 8.0,
+                "cooling": 8.5,
+                "pressure": 8.0,
+                "durability": 8.5
+            }
         }
     }
 }

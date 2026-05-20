@@ -1,4 +1,7 @@
-import { isListableAuditProduct } from "@/lib/audit-list-eligibility"
+import {
+    isCommissionableAuditProduct,
+    isListableAuditProduct
+} from "@/lib/audit-list-eligibility"
 import { supabase } from "@/lib/supabase"
 import Link from "next/link"
 import { RegistryDetailLink } from "@/components/registry-detail-link"
@@ -44,6 +47,9 @@ export default async function RegistryPage({ searchParams }: Props) {
     })
 
     const listProducts = (products ?? []).filter(isListableAuditProduct)
+    const commissionableCount = listProducts.filter(
+        isCommissionableAuditProduct
+    ).length
 
     const jsonLd = {
         "@context": "https://schema.org",
@@ -130,6 +136,11 @@ export default async function RegistryPage({ searchParams }: Props) {
                         <div className="flex items-center gap-2 text-[10px] font-mono font-bold text-slate-400 uppercase tracking-widest">
                             <Activity className="w-3.5 h-3.5 text-blue-600" />
                             Live_Indexed: {listProducts.length} Entities
+                        </div>
+                        <div className="flex items-center gap-2 text-[10px] font-mono font-bold text-emerald-700 uppercase tracking-widest">
+                            <ShieldCheck className="w-3.5 h-3.5" />
+                            Commissionable: {commissionableCount} /{" "}
+                            {listProducts.length}
                         </div>
                         <div className="flex items-center gap-2 text-[10px] font-mono font-bold text-slate-400 uppercase tracking-widest tabular-nums">
                             <RefreshCw className="w-3.5 h-3.5 text-emerald-500 animate-[spin_10s_linear_infinite]" />

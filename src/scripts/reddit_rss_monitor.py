@@ -19,8 +19,11 @@ Environment variables (loaded from repo-root ``.env`` / ``.env.local``):
                    same ``PROXY_URL`` is reused with PySocks. By default SMTP tries
                    the proxy **before** direct dial (see ``GMAIL_SMTP_TRY_DIRECT_FIRST``).
 
-    NEXT_PUBLIC_SITE_URL — Optional; reserved for future use (killer copy uses
-        Google search CTAs, not direct URLs).
+    NEXT_PUBLIC_SITE_URL — Canonical site origin for audit-page CTAs in replies.
+
+    REDDIT_AUDIT_SLUG_SLEEP_BEYOND / REDDIT_AUDIT_SLUG_FLUFFCO /
+    REDDIT_AUDIT_SLUG_SAATVA — Optional overrides for default registry slugs
+    (else read from ``src/data/registry.json`` → ``reddit_audit_slugs``).
 
     REDDIT_RSS_USER_AGENT — Optional full ``User-Agent`` string for RSS HTTP
         requests. If Reddit returns ``403 Blocked``, set this to a current
@@ -149,10 +152,9 @@ _LANE_TRIGGERS: dict[str, tuple[str, ...]] = {
     "saatva": ("saatva",),
 }
 
-# Structured reply lanes: search-guided, low-promo, auditor tone (no direct URLs).
+# Structured reply lanes: auditor tone + one forensic audit URL per lane.
 KILLER_COPY_LANES: dict[str, dict[str, str]] = {
     "sleep_beyond": {
-        "search_terms": "SleepChoiceGuide Sleep Beyond MyMerino night sweats hot sleeper",
         "body": (
             "Not affiliated — just how I read these threads.\n\n"
             "If you're waking up clammy, memory foam is often the quiet culprit: it stores "
@@ -167,9 +169,6 @@ KILLER_COPY_LANES: dict[str, dict[str, str]] = {
         ),
     },
     "fluffco": {
-        "search_terms": (
-            "SleepChoiceGuide FluffCo down alternative comforter hotel loft"
-        ),
         "body": (
             "Third-party read, not a sales pitch.\n\n"
             "A lot of \"hotel cloud\" comforters are really synthetic clusters that collapse "
@@ -183,9 +182,6 @@ KILLER_COPY_LANES: dict[str, dict[str, str]] = {
         "hook": "What loft level are you aiming for in your sleep setup?",
     },
     "saatva": {
-        "search_terms": (
-            "SleepChoiceGuide Saatva Classic firmness break-in return fee"
-        ),
         "body": (
             "Independent notes — I don't sell mattresses.\n\n"
             "Saatva threads that age well usually aren't about \"luxury coils\"; they're about "
@@ -203,16 +199,61 @@ KILLER_COPY_LANES: dict[str, dict[str, str]] = {
 }
 
 
-def _search_cta(terms: str) -> str:
-    """Low-risk discovery line — no outbound product URL."""
-    return f"Search Google for: {terms}"
+_REGISTRY_JSON = (
+    Path(__file__).resolve().parents[1] / "data" / "registry.json"
+)
+_REDDIT_SLUG_CACHE: dict[str, str] | None = None
+
+
+def _load_reddit_audit_slugs() -> dict[str, str]:
+    global _REDDIT_SLUG_CACHE
+    if _REDDIT_SLUG_CACHE is not None:
+        return _REDDIT_SLUG_CACHE
+
+    defaults = {
+        "sleep_beyond": "sleep-and-beyond-mymerino-comforter",
+        "fluffco": "fluffco-down-alternative-comforter",
+        "saatva": "saatva-classic",
+    }
+    merged = dict(defaults)
+    try:
+        raw = json.loads(_REGISTRY_JSON.read_text(encoding="utf-8"))
+        file_slugs = raw.get("reddit_audit_slugs") or {}
+        if isinstance(file_slugs, dict):
+            for key, slug in file_slugs.items():
+                if isinstance(key, str) and isinstance(slug, str) and slug.strip():
+                    merged[key] = slug.strip()
+    except (OSError, json.JSONDecodeError) as exc:
+        logging.debug("reddit_audit_slugs from registry.json skipped: %s", exc)
+
+    env_map = {
+        "sleep_beyond": "REDDIT_AUDIT_SLUG_SLEEP_BEYOND",
+        "fluffco": "REDDIT_AUDIT_SLUG_FLUFFCO",
+        "saatva": "REDDIT_AUDIT_SLUG_SAATVA",
+    }
+    for lane, var in env_map.items():
+        override = (os.getenv(var) or "").strip()
+        if override:
+            merged[lane] = override
+
+    _REDDIT_SLUG_CACHE = merged
+    return merged
+
+
+def _audit_cta(lane_key: str) -> str:
+    """Single forensic audit URL — trackable via /registry + optional /go on-site."""
+    slugs = _load_reddit_audit_slugs()
+    slug = slugs.get(lane_key, "").strip()
+    if not slug:
+        return f"Full methodology: {scg_url('/methodology')}"
+    return f"Forensic audit (scores + specs): {scg_url(f'/registry/{slug}')}"
 
 
 def _assemble_killer_copy(lane_key: str) -> str:
     lane = KILLER_COPY_LANES[lane_key]
     return (
         f"{lane['body']}\n\n"
-        f"{_search_cta(lane['search_terms'])}\n\n"
+        f"{_audit_cta(lane_key)}\n\n"
         f"{lane['hook']}"
     )
 
@@ -260,7 +301,7 @@ def generate_reply_logic(matches: list[str], haystack: str) -> str:
         return _KILLER_COPY_BUILDERS[lane]()
     return (
         "Keyword hit but no lane mapping on my side.\n\n"
-        f"{_search_cta('SleepChoiceGuide methodology audit scores')}\n\n"
+        f"Browse indexed audits: {scg_url('/registry')}\n\n"
         "What product category is the thread actually about — mattress, topper, or bedding?"
     )
 

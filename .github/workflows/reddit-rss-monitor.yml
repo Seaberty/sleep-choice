@@ -1,19 +1,10 @@
-# Reddit RSS → Gmail 监控（单次轮询，适合 GitHub Actions）
-# 本仓库脚本默认无限循环；CI 使用 ``python ... --once`` 只跑一轮后退出。
-#
-# 在仓库 Settings → Secrets and variables → Actions 中配置（Repository secrets）：
-#   GMAIL_USER, GMAIL_PASS     — Gmail 应用专用密码
-#   GMAIL_TO                   — 可选
-#   PROXY_URL                  — 可选（Reddit 403 / SMTP 隧道）
-#   REDDIT_RSS_USER_AGENT      — 可选（403 Blocked 时）
-#   NEXT_PUBLIC_SITE_URL       — 可选（邮件内链接，如 https://sleepchoiceguide.com）
-#
-# ``processed_posts.json`` 通过 cache 复用以跨次运行去重。
+# Reddit RSS → Gmail alerts (single poll per run; state in Actions cache).
+# Cron: every 30 minutes UTC. Requires Gmail + optional Reddit UA secrets.
 name: Reddit RSS monitor
 
 on:
   schedule:
-    - cron: "*/5 * * * *"
+    - cron: "*/30 * * * *"
   workflow_dispatch:
 
 concurrency:
@@ -23,6 +14,10 @@ concurrency:
 jobs:
   poll:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: src/scripts
 
     steps:
       - uses: actions/checkout@v4
@@ -33,33 +28,34 @@ jobs:
           cache: pip
           cache-dependency-path: requirements.txt
 
-      - name: Restore processed post ids
-        uses: actions/cache/restore@v4
-        id: reddit-state
+      - name: Restore processed post IDs
+        uses: actions/cache@v4
         with:
           path: processed_posts.json
-          key: reddit-rss-state-${{ github.ref_name }}-${{ github.run_id }}
+          key: reddit-rss-processed-${{ github.repository }}
           restore-keys: |
-            reddit-rss-state-${{ github.ref_name }}-
+            reddit-rss-processed-
 
-      - name: Install Python deps
+      - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements.txt
+          pip install -r ${{ github.workspace }}/requirements.txt
 
       - name: Run reddit_rss_monitor (single cycle)
+        working-directory: ${{ github.workspace }}
         env:
+          NEXT_PUBLIC_SITE_URL: ${{ secrets.NEXT_PUBLIC_SITE_URL }}
+          REDDIT_RSS_USER_AGENT: ${{ secrets.REDDIT_RSS_USER_AGENT }}
+          PROXY_URL: ${{ secrets.PROXY_URL }}
           GMAIL_USER: ${{ secrets.GMAIL_USER }}
           GMAIL_PASS: ${{ secrets.GMAIL_PASS }}
           GMAIL_TO: ${{ secrets.GMAIL_TO }}
-          PROXY_URL: ${{ secrets.PROXY_URL }}
-          REDDIT_RSS_USER_AGENT: ${{ secrets.REDDIT_RSS_USER_AGENT }}
-          NEXT_PUBLIC_SITE_URL: ${{ secrets.NEXT_PUBLIC_SITE_URL }}
+          GMAIL_SMTP_TRY_DIRECT_FIRST: ${{ secrets.GMAIL_SMTP_TRY_DIRECT_FIRST }}
         run: python src/scripts/reddit_rss_monitor.py --once
 
-      - name: Save processed post ids
+      - name: Save processed post IDs
         if: always()
         uses: actions/cache/save@v4
         with:
           path: processed_posts.json
-          key: reddit-rss-state-${{ github.ref_name }}-${{ github.run_id }}
+          key: reddit-rss-processed-${{ github.repository }}

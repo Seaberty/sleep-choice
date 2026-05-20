@@ -1,22 +1,25 @@
 "use client"
 
 import React, { useState, useMemo } from "react"
+import Link from "next/link"
 import {
-    Calculator,
     CheckCircle2,
     AlertCircle,
-    Maximize,
-    Box,
-    Grid,
     Move,
     Cpu,
     Compass,
     Ruler,
-    Layout
+    Layout,
+    ArrowUpRight,
+    ExternalLink
 } from "lucide-react"
 import { motion, AnimatePresence } from "framer-motion"
 import { cn } from "@/lib/utils"
 import { APP_PROTOCOL } from "@/lib/constants"
+import { productGoLink } from "@/lib/go-redirect"
+
+/** Queen+ 尺寸默认指向已审计的 Saatva Classic（与 registry.json reddit_audit_slugs 一致） */
+const MATTRESS_AUDIT_SLUG = "saatva-classic"
 
 export default function CalculatorPage() {
     const [roomWidthFt, setRoomWidthFt] = useState<string>("12")
@@ -386,6 +389,48 @@ export default function CalculatorPage() {
                                 </div>
                             </div>
                         </div>
+
+                        <section className="border-4 border-blue-600 bg-blue-50 p-6 space-y-4">
+                            <h3 className="text-[10px] font-black uppercase tracking-[0.35em] text-blue-800">
+                                Next_Step_Monetization
+                            </h3>
+                            <p className="text-[10px] font-bold uppercase leading-relaxed text-slate-700">
+                                Room fits a {selectedBed.label} payload. Compare
+                                forensic audits, active deals, or outbound via
+                                tracked /go links.
+                            </p>
+                            <div className="flex flex-col gap-2">
+                                <Link
+                                    href={`/registry/${MATTRESS_AUDIT_SLUG}`}
+                                    className="group flex items-center justify-between border-2 border-slate-950 bg-white px-4 py-3 text-[10px] font-black uppercase tracking-widest transition-colors hover:bg-slate-950 hover:text-white"
+                                >
+                                    <span>Audit: Saatva Classic</span>
+                                    <ArrowUpRight className="h-4 w-4 opacity-60 group-hover:opacity-100" />
+                                </Link>
+                                <Link
+                                    href="/deals"
+                                    className="group flex items-center justify-between border-2 border-slate-950 bg-white px-4 py-3 text-[10px] font-black uppercase tracking-widest transition-colors hover:bg-blue-600 hover:border-blue-600 hover:text-white"
+                                >
+                                    <span>Deals_Vault</span>
+                                    <ArrowUpRight className="h-4 w-4 opacity-60 group-hover:opacity-100" />
+                                </Link>
+                                <Link
+                                    href="/registry"
+                                    className="group flex items-center justify-between border-2 border-slate-300 bg-white px-4 py-3 text-[10px] font-black uppercase tracking-widest text-slate-600 transition-colors hover:border-slate-950 hover:text-slate-950"
+                                >
+                                    <span>Full_Registry_Archive</span>
+                                    <ArrowUpRight className="h-4 w-4 opacity-60" />
+                                </Link>
+                                <a
+                                    href={productGoLink(MATTRESS_AUDIT_SLUG)}
+                                    rel="nofollow sponsored"
+                                    className="group flex items-center justify-between bg-slate-950 px-4 py-3 text-[10px] font-black uppercase tracking-widest text-white transition-colors hover:bg-blue-600"
+                                >
+                                    <span>Shop /go (tracked)</span>
+                                    <ExternalLink className="h-4 w-4 opacity-70" />
+                                </a>
+                            </div>
+                        </section>
                     </div>
                 </div>
             </div>

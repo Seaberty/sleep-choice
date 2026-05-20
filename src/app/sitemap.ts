@@ -42,7 +42,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     try {
         const { data, error } = await supabase
             .from("audit_products")
-            .select("slug, updated_at, image_url, price")
+            .select("slug, updated_at, image_url, price, audit_scores")
 
         if (error || !data?.length) return base
 

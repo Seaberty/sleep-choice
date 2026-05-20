@@ -1,15 +1,16 @@
 # 自建情报中心：每周全站流水线（corpus → brand_intelligence）
 #
 # Step 1 — public.brand_social_corpus：按 audit_products 去重 brand_slug，Reddit search.json。
-# Step 2 — public.brand_intelligence：全量产品从 corpus + DeepSeek upsert（--limit 0）。
+# Step 2 — public.brand_intelligence：全量产品从 corpus + LLM upsert（--limit 0）。
 #
-# Cron 0 21 * * 6 (UTC) = 每周日北京时间 05:00
+# Cron 0 21 * * 6 (UTC) = 每周日北京时间 05:00（与 batch-scanner-daily 22:00 UTC 错开）
 #
 # Secrets：
 #   SUPABASE_URL, SUPABASE_KEY   — service_role（corpus + intelligence 写入）
-#   DEEPSEEK_API_KEY             — Step 2 必需
+#   DEEPSEEK_API_KEY             — Step 2 必需（Gemini 兜底链路的回退）
 #
-# 可选：REDDIT_RSS_USER_AGENT；BRAVE_SEARCH_API_KEY + run 中加 --brave
+# 可选：REDDIT_RSS_USER_AGENT；BRAVE_SEARCH_API_KEY + Step 1 加 --brave
+# 可选：GEMINI_API_KEY / GOOGLE_API_KEY — Step 2 优先 Gemini
 name: Intelligence pipeline — weekly (corpus + brand_intel)
 
 on:
@@ -24,7 +25,7 @@ concurrency:
 jobs:
   pipeline:
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 90
     defaults:
       run:
         working-directory: src/scripts
@@ -52,10 +53,12 @@ jobs:
         run: |
           python brand_social_corpus_ingest.py --from-registry --inter-brand-sleep 4
 
-      - name: "Step 2/2: brand_intelligence (corpus + DeepSeek, all products)"
+      - name: "Step 2/2: brand_intelligence (corpus + LLM, all products)"
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
           DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
         run: |
           python brand_intel_bulk_ingest.py --limit 0 --sleep-between-products 2
