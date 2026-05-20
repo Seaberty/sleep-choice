@@ -220,10 +220,16 @@ export function SiteFooter() {
                                     Technical Docs
                                 </Link>
                                 <Link
-                                    href="/journal"
+                                    href="/registry"
                                     className="hover:text-blue-600"
                                 >
-                                    Sleep Journal
+                                    Registry Archive
+                                </Link>
+                                <Link
+                                    href="/guides"
+                                    className="hover:text-blue-600"
+                                >
+                                    Buying Guides
                                 </Link>
                             </nav>
                         </div>

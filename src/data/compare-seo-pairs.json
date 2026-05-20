@@ -1,0 +1,56 @@
+[
+  {
+    "pairSlug": "fluffco-down-alternative-comforter-vs-sleep-and-beyond-mymerino-comforter",
+    "slugA": "fluffco-down-alternative-comforter",
+    "slugB": "sleep-and-beyond-mymerino-comforter",
+    "title": "FluffCo Down Alternative vs Sleep & Beyond MyMerino Comforter",
+    "description": "Side-by-side audit scores, thermal signals, and price positioning for two top-rated comforters—synthetic down alternative vs merino wool fill.",
+    "intro": "Shoppers often narrow winter bedding to either a budget-friendly down-alternative shell or a natural merino layer. This comparison uses SleepChoice aggregated review intelligence—not in-house bench tests—to contrast cooling, pressure relief, and durability indices on the same scoring grid.",
+    "verdictHint": "comforter_thermal"
+  },
+  {
+    "pairSlug": "saatva-classic-vs-saatva-hd",
+    "slugA": "saatva-classic",
+    "slugB": "saatva-hd",
+    "title": "Saatva Classic vs Saatva HD Mattress",
+    "description": "Compare Saatva Classic and HD hybrid audit scores for support, cooling, pressure relief, and durability—plus shelf pricing from our registry.",
+    "intro": "Saatva’s Classic line targets mainstream hybrid buyers while HD adds capacity for heavier sleepers. We align both SKUs on identical forensic axes so you can see where owner-review sentiment diverges before visiting the manufacturer.",
+    "verdictHint": "mattress_support"
+  },
+  {
+    "pairSlug": "saatva-classic-vs-saatva-zenhaven",
+    "slugA": "saatva-classic",
+    "slugB": "saatva-zenhaven",
+    "title": "Saatva Classic vs Zenhaven Latex Mattress",
+    "description": "Hybrid coil support vs all-latex Zenhaven: compare SleepChoice audit indices and specs for hot sleepers and pressure relief.",
+    "intro": "Classic is Saatva’s volume hybrid; Zenhaven is the natural latex route with a different thermal and motion profile. Use this matrix when deciding between coil-hybrid bounce and latex uniformity.",
+    "verdictHint": "mattress_cooling"
+  },
+  {
+    "pairSlug": "saatva-hd-vs-saatva-rx",
+    "slugA": "saatva-hd",
+    "slugB": "saatva-rx",
+    "title": "Saatva HD vs Saatva Rx Mattress",
+    "description": "Heavy-duty HD versus clinical Rx positioning: forensic score comparison for support and durability from aggregated reviews.",
+    "intro": "Both models speak to higher load and support needs but with different marketing frames. The table below shows how community signals separate HD’s plus-size story from Rx’s therapeutic positioning.",
+    "verdictHint": "mattress_support"
+  },
+  {
+    "pairSlug": "fluffco-down-alternative-comforter-vs-fluffco-silk-pillowcase",
+    "slugA": "fluffco-down-alternative-comforter",
+    "slugB": "fluffco-silk-pillowcase",
+    "title": "FluffCo Comforter vs Silk Pillowcase",
+    "description": "Layering comparison within FluffCo: down-alternative comforter audit vs silk pillowcase for cooling and contact-surface comfort.",
+    "intro": "Not a substitute for same-category picks—this page helps bundle builders compare a thermal shell SKU with a contact-layer accessory on shared FluffCo evidence trails.",
+    "verdictHint": "accessory_layer"
+  },
+  {
+    "pairSlug": "sleep-and-beyond-mymerino-comforter-vs-sleep-and-beyond-mywoolly-pillow",
+    "slugA": "sleep-and-beyond-mymerino-comforter",
+    "slugB": "sleep-and-beyond-mywoolly-pillow",
+    "title": "Sleep & Beyond MyMerino Comforter vs MyWoolly Pillow",
+    "description": "Wool bedding stack comparison: merino comforter vs woolly cervical layer scores and specs from the SleepChoice registry.",
+    "intro": "Natural wool buyers often pair a breathable comforter with a structured pillow. Compare both Sleep & Beyond audits before building a consistent wool stack.",
+    "verdictHint": "accessory_layer"
+  }
+]

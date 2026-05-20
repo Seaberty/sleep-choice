@@ -7,7 +7,12 @@ import {
     getQuizProductCatalog
 } from "@/lib/registry"
 import { parseQuizAnswersParam } from "@/lib/quiz-score"
-import { calculateQuizResults, expertSnippet } from "@/lib/quiz-results"
+import {
+    calculateQuizResults,
+    expertSnippet
+} from "@/lib/quiz-results"
+import { QuizCompleteTracker } from "@/components/analytics/quiz-complete-tracker"
+import { QuizTopPicks } from "@/components/quiz/quiz-top-picks"
 import { getMerchantTrustBadgesForBrand } from "@/lib/quiz-trust-badges"
 import { ProductCard } from "@/components/product-card"
 import {
@@ -121,6 +126,12 @@ export default async function BestPicksPage({ searchParams }: SearchProps) {
 
     return (
         <main className="relative min-h-screen bg-white pt-20 md:pt-32 pb-20 sm:pb-32 overflow-x-clip font-sans">
+            {quizActive && bundle && parsedQuiz ? (
+                <QuizCompleteTracker
+                    productFocus={parsedQuiz.product_focus ?? "mattress"}
+                    matchCount={bundle.ranked.length}
+                />
+            ) : null}
             <script
                 type="application/ld+json"
                 dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
@@ -246,6 +257,15 @@ export default async function BestPicksPage({ searchParams }: SearchProps) {
                         </div>
                     </section>
                 )}
+
+                {quizActive && bundle && parsedQuiz ? (
+                    <QuizTopPicks
+                        picks={bundle.ranked}
+                        answers={parsedQuiz}
+                        matchTokens={bundle.matchTokens}
+                        weightsBySlug={bundle.weightsBySlug}
+                    />
+                ) : null}
 
                 {/* --- 2. Champion / Top Audit Pick --- */}
                 {championProduct && (

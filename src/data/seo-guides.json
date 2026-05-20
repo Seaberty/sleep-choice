@@ -1,0 +1,139 @@
+[
+  {
+    "slug": "best-mattress-side-sleepers",
+    "title": "Best Mattress for Side Sleepers (2026): How We Rank From Review Intelligence",
+    "description": "A practical guide to reading SleepChoice pressure and support scores when you sleep on your side—plus which registry axes matter most before you buy.",
+    "publishedAt": "2026-05-01",
+    "updatedAt": "2026-05-20",
+    "sections": [
+      {
+        "heading": "Why side sleepers need different scores",
+        "paragraphs": [
+          "Side sleeping concentrates force on shoulders and hips. In our registry, the Pressure Relief index proxies how often aggregated owner reviews mention hip/shoulder discomfort, while Support reflects spinal alignment language—not firmness marketing copy.",
+          "A mattress that scores high on Overall but weak on Pressure may still fail for dedicated side sleepers. Start with Pressure ≥ 8.0, then validate Support ≥ 7.5 for your body weight band."
+        ]
+      },
+      {
+        "heading": "How to use the Sleep Quiz without bias",
+        "paragraphs": [
+          "The /quiz flow tags lateral (side) posture and routes you to /best-picks with weighted ranking. Treat the Top 3 matrix as a shortlist, then open each registry dossier for pros/cons tied to your budget tier.",
+          "We do not run warehouse roll tests; scores fuse retailer specs with multi-source review NLP. That makes the tool strong for narrowing SKUs, not for predicting day-one feel."
+        ]
+      },
+      {
+        "heading": "Checklist before clicking out to a merchant",
+        "paragraphs": [
+          "Confirm trial/warranty on the brand’s PDP—our audit variant (e.g., Queen) should match the size you configure at checkout.",
+          "Open /deals if you need coupon language; copied codes fire analytics but do not change our score formulas.",
+          "Read /disclosure for affiliate routing: approved brands exit via /go/[slug] with CJ or Impact wrappers."
+        ]
+      }
+    ],
+    "relatedRegistrySlugs": ["saatva-classic", "saatva-hd"],
+    "relatedComparePairSlugs": ["saatva-classic-vs-saatva-hd"]
+  },
+  {
+    "slug": "wool-comforter-vs-down-alternative",
+    "title": "Wool Comforter vs Down Alternative: Evidence-Based Comparison",
+    "description": "Merino wool vs synthetic down-alternative comforters—thermal indices, durability signals, and when each fill wins in owner-review data.",
+    "publishedAt": "2026-05-05",
+    "updatedAt": "2026-05-20",
+    "sections": [
+      {
+        "heading": "Thermal behavior in our Cooling index",
+        "paragraphs": [
+          "Wool comforters (e.g., Sleep & Beyond MyMerino) often lead Cooling when reviews praise year-round breathability. Down-alternative fills (e.g., FluffCo) may score slightly lower on raw cooling but higher on Pressure when loft softness dominates feedback.",
+          "Use the head-to-head compare page for the same axes on both SKUs rather than relying on star averages from a single retailer."
+        ]
+      },
+      {
+        "heading": "Durability and care narratives",
+        "paragraphs": [
+          "Durability in our model tracks sagging, clumping, and fill migration language—not years-of-warranty alone. Wool audits frequently cite lanolin care and occasional dry-clean recommendations; synthetics emphasize machine wash convenience.",
+          "If you own pets or wash frequently, weigh Durability alongside listed care constraints in each product’s specs matrix."
+        ]
+      },
+      {
+        "heading": "Price and affiliate transparency",
+        "paragraphs": [
+          "Shelf prices in the registry reflect latest scanner passes; stack discounts may appear in /deals. Both brands in this guide participate in affiliate programs disclosed on /disclosure—commissions do not input into score math."
+        ]
+      }
+    ],
+    "relatedRegistrySlugs": [
+      "sleep-and-beyond-mymerino-comforter",
+      "fluffco-down-alternative-comforter"
+    ],
+    "relatedComparePairSlugs": [
+      "fluffco-down-alternative-comforter-vs-sleep-and-beyond-mymerino-comforter"
+    ]
+  },
+  {
+    "slug": "how-to-read-sleepchoice-audit",
+    "title": "How to Read a SleepChoice Audit Page",
+    "description": "Decode Overall, Support, Cooling, Pressure, and Durability indices, Cross-Platform Signals, and when to trust aggregated vs lab-style claims.",
+    "publishedAt": "2026-05-10",
+    "updatedAt": "2026-05-20",
+    "sections": [
+      {
+        "heading": "The five-axis scorecard",
+        "paragraphs": [
+          "Each /registry/[slug] dossier publishes five indices (0–10 scale) derived from forensic_engine NLP on reviews and listing text. Overall is a weighted composite—not an average of star ratings.",
+          "Radar charts visualize the same data; large gaps between Cooling and Support usually indicate a specialized SKU (e.g., hot-sleep latex vs dense hybrid)."
+        ]
+      },
+      {
+        "heading": "Cross-Platform Signals vs audit note",
+        "paragraphs": [
+          "Cross-Platform Signals summarize brand_social_corpus snippets (Reddit-first) into sentiment and issue tags. They add community color but do not override the main audit note written during batch sync.",
+          "Visit /intelligence for a feed of recent platform batches across the catalog."
+        ]
+      },
+      {
+        "heading": "Journal entries and compare matrices",
+        "paragraphs": [
+          "Product dossiers live at /registry/[slug] (legacy /journal URLs redirect there).",
+          "For purchase decisions between two SKUs, prefer /compare/[pair] pages with editorial intros and identical spec rows."
+        ]
+      }
+    ],
+    "relatedRegistrySlugs": [],
+    "relatedComparePairSlugs": []
+  },
+  {
+    "slug": "saatva-lineup-overview",
+    "title": "Saatva Mattress Lineup Overview: Classic, HD, Zenhaven, Rx",
+    "description": "Map Saatva’s hybrid and latex models to SleepChoice registry slugs, compare shortcuts, and which audit scores differentiate each tier.",
+    "publishedAt": "2026-05-15",
+    "updatedAt": "2026-05-20",
+    "sections": [
+      {
+        "heading": "Classic — default hybrid shortlist",
+        "paragraphs": [
+          "Saatva Classic is the canonical entry in our reddit_audit_slugs mapping and calculator default when room fit passes. It balances Support and Pressure for mixed sleepers.",
+          "Compare against HD if you are over ~230 lb or want higher support index language in owner reviews."
+        ]
+      },
+      {
+        "heading": "HD and Rx — capacity and positioning",
+        "paragraphs": [
+          "HD emphasizes reinforced support for heavier bodies; Rx layers clinical/marketing framing. Use saatva-hd-vs-saatva-rx compare for side-by-side indices.",
+          "Configure AFFILIATE_CJ_SAATVA in production so /go routes earn commission—see .env.local.example."
+        ]
+      },
+      {
+        "heading": "Zenhaven — latex alternative path",
+        "paragraphs": [
+          "Zenhaven trades coil motion for latex uniformity; Cooling often leads vs Classic in hot-sleeper threads. Compare via saatva-classic-vs-saatva-zenhaven before buying.",
+          "White-glove delivery and return policies differ by model—verify on Saatva PDP after leaving our /go gateway."
+        ]
+      }
+    ],
+    "relatedRegistrySlugs": ["saatva-classic"],
+    "relatedComparePairSlugs": [
+      "saatva-classic-vs-saatva-hd",
+      "saatva-classic-vs-saatva-zenhaven",
+      "saatva-hd-vs-saatva-rx"
+    ]
+  }
+]

@@ -47,14 +47,14 @@ export default function TechnicalDocsPage() {
         {
             href: "/registry",
             title: "Verified Registry",
-            desc: "Searchable archive of registry mattress dossiers (review-synthesized intelligence).",
+            desc: "Canonical indexed audit dossiers (review-synthesized intelligence).",
             icon: Database
         },
         {
-            href: "/journal",
-            title: "Sleep Journal",
-            desc: "Chronological observation logs and forensic narratives.",
-            icon: FileText
+            href: "/guides",
+            title: "Buying Guides",
+            desc: "Long-form SEO playbooks linking to registry, compare, and quiz flows.",
+            icon: BookOpen
         }
     ]
 

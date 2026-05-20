@@ -3,6 +3,11 @@ import type { Metadata } from "next"
 import { getProductsForCompare } from "@/lib/registry"
 import { parseCompareSlugsFromSearchParam } from "@/lib/compare-constants"
 import { ComparePageClient } from "./compare-page-client"
+import { ComparePairIndex } from "@/components/compare/compare-pair-index"
+import {
+    COMPARE_SEO_PAIRS,
+    getMergedComparePairs
+} from "@/lib/compare-seo"
 
 export const metadata: Metadata = {
     title: "Forensic Compare Matrix",
@@ -20,6 +25,7 @@ export default async function ComparePage({
     const slugs = parseCompareSlugsFromSearchParam(sp.slugs)
     const products =
         slugs.length >= 2 ? await getProductsForCompare(slugs) : []
+    const mergedPairs = await getMergedComparePairs()
 
     return (
         <main className="min-h-screen bg-white overflow-x-clip pt-24 pb-24 sm:pt-28 sm:pb-32 md:pt-36 md:pb-40">
@@ -35,6 +41,12 @@ export default async function ComparePage({
                         initialSlugs={slugs}
                         products={products}
                     />
+                    {slugs.length < 2 ? (
+                        <ComparePairIndex
+                            pairs={mergedPairs}
+                            curatedCount={COMPARE_SEO_PAIRS.length}
+                        />
+                    ) : null}
                 </Suspense>
             </div>
         </main>

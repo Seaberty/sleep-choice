@@ -34,6 +34,21 @@ const nextConfig = {
         scrollRestoration: true
     },
 
+    async redirects() {
+        return [
+            {
+                source: "/journal",
+                destination: "/registry",
+                permanent: true
+            },
+            {
+                source: "/journal/:slug",
+                destination: "/registry/:slug",
+                permanent: true
+            }
+        ]
+    },
+
     async headers() {
         return [
             {

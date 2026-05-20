@@ -2,6 +2,8 @@ import { MetadataRoute } from "next"
 import { supabase } from "@/lib/supabase"
 import { isListableAuditProduct } from "@/lib/audit-list-eligibility"
 import { SITE_ORIGIN } from "@/lib/site-origin"
+import { getMergedComparePairs } from "@/lib/compare-seo"
+import { SEO_GUIDES } from "@/lib/seo-guides"
 
 export const revalidate = 3600
 
@@ -14,12 +16,12 @@ function staticEntries(): MetadataRoute.Sitemap {
         "/best-picks",
         "/calculator",
         "/compare",
+        "/guides",
         "/contact",
         "/deals",
         "/disclosure",
         "/docs",
         "/intelligence",
-        "/journal",
         "/lab",
         "/methodology",
         "/privacy",
@@ -51,30 +53,55 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
             return Boolean(s)
         })
 
-        /** Registry 与 Journal 共用同一批 listable 商品；Journal 路由优先匹配 slug（见 journal/[id]/page.tsx）。 */
-        const productUrls: MetadataRoute.Sitemap = rows.flatMap((row) => {
+        /** 仅 registry SKU 页入 sitemap；/journal/* 永久 301 → /registry（next.config redirects）。 */
+        const productUrls: MetadataRoute.Sitemap = rows.map((row) => {
             const segment = encodeURIComponent(String(row.slug).trim())
             const lastModified = row.updated_at
                 ? new Date(row.updated_at as string)
                 : new Date()
-            const daily = { changeFrequency: "daily" as const, lastModified }
-
-            return [
-                {
-                    url: `${SITE}/registry/${segment}`,
-                    ...daily,
-                    priority: 0.85
-                },
-                {
-                    url: `${SITE}/journal/${segment}`,
-                    ...daily,
-                    priority: 0.75
-                }
-            ]
+            return {
+                url: `${SITE}/registry/${segment}`,
+                changeFrequency: "daily" as const,
+                lastModified,
+                priority: 0.85
+            }
         })
 
-        return [...base, ...productUrls]
+        const mergedPairs = await getMergedComparePairs()
+        const compareUrls: MetadataRoute.Sitemap = mergedPairs.map((p) => ({
+            url: `${SITE}/compare/${p.pairSlug}`,
+            changeFrequency: "weekly" as const,
+            lastModified: new Date(),
+            priority: 0.8
+        }))
+
+        const guideUrls: MetadataRoute.Sitemap = SEO_GUIDES.map((g) => ({
+            url: `${SITE}/guides/${g.slug}`,
+            changeFrequency: "weekly" as const,
+            lastModified: g.updatedAt ? new Date(g.updatedAt) : new Date(),
+            priority: 0.78
+        }))
+
+        return [...base, ...productUrls, ...compareUrls, ...guideUrls]
     } catch {
-        return base
+        let compareUrls: MetadataRoute.Sitemap = []
+        try {
+            const mergedPairs = await getMergedComparePairs()
+            compareUrls = mergedPairs.map((p) => ({
+                url: `${SITE}/compare/${p.pairSlug}`,
+                changeFrequency: "weekly" as const,
+                lastModified: new Date(),
+                priority: 0.8
+            }))
+        } catch {
+            compareUrls = []
+        }
+        const guideUrls: MetadataRoute.Sitemap = SEO_GUIDES.map((g) => ({
+            url: `${SITE}/guides/${g.slug}`,
+            changeFrequency: "weekly" as const,
+            lastModified: g.updatedAt ? new Date(g.updatedAt) : new Date(),
+            priority: 0.78
+        }))
+        return [...base, ...compareUrls, ...guideUrls]
     }
 }

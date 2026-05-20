@@ -22,171 +22,121 @@ import {
     persistQuizPrefsFromAnswers,
     quizAnswersFromRecord
 } from "@/lib/quiz-score"
+import { subscribeAction } from "@/app/actions/subscribe"
+import { QuizEmailCapture } from "@/components/quiz/quiz-email-capture"
+import { trackGa4Event } from "@/lib/analytics"
 
 export default function QuizPage() {
     const [currentStep, setCurrentStep] = useState(0)
     const [answers, setAnswers] = useState<Record<string, string>>({})
     const [isAnalyzing, setIsAnalyzing] = useState(false)
+    const [leadEmail, setLeadEmail] = useState("")
+    const [leadStatus, setLeadStatus] = useState<
+        "idle" | "saving" | "success" | "error"
+    >("idle")
 
     const questions = [
         {
             id: "product_focus",
-            question: "ROUTING: PRIMARY_SLEEP_SKU_CLASS",
+            question: "What are you shopping for?",
             options: [
                 {
                     value: "mattress",
-                    label: "Mattress / Primary Surface",
-                    desc: "Full mattress or hybrid chassis audit match"
+                    label: "Mattress",
+                    desc: "Full mattress or hybrid"
                 },
                 {
                     value: "pillow",
-                    label: "Pillow / Cervical Layer",
-                    desc: "Head-neck loft, cooling fill, pressure relief"
+                    label: "Pillow",
+                    desc: "Loft, cooling, neck support"
                 },
                 {
                     value: "topper",
-                    label: "Topper · Protector Stack",
-                    desc: "Transition layers over existing mattress"
-                },
-                {
-                    value: "bedding_lifestyle",
-                    label: "Bedding · Lifestyle Thermal",
-                    desc: "Robes, weaves, ambient sleep-adjacent SKUs"
+                    label: "Topper or protector",
+                    desc: "Layer on your current bed"
                 },
                 {
                     value: "any",
-                    label: "Full Catalog Pass",
-                    desc: "No shelf bias — lab scores + tags only"
+                    label: "Open to anything",
+                    desc: "Ranked by lab scores across the catalog"
                 }
             ]
         },
         {
             id: "sleep_position",
-            question: "EXEC: SLEEP_AXIS_DETERMINATION",
+            question: "How do you usually sleep?",
             options: [
                 {
-                    value: "back",
-                    label: "Dorsal (Back)",
-                    desc: "Neutral spinal alignment priority"
+                    value: "side",
+                    label: "Side",
+                    desc: "Shoulder and hip pressure relief"
                 },
                 {
-                    value: "side",
-                    label: "Lateral (Side)",
-                    desc: "Requires zoned pressure relief"
+                    value: "back",
+                    label: "Back",
+                    desc: "Even spinal support"
                 },
                 {
                     value: "stomach",
-                    label: "Prone (Stomach)",
-                    desc: "High-density core required"
+                    label: "Stomach",
+                    desc: "Firmer, flatter surface"
                 },
                 {
                     value: "combination",
-                    label: "Variable",
-                    desc: "Dynamic motion response needed"
-                }
-            ]
-        },
-        {
-            id: "firmness",
-            question: "SET: SURFACE_TENSION_INDEX",
-            options: [
-                {
-                    value: "soft",
-                    label: "Low Tension (3-4)",
-                    desc: "Maximum contouring wrap"
-                },
-                {
-                    value: "medium",
-                    label: "Balanced (5-6)",
-                    desc: "Universal support ratio"
-                },
-                {
-                    value: "firm",
-                    label: "High Tension (7-8)",
-                    desc: "Reinforced surface integrity"
-                },
-                {
-                    value: "unsure",
-                    label: "Auto-Detect",
-                    desc: "Allow system recommendation"
-                }
-            ]
-        },
-        {
-            id: "body_type",
-            question: "INPUT: MASS_LOAD_SPECIFICATION",
-            options: [
-                {
-                    value: "light",
-                    label: "Category A (< 130 lbs)",
-                    desc: "Reduced compression force"
-                },
-                {
-                    value: "average",
-                    label: "Category B (130-230 lbs)",
-                    desc: "Standard calibration"
-                },
-                {
-                    value: "heavy",
-                    label: "Category C (> 230 lbs)",
-                    desc: "Enhanced structural durability"
+                    label: "Mix / switch positions",
+                    desc: "Balanced all-round performance"
                 }
             ]
         },
         {
             id: "sleep_issues",
-            question: "SCAN: BIO_FEEDBACK_CONSTRAINTS",
+            question: "What's your biggest issue?",
             options: [
                 {
-                    value: "back_pain",
-                    label: "Lumbar Stress",
-                    desc: "Targeted spinal support"
+                    value: "hot",
+                    label: "Sleep hot",
+                    desc: "Cooling and breathability first"
                 },
                 {
-                    value: "hot",
-                    label: "Thermal Retention",
-                    desc: "Phase change cooling active"
+                    value: "back_pain",
+                    label: "Back or hip pain",
+                    desc: "Support and pressure relief"
                 },
                 {
                     value: "partner",
-                    label: "Motion Transfer",
-                    desc: "Independently pocketed isolation"
+                    label: "Partner disturbs sleep",
+                    desc: "Motion isolation"
                 },
                 {
                     value: "none",
-                    label: "Nominal",
-                    desc: "Standard performance metrics"
+                    label: "No major issue",
+                    desc: "Best overall match from our audits"
                 }
             ]
         },
         {
             id: "budget",
-            question: "SET: ECONOMIC_CONSTRAINT_VECTOR",
+            question: "Rough budget (Queen-size ballpark)?",
             options: [
                 {
                     value: "under_1500",
-                    label: "Tier A (< $1,500)",
-                    desc: "Entry — stronger budget penalty outside band"
+                    label: "Under $1,500",
+                    desc: "Value and entry hybrid"
                 },
                 {
                     value: "1500_2500",
-                    label: "Tier B ($1.5k – $2.5k)",
-                    desc: "Mid-market calibration"
+                    label: "$1,500 – $2,500",
+                    desc: "Most popular mid-range"
                 },
                 {
                     value: "2500_4000",
-                    label: "Tier C ($2.5k – $4k)",
-                    desc: "Premium hybrid / latex window"
-                },
-                {
-                    value: "over_4000",
-                    label: "Tier D (> $4k)",
-                    desc: "Ultra-lux / split-king territory"
+                    label: "$2,500 – $4,000",
+                    desc: "Premium materials"
                 },
                 {
                     value: "unsure",
-                    label: "Undetermined",
-                    desc: "Skip budget filter — lab scores only"
+                    label: "Not sure yet",
+                    desc: "We'll weight lab scores over price"
                 }
             ]
         }
@@ -199,14 +149,48 @@ export default function QuizPage() {
         }
     }
 
-    const startAnalysis = () => {
-        const validated = quizAnswersFromRecord(answers)
-        if (!validated) return
+    const redirectToResults = (validated: NonNullable<
+        ReturnType<typeof quizAnswersFromRecord>
+    >) => {
         persistQuizPrefsFromAnswers(validated)
         setIsAnalyzing(true)
-        setTimeout(() => {
+        window.setTimeout(() => {
             window.location.href = `/best-picks?quiz=1&answers=${encodeURIComponent(JSON.stringify(validated))}`
         }, 2800)
+    }
+
+    const startAnalysis = async (skipEmail = false) => {
+        const validated = quizAnswersFromRecord(answers)
+        if (!validated) return
+
+        const trimmed = leadEmail.trim().toLowerCase()
+        const shouldCapture =
+            !skipEmail && trimmed.length > 0 && trimmed.includes("@")
+
+        if (shouldCapture) {
+            setLeadStatus("saving")
+            const fd = new FormData()
+            fd.set("email", trimmed)
+            fd.set("source", "quiz")
+            fd.set("source_path", "/quiz")
+            fd.set("quiz_answers", JSON.stringify(validated))
+
+            try {
+                const result = await subscribeAction(fd)
+                if (result.success) {
+                    setLeadStatus("success")
+                    trackGa4Event("quiz_email_capture", {
+                        product_focus: validated.product_focus ?? "mattress"
+                    })
+                } else {
+                    setLeadStatus("error")
+                }
+            } catch {
+                setLeadStatus("error")
+            }
+        }
+
+        redirectToResults(validated)
     }
 
     const isComplete = Object.keys(answers).length === questions.length
@@ -278,19 +262,16 @@ export default function QuizPage() {
                                 {`MATCH_ENGINE_${APP_PROTOCOL} // ACTIVE_SESSION`}
                             </div>
                             <h1 className="text-[clamp(2rem,9vw,5rem)] md:text-8xl font-[1000] tracking-tighter uppercase leading-[0.85] sm:leading-[0.8] mb-6 italic">
-                                System <br />
+                                Find your <br />
                                 <span className="text-blue-600 not-italic">
-                                    Calibration
+                                    match
                                 </span>
                             </h1>
                             <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 py-3 border-y border-slate-100">
                                 <Fingerprint className="w-4 h-4 shrink-0 text-slate-400" />
                                 <p className="text-[10px] font-mono font-bold text-slate-400 uppercase tracking-widest leading-snug">
-                                    Match_Target:{" "}
-                                    <span className="text-slate-600">
-                                        Live audit_products registry — brands &
-                                        SKUs expand without quiz code changes
-                                    </span>
+                                    4 quick questions · ~60 seconds · ranked from
+                                    our live audit registry
                                 </p>
                             </div>
                         </header>
@@ -377,7 +358,7 @@ export default function QuizPage() {
                                                         <div className="relative z-10 flex justify-between items-center">
                                                             <div className="space-y-1">
                                                                 <div className="text-[8px] font-black text-blue-600 tracking-[0.2em] uppercase opacity-60">
-                                                                    Parameter_Value
+                                                                    Option
                                                                 </div>
                                                                 <h3 className="text-xl font-black text-slate-950 uppercase italic leading-none">
                                                                     {
@@ -415,8 +396,17 @@ export default function QuizPage() {
                                 </motion.div>
                             </AnimatePresence>
 
+                            {isComplete ? (
+                                <QuizEmailCapture
+                                    email={leadEmail}
+                                    onEmailChange={setLeadEmail}
+                                    status={leadStatus}
+                                    disabled={isAnalyzing}
+                                />
+                            ) : null}
+
                             {/* --- 6. Navigation Node --- */}
-                            <div className="flex items-center justify-between mt-16 pt-10 border-t-2 border-slate-950">
+                            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between mt-16 pt-10 border-t-2 border-slate-950">
                                 <button
                                     onClick={() =>
                                         currentStep > 0 &&
@@ -430,13 +420,31 @@ export default function QuizPage() {
                                 </button>
 
                                 {isComplete ? (
-                                    <button
-                                        onClick={startAnalysis}
-                                        className="flex items-center gap-4 bg-blue-600 text-white px-10 py-5 font-[1000] uppercase tracking-[0.2em] text-xs hover:bg-slate-950 transition-all shadow-[8px_8px_0px_0px_rgba(30,58,138,0.2)] active:translate-x-1 active:translate-y-1 active:shadow-none"
-                                    >
-                                        <Database className="w-4 h-4" />
-                                        Generate_Audit_Report
-                                    </button>
+                                    <div className="flex flex-col items-stretch sm:items-end gap-3 w-full sm:w-auto">
+                                        <button
+                                            type="button"
+                                            onClick={() => void startAnalysis(false)}
+                                            disabled={
+                                                isAnalyzing ||
+                                                leadStatus === "saving"
+                                            }
+                                            className="flex items-center justify-center gap-4 bg-blue-600 text-white px-10 py-5 font-[1000] uppercase tracking-[0.2em] text-xs hover:bg-slate-950 transition-all shadow-[8px_8px_0px_0px_rgba(30,58,138,0.2)] active:translate-x-1 active:translate-y-1 active:shadow-none disabled:opacity-60"
+                                        >
+                                            <Database className="w-4 h-4" />
+                                            Generate_Audit_Report
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => void startAnalysis(true)}
+                                            disabled={
+                                                isAnalyzing ||
+                                                leadStatus === "saving"
+                                            }
+                                            className="text-[9px] font-black uppercase tracking-widest text-slate-400 hover:text-blue-600 disabled:opacity-40"
+                                        >
+                                            Skip email — view results only
+                                        </button>
+                                    </div>
                                 ) : (
                                     <div className="text-[9px] font-mono font-bold text-slate-300 uppercase tracking-widest">
                                         Waiting_For_Inputs...

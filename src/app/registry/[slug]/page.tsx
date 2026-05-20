@@ -1,6 +1,7 @@
 import { APP_PROTOCOL } from "@/lib/constants"
 import { buildRegistryProductJsonLd } from "@/lib/product-jsonld"
 import { productGoLink } from "@/lib/go-redirect"
+import { RegistryStickyCta } from "@/components/registry/registry-sticky-cta"
 import { OutboundDealLink } from "@/components/outbound-deal-link"
 import { quizShelfFields } from "@/lib/quiz-results"
 import { AddToCompareButton } from "@/components/compare/add-to-compare-button"
@@ -434,6 +435,8 @@ export default async function ProductAuditPage({
         }))
         .sort((a: Offer, b: Offer) => Number(a.price) - Number(b.price))
 
+    const stickyGoHref = productGoLink(product.slug)
+
     // --- 数据解析 ---
     const scores = safeParse<AuditScores>(product.audit_scores, {
         overall: 0,
@@ -546,7 +549,7 @@ export default async function ProductAuditPage({
     })
 
     return (
-        <main className="min-h-screen overflow-x-clip bg-white text-slate-900 pb-12 pt-28 sm:pb-20 sm:pt-32 md:pt-44 font-sans selection:bg-blue-600 selection:text-white">
+        <main className="min-h-screen overflow-x-clip bg-white text-slate-900 pb-24 pt-28 sm:pb-28 sm:pt-32 md:pb-20 md:pt-44 font-sans selection:bg-blue-600 selection:text-white">
             <script
                 type="application/ld+json"
                 dangerouslySetInnerHTML={{
@@ -1251,6 +1254,13 @@ export default async function ProductAuditPage({
                     </aside>
                 </div>
             </div>
+
+            <RegistryStickyCta
+                href={stickyGoHref}
+                brand={product.brand}
+                model={product.model}
+                price={offerPriceDisplay}
+            />
         </main>
     )
 }

@@ -28,8 +28,10 @@ export interface QuizAnswers {
     /** 缺省视为床垫，兼容旧版 quiz URL */
     product_focus?: QuizProductFocus
     sleep_position: QuizSleepPosition
-    firmness: QuizFirmness
-    body_type: QuizBodyType
+    /** 简版 Quiz 可省略，默认 unsure */
+    firmness?: QuizFirmness
+    /** 简版 Quiz 可省略，默认 average */
+    body_type?: QuizBodyType
     sleep_issues: QuizSleepIssue
     budget?: QuizBudget
 }
@@ -88,7 +90,7 @@ export function quizAnswersToWeights(answers: QuizAnswers): ScoreWeights {
             break
     }
 
-    switch (answers.firmness) {
+    switch (answers.firmness ?? "unsure") {
         case "soft":
             w.pressure += 0.1
             w.support -= 0.03
@@ -103,7 +105,7 @@ export function quizAnswersToWeights(answers: QuizAnswers): ScoreWeights {
             break
     }
 
-    switch (answers.body_type) {
+    switch (answers.body_type ?? "average") {
         case "light":
             w.pressure += 0.05
             break
@@ -254,8 +256,8 @@ function normalizeQuizPayload(
     o: Record<string, unknown>
 ): QuizAnswers | null {
     const sleep_position = o.sleep_position as QuizSleepPosition
-    const firmness = o.firmness as QuizFirmness
-    const body_type = o.body_type as QuizBodyType
+    const firmnessRaw = o.firmness as QuizFirmness | undefined
+    const bodyRaw = o.body_type as QuizBodyType | undefined
     const sleep_issues = o.sleep_issues as QuizSleepIssue
     const budgetRaw = o.budget as QuizBudget | undefined
     const focusRaw = o.product_focus as QuizProductFocus | undefined
@@ -270,14 +272,14 @@ function normalizeQuizPayload(
     const bodies: QuizBodyType[] = ["light", "average", "heavy"]
     const issues: QuizSleepIssue[] = ["back_pain", "hot", "partner", "none"]
 
-    if (
-        !positions.includes(sleep_position) ||
-        !firmnesses.includes(firmness) ||
-        !bodies.includes(body_type) ||
-        !issues.includes(sleep_issues)
-    ) {
+    if (!positions.includes(sleep_position) || !issues.includes(sleep_issues)) {
         return null
     }
+
+    const firmness =
+        firmnessRaw && firmnesses.includes(firmnessRaw) ? firmnessRaw : "unsure"
+    const body_type =
+        bodyRaw && bodies.includes(bodyRaw) ? bodyRaw : "average"
 
     const budgets: QuizBudget[] = [
         "under_1500",
@@ -342,9 +344,9 @@ export function persistQuizPrefsFromAnswers(answers: QuizAnswers): void {
     const inferSupport = (a: QuizAnswers): number => {
         let n = 7
         if (a.sleep_issues === "back_pain") n += 1.5
-        if (a.body_type === "heavy") n += 1
-        if (a.firmness === "firm") n += 1
-        if (a.firmness === "soft") n -= 0.5
+        if ((a.body_type ?? "average") === "heavy") n += 1
+        if ((a.firmness ?? "unsure") === "firm") n += 1
+        if ((a.firmness ?? "unsure") === "soft") n -= 0.5
         return Math.min(10, Math.max(1, Math.round(n)))
     }
 
@@ -381,7 +383,7 @@ export function persistQuizPrefsFromAnswers(answers: QuizAnswers): void {
         coolingPriority: inferCooling(answers),
         naturalMaterialPreference: inferOrganic(answers),
         budgetRange: br,
-        firmnessPref: firmnessMap[answers.firmness],
+        firmnessPref: firmnessMap[answers.firmness ?? "unsure"],
         quizAnswers: answers
     }
 

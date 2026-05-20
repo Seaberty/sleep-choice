@@ -140,6 +140,7 @@ COUPON_DENYLIST = frozenset(
         "HERE",
         "SIZE",
         "SIZES",
+        "SITEWIDE",
     }
 )
 

@@ -9,6 +9,7 @@ import {
     formatShelfPriceUsd
 } from "@/lib/deals-utils"
 import { StockBar } from "@/app/deals/stock-bar"
+import { DealCouponCopy } from "@/components/deals/deal-coupon-copy"
 import {
     ArrowUpRight,
     TrendingDown,
@@ -220,6 +221,18 @@ export function DealsVault({ products }: Props) {
                                                     .replace(/\s+/g, "_")}
                                             </p>
                                         ) : null}
+                                        {p.last_audited_at ? (
+                                            <p className="mt-2 text-[9px] font-mono font-bold text-slate-400 uppercase tracking-[0.2em]">
+                                                Audit verified:{" "}
+                                                {new Date(
+                                                    p.last_audited_at
+                                                ).toLocaleDateString("en-US", {
+                                                    month: "short",
+                                                    day: "numeric",
+                                                    year: "numeric"
+                                                })}
+                                            </p>
+                                        ) : null}
                                     </div>
 
                                     <div className="mb-6 flex flex-wrap items-end gap-2 sm:mb-8 sm:gap-3">
@@ -278,6 +291,16 @@ export function DealsVault({ products }: Props) {
                                         availability={offer.availability}
                                         promoText={offer.promo_text}
                                     />
+
+                                    {offer.couponCode?.trim() ? (
+                                        <div className="mt-4">
+                                            <DealCouponCopy
+                                                code={offer.couponCode.trim()}
+                                                brand={p.brand}
+                                                slug={p.slug}
+                                            />
+                                        </div>
+                                    ) : null}
                                 </div>
 
                                 <div className="flex h-0 items-center justify-between px-4 pb-4 opacity-0 transition-all duration-300 group-focus-within:h-auto group-focus-within:min-h-[2.5rem] group-focus-within:opacity-100 sm:px-8">

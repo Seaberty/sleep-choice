@@ -19,12 +19,6 @@ Environment variables (loaded from repo-root ``.env`` / ``.env.local``):
                    same ``PROXY_URL`` is reused with PySocks. By default SMTP tries
                    the proxy **before** direct dial (see ``GMAIL_SMTP_TRY_DIRECT_FIRST``).
 
-    NEXT_PUBLIC_SITE_URL — Canonical site origin for audit-page CTAs in replies.
-
-    REDDIT_AUDIT_SLUG_SLEEP_BEYOND / REDDIT_AUDIT_SLUG_FLUFFCO /
-    REDDIT_AUDIT_SLUG_SAATVA — Optional overrides for default registry slugs
-    (else read from ``src/data/registry.json`` → ``reddit_audit_slugs``).
-
     REDDIT_RSS_USER_AGENT — Optional full ``User-Agent`` string for RSS HTTP
         requests. If Reddit returns ``403 Blocked``, set this to a current
         desktop browser UA (see DevTools) or route traffic via ``PROXY_URL``.
@@ -41,7 +35,7 @@ State file (repository root): ``processed_posts.json``
 
 **Strategy:** ``KEYWORDS_HIGH`` hit → immediate email. Each alert includes a
 **Copy & Paste Audit Note** from ``generate_reply_logic`` (fixed killer copy per
-brand lane — no database reads).
+brand lane — no URLs; Google search guidance for SleepChoiceGuide + product terms).
 """
 
 from __future__ import annotations
@@ -113,28 +107,6 @@ SMTP_DIRECT_TIMEOUT_SEC = 60
 SMTP_DIRECT_TIMEOUT_SHORT_SEC = 15
 
 
-def sleepchoice_site_origin() -> str:
-    """
-    Canonical https origin for SleepChoiceGuide.com (no trailing slash).
-
-    Reads ``NEXT_PUBLIC_SITE_URL`` after ``load_dotenv``; production default
-    aligns with Next.js ``SITE_ORIGIN``.
-    """
-    raw = (os.getenv("NEXT_PUBLIC_SITE_URL") or "").strip().rstrip("/")
-    if raw:
-        if not re.match(r"^https?://", raw, re.I):
-            raw = "https://" + raw.lstrip("/")
-        return raw
-    return "https://sleepchoiceguide.com"
-
-
-def scg_url(path: str) -> str:
-    """Absolute URL on SleepChoiceGuide (``path`` must start with ``/``)."""
-    base = sleepchoice_site_origin().rstrip("/")
-    p = path if path.startswith("/") else f"/{path}"
-    return f"{base}{p}"
-
-
 # Reply lane order when multiple HIGH keywords hit (thermal/wool before value before Saatva).
 _REPLY_LANE_ORDER: tuple[str, ...] = ("sleep_beyond", "fluffco", "saatva")
 
@@ -152,7 +124,18 @@ _LANE_TRIGGERS: dict[str, tuple[str, ...]] = {
     "saatva": ("saatva",),
 }
 
-# Structured reply lanes: auditor tone + one forensic audit URL per lane.
+# Product terms appended to SleepChoiceGuide in Google search guidance (no URLs).
+SEARCH_PRODUCT_KEYWORDS: dict[str, str] = {
+    "sleep_beyond": "Sleep and Beyond MyMerino comforter",
+    "fluffco": "FluffCo down alternative comforter",
+    "saatva": "Saatva Classic mattress",
+}
+DEFAULT_SEARCH_PRODUCT_KEYWORD = "mattress forensic audit"
+
+# Banned in all user-facing reply / copy-paste text (Reddit AutoModerator-safe).
+_COPY_URL_PATTERN = re.compile(r"(?i)(https?://|www\.|\b[a-z0-9][-a-z0-9]*\.com\b)")
+
+# Structured reply lanes: auditor tone + search guidance + engagement hook.
 KILLER_COPY_LANES: dict[str, dict[str, str]] = {
     "sleep_beyond": {
         "body": (
@@ -165,7 +148,8 @@ KILLER_COPY_LANES: dict[str, dict[str, str]] = {
             "comforter weight, same wicking idea, fewer polyester shells parked on your body."
         ),
         "hook": (
-            "Are you still stuck in the foam cycle, or have you tried natural fibers yet?"
+            "Are you still stuck in the foam cycle, or have you tried natural fibers yet? "
+            "Let me know."
         ),
     },
     "fluffco": {
@@ -179,7 +163,9 @@ KILLER_COPY_LANES: dict[str, dict[str, str]] = {
             "Worth comparing listing specs vs owner posts on loft retention before you chase "
             "thread count alone."
         ),
-        "hook": "What loft level are you aiming for in your sleep setup?",
+        "hook": (
+            "What loft level are you aiming for in your sleep setup? Let me know."
+        ),
     },
     "saatva": {
         "body": (
@@ -193,69 +179,41 @@ KILLER_COPY_LANES: dict[str, dict[str, str]] = {
         ),
         "hook": (
             "Did you end up pulling the trigger on the Classic, or are you still "
-            "debating the firmness levels?"
+            "debating the firmness levels? Let me know."
         ),
     },
 }
 
 
-_REGISTRY_JSON = (
-    Path(__file__).resolve().parents[1] / "data" / "registry.json"
-)
-_REDDIT_SLUG_CACHE: dict[str, str] | None = None
+def google_search_guidance(lane_key: str | None) -> str:
+    """Brand search CTA — no hyperlinks (Reddit paste-safe)."""
+    product = (
+        SEARCH_PRODUCT_KEYWORDS.get(lane_key or "", DEFAULT_SEARCH_PRODUCT_KEYWORD)
+        if lane_key
+        else DEFAULT_SEARCH_PRODUCT_KEYWORD
+    )
+    return (
+        f"Search Google for [SleepChoiceGuide + {product}] to see the forensic data."
+    )
 
 
-def _load_reddit_audit_slugs() -> dict[str, str]:
-    global _REDDIT_SLUG_CACHE
-    if _REDDIT_SLUG_CACHE is not None:
-        return _REDDIT_SLUG_CACHE
-
-    defaults = {
-        "sleep_beyond": "sleep-and-beyond-mymerino-comforter",
-        "fluffco": "fluffco-down-alternative-comforter",
-        "saatva": "saatva-classic",
-    }
-    merged = dict(defaults)
-    try:
-        raw = json.loads(_REGISTRY_JSON.read_text(encoding="utf-8"))
-        file_slugs = raw.get("reddit_audit_slugs") or {}
-        if isinstance(file_slugs, dict):
-            for key, slug in file_slugs.items():
-                if isinstance(key, str) and isinstance(slug, str) and slug.strip():
-                    merged[key] = slug.strip()
-    except (OSError, json.JSONDecodeError) as exc:
-        logging.debug("reddit_audit_slugs from registry.json skipped: %s", exc)
-
-    env_map = {
-        "sleep_beyond": "REDDIT_AUDIT_SLUG_SLEEP_BEYOND",
-        "fluffco": "REDDIT_AUDIT_SLUG_FLUFFCO",
-        "saatva": "REDDIT_AUDIT_SLUG_SAATVA",
-    }
-    for lane, var in env_map.items():
-        override = (os.getenv(var) or "").strip()
-        if override:
-            merged[lane] = override
-
-    _REDDIT_SLUG_CACHE = merged
-    return merged
-
-
-def _audit_cta(lane_key: str) -> str:
-    """Single forensic audit URL — trackable via /registry + optional /go on-site."""
-    slugs = _load_reddit_audit_slugs()
-    slug = slugs.get(lane_key, "").strip()
-    if not slug:
-        return f"Full methodology: {scg_url('/methodology')}"
-    return f"Forensic audit (scores + specs): {scg_url(f'/registry/{slug}')}"
+def assert_reply_copy_safe(text: str, *, context: str = "reply") -> None:
+    """Fail fast if paste-ready copy accidentally contains URL-like strings."""
+    if _COPY_URL_PATTERN.search(text):
+        raise ValueError(
+            f"{context} contains a banned URL pattern (http/www/.com): {text[:200]!r}..."
+        )
 
 
 def _assemble_killer_copy(lane_key: str) -> str:
     lane = KILLER_COPY_LANES[lane_key]
-    return (
+    out = (
         f"{lane['body']}\n\n"
-        f"{_audit_cta(lane_key)}\n\n"
+        f"{google_search_guidance(lane_key)}\n\n"
         f"{lane['hook']}"
     )
+    assert_reply_copy_safe(out, context=f"killer_copy:{lane_key}")
+    return out
 
 
 def _killer_copy_sleep_beyond() -> str:
@@ -299,11 +257,14 @@ def generate_reply_logic(matches: list[str], haystack: str) -> str:
     lane = _resolve_reply_lane(h, ms)
     if lane and lane in _KILLER_COPY_BUILDERS:
         return _KILLER_COPY_BUILDERS[lane]()
-    return (
+    out = (
         "Keyword hit but no lane mapping on my side.\n\n"
-        f"Browse indexed audits: {scg_url('/registry')}\n\n"
-        "What product category is the thread actually about — mattress, topper, or bedding?"
+        f"{google_search_guidance(None)}\n\n"
+        "What product category is the thread actually about — mattress, topper, or bedding? "
+        "Let me know."
     )
+    assert_reply_copy_safe(out, context="killer_copy:default")
+    return out
 
 
 def format_copy_paste_audit_note(matches: list[str], haystack: str) -> str:
@@ -331,7 +292,7 @@ def reddit_rss_request_headers() -> dict[str, str]:
         ua = (
             "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
             "(KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36 "
-            "sleep-choice-rss-monitor/1.0 (+https://sleepchoiceguide.com)"
+            "sleep-choice-rss-monitor/1.0 (SleepChoiceGuide RSS; no outbound links in replies)"
         )
     return {
         "User-Agent": ua,
@@ -466,15 +427,32 @@ def matched_keywords(haystack: str, keywords: list[str]) -> list[str]:
     return found
 
 
-def reply_material_block(matches: list[str], link: str, haystack: str) -> str:
+def _reddit_feed_label(feed_url: str) -> str:
+    """Human label for RSS source without emitting a paste-ready URL."""
+    m = re.search(r"reddit\.com/r/([^/]+)(?:/([^/.]+))?", feed_url, re.I)
+    if m:
+        sub, kind = m.group(1), m.group(2) or "feed"
+        return f"r/{sub}/{kind}"
+    return "reddit RSS feed"
+
+
+def reply_material_block(
+    matches: list[str],
+    post_link: str,
+    entry_id: str,
+    haystack: str,
+) -> str:
     """
-    Footer for alerts: detected topic, Reddit link, and modular Copy & Paste note.
+    Alert footer: operator post link + paste-safe reply note (no URL in note).
     """
     topics = ", ".join(matches)
     notes = format_copy_paste_audit_note(matches, haystack)
+    assert_reply_copy_safe(notes, context="copy_paste_audit_note")
+    link_line = post_link.strip() if post_link.strip() else "(none)"
     return (
         f"[Detected Topic]: {topics}\n"
-        f"[Direct Link]: {link}\n\n"
+        f"[Post link]: {link_line}\n"
+        f"[Entry id]: {entry_id or '(unknown)'}\n\n"
         f"[Copy & Paste Audit Note]\n"
         f"────────────────────────────────────────\n"
         f"{notes}\n"
@@ -484,19 +462,22 @@ def reply_material_block(matches: list[str], link: str, haystack: str) -> str:
 
 def format_alert_email_body(
     title: str,
-    link: str,
+    post_link: str,
+    entry_id: str,
     summary: str,
     feed_url: str,
     matches: list[str],
 ) -> str:
-    """Full plaintext body for one Reddit lead including reply template."""
+    """Email alert: includes Reddit post URL for you; paste block stays URL-free."""
     haystack = f"{title}\n{summary}"
-    block = reply_material_block(matches, link, haystack)
+    block = reply_material_block(matches, post_link, entry_id, haystack)
+    link_line = post_link.strip() if post_link.strip() else "(none)"
     return (
         f"Title: {title}\n"
-        f"Link: {link}\n"
+        f"Post link: {link_line}\n"
+        f"Entry id: {entry_id or '(unknown)'}\n"
         f"Summary: {summary or '(none)'}\n"
-        f"Feed: {feed_url}\n\n"
+        f"Feed: {_reddit_feed_label(feed_url)}\n\n"
         f"{block}"
     )
 
@@ -938,7 +919,9 @@ def process_cycle(processed: set[str]) -> None:
         if not isinstance(title, str):
             title = str(title)
         summary_plain = entry_plain_summary(entry)
-        link = getattr(entry, "link", "") or ""
+        post_link = getattr(entry, "link", "") or ""
+        if not isinstance(post_link, str):
+            post_link = str(post_link)
         haystack = f"{title}\n{summary_plain}"
         matches = matched_keywords(haystack, KEYWORDS_ALL)
         high_hits = [m for m in matches if m in KEYWORDS_HIGH_SET]
@@ -951,7 +934,8 @@ def process_cycle(processed: set[str]) -> None:
 
         body = format_alert_email_body(
             title,
-            link,
+            post_link,
+            eid,
             summary_plain or "",
             feed_url,
             high_hits,

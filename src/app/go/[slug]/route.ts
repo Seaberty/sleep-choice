@@ -6,6 +6,7 @@ import {
     isSaatvaCjConfigured
 } from "@/lib/affiliate-deep-link"
 import { isApprovedAffiliateBrand } from "@/lib/affiliate-config"
+import { appendUtmToUrl, resolveUtmForRedirect } from "@/lib/utm"
 
 export const dynamic = "force-dynamic"
 
@@ -64,6 +65,8 @@ export async function GET(
 ) {
     const { slug } = await context.params
     const skipClickTracking = isPrefetchRequest(request)
+    const requestUrl = new URL(request.url)
+    const utm = resolveUtmForRedirect(requestUrl.searchParams)
 
     if (!slug || !/^[\w-]+$/.test(slug)) {
         return NextResponse.redirect(FALLBACK_HOME, 302)
@@ -115,6 +118,10 @@ export async function GET(
         siteName || brand,
         offer?.coupon_code
     )
+    targetUrl = appendUtmToUrl(targetUrl, {
+        ...utm,
+        utm_content: requestUrl.searchParams.get("utm_content")?.trim() || slug
+    })
 
     if (offer?.id && !skipClickTracking) {
         void incrementOfferClickCount(offer.id)

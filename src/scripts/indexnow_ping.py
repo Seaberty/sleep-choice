@@ -51,12 +51,12 @@ STATIC_PATHS = [
     "/best-picks",
     "/calculator",
     "/compare",
+    "/guides",
     "/contact",
     "/deals",
     "/disclosure",
     "/docs",
     "/intelligence",
-    "/journal",
     "/lab",
     "/methodology",
     "/privacy",
@@ -101,9 +101,40 @@ def _is_listable(row: dict[str, Any]) -> bool:
     return price_num > 0
 
 
+def _seo_content_urls(repo_root: Path, base: str) -> list[str]:
+    """Compare pair + guide URLs from src/data JSON (kept in sync with sitemap)."""
+    out: list[str] = []
+    data_dir = repo_root / "src" / "data"
+    for filename, prefix in (
+        ("compare-seo-pairs.json", "/compare/"),
+        ("seo-guides.json", "/guides/"),
+    ):
+        path = data_dir / filename
+        if not path.is_file():
+            continue
+        try:
+            rows = json.loads(path.read_text(encoding="utf-8"))
+        except (json.JSONDecodeError, OSError) as e:
+            print(f"Skip {filename}: {e}", file=sys.stderr)
+            continue
+        if not isinstance(rows, list):
+            continue
+        for row in rows:
+            if not isinstance(row, dict):
+                continue
+            if prefix == "/compare/":
+                seg = str(row.get("pairSlug") or "").strip()
+            else:
+                seg = str(row.get("slug") or "").strip()
+            if seg:
+                out.append(f"{base}{prefix}{quote(seg, safe='')}")
+    return out
+
+
 def _collect_urls(origin: str, limit: int) -> list[str]:
     base = origin.rstrip("/")
     urls = [f"{base}{p}" for p in STATIC_PATHS]
+    urls.extend(_seo_content_urls(_ROOT, base))
 
     url = (os.getenv("SUPABASE_URL") or "").strip()
     key = (os.getenv("SUPABASE_KEY") or "").strip()
@@ -126,7 +157,6 @@ def _collect_urls(origin: str, limit: int) -> list[str]:
                     continue
                 seg = quote(slug, safe="")
                 urls.append(f"{base}/registry/{seg}")
-                urls.append(f"{base}/journal/{seg}")
         except Exception as e:
             print(f"Supabase URL fetch skipped: {e}", file=sys.stderr)
 

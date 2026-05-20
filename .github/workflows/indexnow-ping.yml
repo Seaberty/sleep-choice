@@ -1,4 +1,4 @@
-# Submit static + registry/journal URLs to IndexNow after daily catalog sync.
+# Submit static + registry / compare / guides URLs to IndexNow after daily catalog sync.
 # Requires INDEXNOW_KEY secret and public/{key}.txt deployed on production.
 name: IndexNow ping
 

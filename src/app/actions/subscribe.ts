@@ -12,21 +12,35 @@ export async function subscribeAction(formData: FormData) {
         return { success: false, error: "Please provide a valid expert email." }
     }
 
-    // 2. Automated attribution: Get the URL the user is currently visiting (EEAT core data)
+    const source =
+        (formData.get("source") as string)?.trim().toLowerCase() || "footer"
+    const explicitPath = (formData.get("source_path") as string)?.trim()
+
     const headerList = await headers()
     const referer = headerList.get("referer") || "footer_direct"
+    const source_path = explicitPath || referer
+
+    const meta_data: Record<string, unknown> = {
+        subscribed_at: new Date().toISOString(),
+        source,
+        platform: headerList.get("sec-ch-ua-platform") || "unknown"
+    }
+
+    const quizAnswersRaw = formData.get("quiz_answers")
+    if (typeof quizAnswersRaw === "string" && quizAnswersRaw.trim()) {
+        try {
+            meta_data.quiz_answers = JSON.parse(quizAnswersRaw)
+        } catch {
+            meta_data.quiz_answers_raw = quizAnswersRaw.slice(0, 2000)
+        }
+    }
 
     try {
-        // 3. Execute idempotent Upsert
         const { error } = await supabase.from("lead_captures").upsert(
             {
                 email,
-                source_path: referer,
-                meta_data: {
-                    subscribed_at: new Date().toISOString(),
-                    // Record simple environment fingerprint for anti-fraud
-                    platform: headerList.get("sec-ch-ua-platform") || "unknown"
-                }
+                source_path,
+                meta_data
             },
             { onConflict: "email" }
         )

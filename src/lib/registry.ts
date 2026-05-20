@@ -111,7 +111,8 @@ const COUPON_WORD_DENY = new Set([
     "VIP",
     "SLEEP",
     "REST",
-    "BED"
+    "BED",
+    "SITEWIDE"
 ])
 
 /**

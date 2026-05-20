@@ -10,23 +10,7 @@ Supabase → SQL Editor → 粘贴 seed-sleep-and-beyond.sql → 运行
 
 ### 2. 验证集成
 
-```javascript
-// 在浏览器控制台测试推荐引擎
-import { generatePersonalizedRecommendation } from "@/lib/quiz-matcher"
-
-const userPref = {
-    supportLevel: 8,
-    coolingPriority: 9,
-    naturalMaterialPreference: 10,
-    budgetRange: [1500, 2500],
-    firmnessPref: "medium",
-    viewedProducts: ["sleep-beyond-pure-natural-latex"]
-}
-
-const recommendation = generatePersonalizedRecommendation(userPref)
-console.log(recommendation)
-// 预期: { recommendedModel: "Pure Natural Latex", matchScore: 92, ... }
-```
+Quiz 推荐逻辑见 `src/lib/quiz-results.ts`（`/quiz` → `/best-picks?quiz=1`）。
 
 ---
 
@@ -65,43 +49,17 @@ Saatva [pending] → 点击按钮 → /quiz → 选择偏好 → 推荐 Sleep & 
 
 ## 📁 核心文件
 
-| 文件                                              | 用途               |
-| ------------------------------------------------- | ------------------ |
-| `src/lib/quiz-matcher.ts`                         | 推荐引擎           |
-| `src/components/SleepAndBeyondRecommendation.tsx` | 推荐卡片 UI        |
-| `scripts/seed-sleep-and-beyond.sql`               | 数据导入 SQL       |
-| `src/app/registry/[slug]/page.tsx`                | 产品页面（已集成） |
+| 文件                               | 用途           |
+| ---------------------------------- | -------------- |
+| `src/lib/quiz-results.ts`          | Quiz 匹配/排序 |
+| `src/app/registry/[slug]/page.tsx` | 产品审计页     |
+| `src/app/best-picks/page.tsx`      | Quiz 结果榜单  |
 
 ---
 
 ## ⚙️ 关键函数
 
-### 生成推荐
-
-```typescript
-import { generatePersonalizedRecommendation } from "@/lib/quiz-matcher"
-
-const recommendation = generatePersonalizedRecommendation(userPreferences)
-// → { recommendedModel, matchScore, reasoningSummary, affiliateLink }
-```
-
-### 计算匹配分数
-
-```typescript
-import { calculateMatchScore } from "@/lib/quiz-matcher"
-
-const score = calculateMatchScore(userPref, productCharacteristics)
-// → 0-100 的匹配分数
-```
-
-### 分析用户行为
-
-```typescript
-import { analyzeUserBehavior } from "@/lib/quiz-matcher"
-
-const prefs = analyzeUserBehavior()
-// → 从 URL/localStorage 推断用户偏好
-```
+见 `calculateQuizResults` / `rankProductsByQuiz` in `src/lib/quiz-results.ts`。
 
 ---
 

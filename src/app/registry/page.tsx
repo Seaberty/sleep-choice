@@ -201,24 +201,20 @@ export default async function RegistryPage({ searchParams }: Props) {
                 </div>
 
                 {/* --- Grid --- */}
-                <div className="border-[4px] border-slate-950 shadow-[20px_20px_0px_0px_rgba(241,245,249,1)] bg-white overflow-hidden">
-                    <div className="hidden md:grid grid-cols-12 bg-slate-950 text-white p-5 font-black text-[10px] uppercase tracking-[0.3em]">
-                        <div className="col-span-5 pl-4">
+                <div className="border-[4px] border-slate-950 shadow-[20px_20px_0px_0px_rgba(241,245,249,1)] bg-white overflow-x-auto">
+                    <div className="hidden md:grid grid-cols-12 bg-slate-950 text-white p-5 font-black text-[10px] uppercase tracking-[0.2em]">
+                        <div className="col-span-4 pl-4">
                             Subject_Identifier
                         </div>
                         <div className="col-span-2 text-center">
                             Score_Index
                         </div>
-                        <div className="col-span-3 text-center">
+                        <div className="col-span-2 text-center">
                             Sync_Timestamp
                         </div>
-                        <div className="col-span-2 flex items-center justify-between gap-4 px-2 pr-4 pl-4">
-                            <span className="flex-1 text-center">
-                                Compare_Matrix
-                            </span>
-                            <span className="flex-1 text-right">
-                                Report_Link
-                            </span>
+                        <div className="col-span-4 flex min-w-0 flex-row flex-wrap items-center justify-end gap-x-6 gap-y-1 pr-4 pl-2 tracking-[0.12em]">
+                            <span className="shrink-0">Compare</span>
+                            <span className="shrink-0">Open_Log</span>
                         </div>
                     </div>
 
@@ -247,7 +243,7 @@ export default async function RegistryPage({ searchParams }: Props) {
                                     >
                                         <RegistryDetailLink
                                             href={href}
-                                            className="col-span-5 mb-6 block min-w-0 rounded-sm outline-none ring-blue-600/0 transition-[color,box-shadow] focus-visible:ring-4 focus-visible:ring-blue-600/25 md:mb-0"
+                                            className="col-span-4 mb-6 block min-w-0 rounded-sm outline-none ring-blue-600/0 transition-[color,box-shadow] focus-visible:ring-4 focus-visible:ring-blue-600/25 md:mb-0"
                                         >
                                             <div className="flex items-center gap-6">
                                                 <div className="hidden md:flex h-12 w-12 shrink-0 items-center justify-center border border-slate-100 bg-slate-50 text-slate-200 transition-colors group-hover:text-blue-600">
@@ -277,7 +273,7 @@ export default async function RegistryPage({ searchParams }: Props) {
 
                                         <RegistryDetailLink
                                             href={href}
-                                            className="col-span-3 mb-8 flex justify-center rounded-sm outline-none ring-blue-600/0 focus-visible:ring-4 focus-visible:ring-blue-600/25 tabular-nums font-mono text-[11px] font-bold uppercase text-slate-400 transition-colors group-hover:text-slate-950 md:mb-0"
+                                            className="col-span-2 mb-8 flex justify-center rounded-sm outline-none ring-blue-600/0 focus-visible:ring-4 focus-visible:ring-blue-600/25 tabular-nums font-mono text-[11px] font-bold uppercase text-slate-400 transition-colors group-hover:text-slate-950 md:mb-0"
                                         >
                                             {new Date(
                                                 p.updated_at
@@ -288,26 +284,27 @@ export default async function RegistryPage({ searchParams }: Props) {
                                             })}
                                         </RegistryDetailLink>
 
-                                        <div className="col-span-2 flex flex-row items-center justify-between gap-4 px-0 sm:px-1 md:px-2 md:pr-4">
-                                            <div className="flex min-w-0 flex-1 justify-center">
-                                                <AddToCompareButton
-                                                    slug={p.slug}
-                                                    productTitle={title}
-                                                    variant="compact"
+                                        <div className="col-span-4 flex min-w-0 flex-col gap-3 border-t border-slate-100 pt-4 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between sm:gap-4 md:justify-end md:gap-x-8 md:border-t-0 md:pt-0 md:pl-2 md:pr-4">
+                                            <span className="shrink-0 text-[9px] font-black uppercase tracking-widest text-slate-400 sm:w-full md:hidden">
+                                                Actions
+                                            </span>
+                                            <AddToCompareButton
+                                                slug={p.slug}
+                                                productTitle={title}
+                                                variant="compact"
+                                            />
+                                            <RegistryDetailLink
+                                                href={href}
+                                                className="inline-flex h-9 shrink-0 flex-nowrap items-center gap-2 self-end border-b-4 border-slate-950 pb-1 text-[10px] font-black uppercase leading-none tracking-[0.12em] text-slate-950 outline-none transition-[color,border-color] group-hover:border-blue-600 group-hover:text-blue-600 focus-visible:ring-4 focus-visible:ring-blue-600/25 sm:self-center sm:ml-auto md:ml-0 sm:text-[11px]"
+                                            >
+                                                <span className="whitespace-nowrap">
+                                                    Open_Log
+                                                </span>
+                                                <ArrowUpRight
+                                                    className="h-4 w-4 shrink-0"
+                                                    aria-hidden
                                                 />
-                                            </div>
-                                            <div className="flex shrink-0 justify-end">
-                                                <RegistryDetailLink
-                                                    href={href}
-                                                    className="inline-flex max-w-full flex-wrap items-center justify-end gap-2 border-b-4 border-slate-950 pb-1 text-[10px] font-black uppercase tracking-[0.15em] text-slate-950 outline-none transition-[color,border-color] group-hover:border-blue-600 group-hover:text-blue-600 focus-visible:ring-4 focus-visible:ring-blue-600/25 sm:gap-3 sm:text-[11px] sm:tracking-[0.2em]"
-                                                >
-                                                    Open_Log{" "}
-                                                    <ArrowUpRight
-                                                        className="h-4 w-4 shrink-0"
-                                                        aria-hidden
-                                                    />
-                                                </RegistryDetailLink>
-                                            </div>
+                                            </RegistryDetailLink>
                                         </div>
                                     </div>
                                 )

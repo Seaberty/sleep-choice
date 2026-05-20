@@ -8,9 +8,8 @@ Uses the same variables as ``reddit_rss_monitor.py``:
     GMAIL_TO                  (optional; defaults to GMAIL_USER)
 
 When not ``--dry-run``, sends **one** message whose body is built with
-``format_alert_email_body`` (same layout as live Reddit alerts: title / link /
-summary / feed + ``[Detected Topic]`` / ``[Direct Link]`` / ``[Copy & Paste Audit Note]``
-with forensic snippets and ``{SCG}`` expanded from ``NEXT_PUBLIC_SITE_URL``).
+``format_alert_email_body`` (same layout as live Reddit alerts: title / entry id /
+summary / feed label + URL-free ``[Copy & Paste Audit Note]`` with Google search guidance).
 
 Run from repository root::
 
@@ -33,9 +32,9 @@ if str(_SCRIPTS_DIR) not in sys.path:
 
 from reddit_rss_monitor import (  # noqa: E402
     format_alert_email_body,
+    generate_reply_logic,
     load_env,
     send_email,
-    sleepchoice_site_origin,
 )
 
 
@@ -70,28 +69,31 @@ def main() -> None:
     print(f"[ok] 已读取配置：发件人={user!r}，收件人={to_addr!r}", flush=True)
 
     stamp = datetime.now().astimezone().strftime("%Y-%m-%d %H:%M:%S %Z")
-    origin = sleepchoice_site_origin()
-    print(f"[ok] 模板站点根 SCG = {origin!r}", flush=True)
+    sample_note = generate_reply_logic(
+        ["Saatva", "hot sleeper"],
+        "Saatva classic vs night sweats",
+    )
+    print("[ok] 样例 Copy & Paste 块已通过无 URL 校验", flush=True)
 
     if args.dry_run:
         print("[dry-run] 未连接 SMTP，未发送邮件。", flush=True)
+        print("--- sample paste block ---")
+        print(sample_note)
         return
 
     subject = "[sleep-choice] Reddit monitor 模板预览（gmail_notify_test）"
     body = (
         "本邮件为 gmail_notify_test.py 连通性测试，正文与 reddit_rss_monitor 告警邮件\n"
-        "使用同一套 format_alert_email_body 模板（含法医审计 Copy & Paste 块）。\n\n"
-        f"生成时间（本地）：{stamp}\n"
-        f"SCG 展开为：{origin}\n\n"
+        "使用同一套 format_alert_email_body 模板（Copy & Paste 块无链接，仅 Google 搜索引导）。\n\n"
+        f"生成时间（本地）：{stamp}\n\n"
         "--- 以下为模板正文（样例数据）---\n\n"
         + format_alert_email_body(
-            title="[样例] /u/sleep-choice-bot on Saatva vs. lower back pain — worth it?",
-            link="https://www.reddit.com/r/Mattress/comments/EXAMPLE123/sample_thread/",
-            summary=(
-                "Synthetic preview row. Real alerts use live RSS title + summary + link."
-            ),
+            title="[样例] Saatva vs. lower back pain — worth it?",
+            post_link="https://www.reddit.com/r/Mattress/comments/EXAMPLE123/sample_thread/",
+            entry_id="t3_EXAMPLE123",
+            summary="Synthetic preview row. Real alerts use live RSS title + summary.",
             feed_url="https://www.reddit.com/r/Mattress/new/.rss",
-            matches=["Saatva", "back pain"],
+            matches=["Saatva", "hot sleeper"],
         )
     )
 

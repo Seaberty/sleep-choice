@@ -8,23 +8,41 @@ import {
     APPROVED_AFFILIATE_BRANDS,
     isApprovedAffiliateBrand
 } from "@/lib/affiliate-config"
+import { type UtmChannel, utmSearchParams } from "@/lib/utm"
 
 export { APPROVED_AFFILIATE_BRANDS }
+
+export type ProductGoLinkOptions = {
+    /** 默认 site；Reddit / email / Pinterest 出站用对应 preset */
+    channel?: UtmChannel
+    utm_content?: string
+}
 
 /**
  * 商品卡等「直链商户 URL」场景：命中品牌则改走 `/go/[slug]`，由 route 按 DB `site_name` / brand 套 CJ。
  * 审计详情页侧栏已统一经 `getAffiliateLink` → `/go/[slug]`。
  */
 
-export function productGoLink(slug: string): string {
+export function productGoLink(
+    slug: string,
+    opts?: ProductGoLinkOptions
+): string {
     const origin = process.env.NEXT_PUBLIC_GO_REDIRECT_ORIGIN?.replace(
         /\/$/,
         ""
     )
-    if (origin) {
-        return `${origin}/go/${encodeURIComponent(slug)}`
-    }
-    return `/go/${slug}`
+    const path = origin
+        ? `${origin}/go/${encodeURIComponent(slug)}`
+        : `/go/${slug}`
+
+    const channel = opts?.channel ?? "site"
+    const q = utmSearchParams(channel, {
+        ...(opts?.utm_content?.trim()
+            ? { utm_content: opts.utm_content.trim() }
+            : {})
+    })
+    const qs = q.toString()
+    return qs ? `${path}?${qs}` : path
 }
 
 /**
@@ -33,10 +51,11 @@ export function productGoLink(slug: string): string {
 export function outboundDealLink(
     slug: string,
     brand: string | undefined,
-    directMerchantUrl: string
+    directMerchantUrl: string,
+    opts?: ProductGoLinkOptions
 ): string {
     if (isApprovedAffiliateBrand(brand)) {
-        return productGoLink(slug)
+        return productGoLink(slug, opts)
     }
     return directMerchantUrl
 }

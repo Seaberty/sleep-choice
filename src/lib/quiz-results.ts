@@ -203,8 +203,14 @@ export function answersToMatchTokens(answers: QuizAnswers): MatchToken[] {
         tag: `${answers.sleep_position}-sleeper`,
         critical: false
     })
-    tokens.push({ tag: firmnessTag(answers.firmness), critical: false })
-    tokens.push({ tag: bodyTag(answers.body_type), critical: false })
+    tokens.push({
+        tag: firmnessTag(answers.firmness ?? "unsure"),
+        critical: false
+    })
+    tokens.push({
+        tag: bodyTag(answers.body_type ?? "average"),
+        critical: false
+    })
 
     const issue = sleepIssueTag(answers.sleep_issues)
     if (issue) {
@@ -395,6 +401,86 @@ export function calculateQuizResults(
         essentials,
         lifestyle
     }
+}
+
+const FOCUS_LABEL: Record<string, string> = {
+    mattress: "primary sleep surface",
+    pillow: "cervical / pillow layer",
+    topper: "topper or protector stack",
+    bedding_lifestyle: "bedding & thermal lifestyle",
+    any: "full catalog pass"
+}
+
+const POSITION_LABEL: Record<string, string> = {
+    back: "back-sleeper spinal alignment",
+    side: "side-sleeper pressure zoning",
+    stomach: "stomach-sleeper firm core support",
+    combination: "combination-sleeper motion response"
+}
+
+const ISSUE_LABEL: Record<string, string> = {
+    back_pain: "lumbar support bias in audit scores",
+    hot: "cooling / thermal tags weighted",
+    partner: "motion isolation prioritized",
+    none: "balanced composite scoring"
+}
+
+/** Quiz 结果卡「为什么适合你」— 最多 3 条，优先答案映射 + 标签命中 + pros */
+export function quizFitBullets(
+    product: ProductData,
+    answers: QuizAnswers,
+    matchTokens: MatchToken[]
+): string[] {
+    const bullets: string[] = []
+    const tagSet = inferProductTags(product)
+    const criticalHits = matchTokens.filter(
+        (t) => t.critical && tagSet.has(t.tag)
+    )
+
+    if (answers.product_focus && answers.product_focus !== "any") {
+        bullets.push(
+            `Aligned with your ${FOCUS_LABEL[answers.product_focus] ?? answers.product_focus} focus.`
+        )
+    }
+    if (answers.sleep_position) {
+        bullets.push(
+            `Tuned for ${POSITION_LABEL[answers.sleep_position] ?? answers.sleep_position}.`
+        )
+    }
+    if (answers.sleep_issues && answers.sleep_issues !== "none") {
+        bullets.push(
+            `Addresses ${ISSUE_LABEL[answers.sleep_issues] ?? answers.sleep_issues}.`
+        )
+    }
+    if (criticalHits.length > 0) {
+        bullets.push(
+            `Registry tags matched: ${criticalHits.map((t) => t.tag).join(", ")}.`
+        )
+    }
+
+    const cooling = Number(product.audit_scores?.cooling)
+    const support = Number(product.audit_scores?.support)
+    if (answers.sleep_issues === "hot" && cooling >= 8) {
+        bullets.push(`Lab cooling index ${cooling.toFixed(1)}/10 vs your heat profile.`)
+    }
+    if (answers.sleep_issues === "back_pain" && support >= 8) {
+        bullets.push(`Support score ${support.toFixed(1)}/10 for spinal load.`)
+    }
+
+    for (const pro of product.pros ?? []) {
+        if (bullets.length >= 3) break
+        const t = String(pro).trim()
+        if (t && !bullets.some((b) => b.includes(t))) bullets.push(t)
+    }
+
+    const overall = Number(product.audit_scores?.overall ?? product.rating)
+    if (bullets.length < 3 && overall > 0) {
+        bullets.push(
+            `Composite forensic score ${overall.toFixed(1)}/10 in live registry.`
+        )
+    }
+
+    return bullets.slice(0, 3)
 }
 
 export function expertSnippet(note: string | undefined, maxLen = 360): string {

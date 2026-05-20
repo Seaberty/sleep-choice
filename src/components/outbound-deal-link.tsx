@@ -5,6 +5,11 @@ import { Loader2 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { prefetchOutboundDeal } from "@/lib/go-redirect"
 import { useOutboundNavigation } from "@/components/outbound-navigation"
+import {
+    isTrackableGoHref,
+    slugFromGoHref,
+    trackGa4Event
+} from "@/lib/analytics"
 
 type OutboundDealLinkProps = React.ComponentPropsWithoutRef<"a"> & {
     href: string
@@ -77,6 +82,14 @@ export function OutboundDealLink({
 
         setLoading(true)
         beginNavigation()
+
+        if (isTrackableGoHref(href)) {
+            trackGa4Event("go_click", {
+                link_url: href,
+                item_id: slugFromGoHref(href),
+                outbound: true
+            })
+        }
 
         const newTab = opensInNewTab(target)
 
