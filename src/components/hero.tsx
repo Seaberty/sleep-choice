@@ -83,6 +83,7 @@ export function Hero() {
                             <div className="absolute top-1/4 left-1/4 w-2 h-2 bg-blue-600 rounded-full animate-ping opacity-75" />
                             <div className="absolute bottom-1/3 right-1/4 w-2 h-2 bg-blue-600 rounded-full animate-ping opacity-75 [animation-delay:1s]" />
                         </div>
+                        
 
                         {/* 浮动审计标签 */}
                         <div className="absolute bottom-8 right-8 bg-slate-900 text-white p-5 rounded-2xl shadow-2xl flex items-center gap-4 transform transition-transform group-hover:-translate-y-2 group-hover:bg-slate-800">
