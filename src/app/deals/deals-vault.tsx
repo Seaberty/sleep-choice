@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react"
 import type { ProductData } from "@/types/product"
 import { outboundDealLink } from "@/lib/go-redirect"
+import { OutboundDealLink } from "@/components/outbound-deal-link"
 import {
     effectiveSavingsPercent,
     formatShelfPriceUsd
@@ -169,10 +170,10 @@ export function DealsVault({ products }: Props) {
                         )
 
                         return (
-                            <a
+                            <OutboundDealLink
                                 key={p.id}
                                 href={dealHref}
-                                target="_blank"
+                                loadingVariant="overlay"
                                 rel="nofollow noopener noreferrer"
                                 className={cn(
                                     "group relative flex min-w-0 flex-col overflow-hidden bg-white border-2 border-slate-950 outline-none transition-all duration-500",
@@ -303,7 +304,7 @@ export function DealsVault({ products }: Props) {
                                     </span>
                                     <ArrowUpRight className="mx-auto h-5 w-5 shrink-0 transition-transform duration-300 group-hover:rotate-45 group-focus-within:rotate-45 sm:mx-0" />
                                 </div>
-                            </a>
+                            </OutboundDealLink>
                         )
                     })
                 )}

@@ -57,11 +57,27 @@ function cjDeepLinkPrefix(siteName: string): string | undefined {
     return map[key]
 }
 
+function isPrefetchRequest(request: Request): boolean {
+    const purpose =
+        request.headers.get("purpose") ||
+        request.headers.get("sec-purpose") ||
+        ""
+    if (/prefetch/i.test(purpose)) return true
+    try {
+        const url = new URL(request.url)
+        if (url.searchParams.get("prefetch") === "1") return true
+    } catch {
+        /* ignore */
+    }
+    return false
+}
+
 export async function GET(
-    _request: Request,
+    request: Request,
     context: { params: Promise<{ slug: string }> }
 ) {
     const { slug } = await context.params
+    const skipClickTracking = isPrefetchRequest(request)
 
     if (!slug || !/^[\w-]+$/.test(slug)) {
         return NextResponse.redirect(FALLBACK_HOME, 302)
@@ -111,8 +127,8 @@ export async function GET(
         offer?.coupon_code
     )
 
-    if (offer?.id) {
-        await incrementOfferClickCount(offer.id)
+    if (offer?.id && !skipClickTracking) {
+        void incrementOfferClickCount(offer.id)
     }
 
     const affiliateBase = cjDeepLinkPrefix(siteName)

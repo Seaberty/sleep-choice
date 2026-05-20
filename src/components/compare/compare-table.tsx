@@ -2,10 +2,12 @@
 
 import Image from "next/image"
 import Link from "next/link"
+import { RegistryDetailLink } from "@/components/registry-detail-link"
 import { useRouter } from "next/navigation"
 import { ExternalLink, X } from "lucide-react"
 import type { AuditScores, ProductData } from "@/types/product"
 import { outboundDealLink } from "@/lib/go-redirect"
+import { OutboundDealLink } from "@/components/outbound-deal-link"
 import { formatShelfPriceUsd } from "@/lib/deals-utils"
 import { withImageCacheBust } from "@/lib/utils"
 import {
@@ -106,20 +108,20 @@ export function CompareTable({ products }: { products: ProductData[] }) {
                                         <div className="text-[9px] font-black uppercase tracking-widest text-blue-600">
                                             {p.brand}
                                         </div>
-                                        <Link
+                                        <RegistryDetailLink
                                             href={`/registry/${p.slug}`}
                                             className="mt-1 block text-sm font-black uppercase italic leading-tight text-slate-950 hover:text-blue-600"
                                         >
                                             {p.name || p.model}
-                                        </Link>
+                                        </RegistryDetailLink>
                                     </div>
-                                    <Link
+                                    <RegistryDetailLink
                                         href={`/registry/${p.slug}`}
                                         className="inline-flex items-center gap-1 text-[9px] font-black uppercase tracking-widest text-blue-600 hover:underline"
                                     >
                                             Full audit
                                         <ExternalLink className="h-3 w-3" />
-                                    </Link>
+                                    </RegistryDetailLink>
                                 </div>
                             </th>
                         ))}
@@ -226,11 +228,10 @@ export function CompareTable({ products }: { products: ProductData[] }) {
                                                 <ExternalLink className="h-3 w-3 shrink-0" />
                                             </Link>
                                         ) : (
-                                            <a
+                                            <OutboundDealLink
                                                 href={href}
-                                                target="_blank"
-                                                rel="nofollow sponsored"
-                                                className="inline-flex w-full flex-col items-stretch gap-1 rounded-xl bg-slate-950 px-3 py-2.5 text-center text-[10px] font-black uppercase tracking-widest text-white transition-colors hover:bg-blue-600"
+                                                loadingVariant="inline"
+                                                className="relative inline-flex w-full flex-col items-stretch gap-1 rounded-xl bg-slate-950 px-3 py-2.5 text-center text-[10px] font-black uppercase tracking-widest text-white transition-colors hover:bg-blue-600"
                                             >
                                                 <span className="flex items-center justify-center gap-2">
                                                     View deal · {priceLabel}
@@ -239,7 +240,7 @@ export function CompareTable({ products }: { products: ProductData[] }) {
                                                 <span className="text-[8px] font-bold normal-case tracking-wide text-white/70">
                                                     {siteLabel}
                                                 </span>
-                                            </a>
+                                            </OutboundDealLink>
                                         )}
                                         <p className="text-[8px] leading-snug text-slate-400">
                                             Affiliate routing may apply. See

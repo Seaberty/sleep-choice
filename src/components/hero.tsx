@@ -1,6 +1,7 @@
 "use client"
 import { motion } from "framer-motion"
 import Link from "next/link"
+import { RegistryDetailLink } from "@/components/registry-detail-link"
 import Image from "next/image"
 import { ChevronRight, Microscope, ShieldCheck } from "lucide-react"
 
@@ -60,7 +61,7 @@ export function Hero() {
                 >
                     <div className="absolute -inset-4 bg-[radial-gradient(#e2e8f0_1px,transparent_1px)] [background-size:16px_16px] opacity-50" />
 
-                    <Link
+                    <RegistryDetailLink
                         href={`/registry/${featuredProductSlug}`}
                         className="block relative h-[520px] w-full bg-white border border-slate-200 rounded-3xl overflow-hidden shadow-2xl transition-all hover:shadow-blue-500/10 hover:border-blue-200"
                     >
@@ -104,7 +105,7 @@ export function Hero() {
                                 Execute_Full_Dossier
                             </div>
                         </div>
-                    </Link>
+                    </RegistryDetailLink>
                 </motion.div>
             </div>
 

@@ -1,11 +1,13 @@
-import { supabase } from "@/lib/supabase"
 import { APP_PROTOCOL } from "@/lib/constants"
 import { buildRegistryProductJsonLd } from "@/lib/product-jsonld"
 import { productGoLink } from "@/lib/go-redirect"
+import { OutboundDealLink } from "@/components/outbound-deal-link"
 import { quizShelfFields } from "@/lib/quiz-results"
 import { AddToCompareButton } from "@/components/compare/add-to-compare-button"
 import { withImageCacheBust } from "@/lib/utils"
 import { getBrandIntelligenceByProductSlug } from "@/lib/brand-intelligence"
+import { getRegistryProductBySlug } from "@/lib/registry-product"
+import dynamic from "next/dynamic"
 import {
     formatShelfPriceUsd,
     merchantPriceAfterSiteStack
@@ -15,8 +17,35 @@ import Link from "next/link"
 import { Metadata } from "next"
 import Image from "next/image"
 import React, { useMemo } from "react"
-import AuditRadarChart from "@/components/AuditRadarChart"
-import { ForensicMetricTiles } from "@/components/ForensicMetricTiles"
+const AuditRadarChart = dynamic(
+    () => import("@/components/AuditRadarChart"),
+    {
+        loading: () => (
+            <div className="h-[280px] w-full animate-pulse rounded-2xl bg-slate-50" />
+        )
+    }
+)
+
+const ForensicMetricTiles = dynamic(
+    () =>
+        import("@/components/ForensicMetricTiles").then((m) => ({
+            default: m.ForensicMetricTiles
+        })),
+    {
+        loading: () => (
+            <div className="grid h-32 grid-cols-2 gap-3 sm:grid-cols-3">
+                {[0, 1, 2].map((i) => (
+                    <div
+                        key={i}
+                        className="animate-pulse rounded-xl bg-slate-50"
+                    />
+                ))}
+            </div>
+        )
+    }
+)
+
+export const revalidate = 120
 import {
     ShieldCheck,
     ExternalLink,
@@ -113,15 +142,7 @@ export async function generateMetadata({
     params: Promise<{ slug: string }>
 }): Promise<Metadata> {
     const { slug } = await params
-
-    // 建议 select 包含所有可能的 SEO 字段，即便目前它们可能为空
-    const { data: product } = await supabase
-        .from("audit_products")
-        .select(
-            "brand, model, seo_title, seo_description, seo_keywords, summary_log, audit_note"
-        )
-        .eq("slug", slug)
-        .single()
+    const product = await getRegistryProductBySlug(slug)
 
     if (!product) return { title: "Product Not Found" }
 
@@ -388,27 +409,12 @@ export default async function ProductAuditPage({
 }) {
     const { slug } = await params
 
-    const { data: rawProduct, error } = await supabase
-        .from("audit_products")
-        .select(
-            `
-        *,
-        product_offers (
-            site_name,
-            price,
-            offer_url,
-            is_primary,
-            status,
-            promo_discount_percent
-        )
-    `
-        )
-        .eq("slug", slug)
-        .single()
+    const [rawProduct, brandIntel] = await Promise.all([
+        getRegistryProductBySlug(slug),
+        getBrandIntelligenceByProductSlug(slug)
+    ])
 
-    if (error || !rawProduct) notFound()
-
-    const brandIntel = await getBrandIntelligenceByProductSlug(slug)
+    if (!rawProduct) notFound()
 
     const product = rawProduct as Product
 
@@ -1154,9 +1160,14 @@ export default async function ProductAuditPage({
                                             const isNotApproved =
                                                 affiliate.restricted
                                             return (
-                                                <a
+                                                <OutboundDealLink
                                                     key={idx}
                                                     href={affiliate.href}
+                                                    loadingVariant={
+                                                        isNotApproved
+                                                            ? "none"
+                                                            : "overlay"
+                                                    }
                                                     target={
                                                         isNotApproved
                                                             ? "_self"
@@ -1226,7 +1237,7 @@ export default async function ProductAuditPage({
                                                             }`}
                                                         />
                                                     </div>
-                                                </a>
+                                                </OutboundDealLink>
                                             )
                                         })
                                     ) : (

@@ -1,6 +1,7 @@
 import { isListableAuditProduct } from "@/lib/audit-list-eligibility"
 import { supabase } from "@/lib/supabase"
 import Link from "next/link"
+import { RegistryDetailLink } from "@/components/registry-detail-link"
 import { Metadata } from "next"
 import { AddToCompareButton } from "@/components/compare/add-to-compare-button"
 import {
@@ -233,7 +234,7 @@ export default async function RegistryPage({ searchParams }: Props) {
                                         key={p.id}
                                         className="group grid grid-cols-1 items-center gap-y-6 border-l-0 border-blue-600 p-4 transition-all hover:bg-slate-50 hover:border-l-[8px] sm:p-6 md:grid-cols-12 md:gap-y-0 md:p-10 md:hover:border-l-[12px]"
                                     >
-                                        <Link
+                                        <RegistryDetailLink
                                             href={href}
                                             className="col-span-5 mb-6 block min-w-0 rounded-sm outline-none ring-blue-600/0 transition-[color,box-shadow] focus-visible:ring-4 focus-visible:ring-blue-600/25 md:mb-0"
                                         >
@@ -250,9 +251,9 @@ export default async function RegistryPage({ searchParams }: Props) {
                                                     </h3>
                                                 </div>
                                             </div>
-                                        </Link>
+                                        </RegistryDetailLink>
 
-                                        <Link
+                                        <RegistryDetailLink
                                             href={href}
                                             className="col-span-2 mb-6 flex justify-center rounded-sm outline-none ring-blue-600/0 focus-visible:ring-4 focus-visible:ring-blue-600/25 md:mb-0"
                                         >
@@ -261,9 +262,9 @@ export default async function RegistryPage({ searchParams }: Props) {
                                                     1
                                                 ) || "0.0"}
                                             </span>
-                                        </Link>
+                                        </RegistryDetailLink>
 
-                                        <Link
+                                        <RegistryDetailLink
                                             href={href}
                                             className="col-span-3 mb-8 flex justify-center rounded-sm outline-none ring-blue-600/0 focus-visible:ring-4 focus-visible:ring-blue-600/25 tabular-nums font-mono text-[11px] font-bold uppercase text-slate-400 transition-colors group-hover:text-slate-950 md:mb-0"
                                         >
@@ -274,7 +275,7 @@ export default async function RegistryPage({ searchParams }: Props) {
                                                 day: "2-digit",
                                                 year: "numeric"
                                             })}
-                                        </Link>
+                                        </RegistryDetailLink>
 
                                         <div className="col-span-2 flex flex-row items-center justify-between gap-4 px-0 sm:px-1 md:px-2 md:pr-4">
                                             <div className="flex min-w-0 flex-1 justify-center">
@@ -285,7 +286,7 @@ export default async function RegistryPage({ searchParams }: Props) {
                                                 />
                                             </div>
                                             <div className="flex shrink-0 justify-end">
-                                                <Link
+                                                <RegistryDetailLink
                                                     href={href}
                                                     className="inline-flex max-w-full flex-wrap items-center justify-end gap-2 border-b-4 border-slate-950 pb-1 text-[10px] font-black uppercase tracking-[0.15em] text-slate-950 outline-none transition-[color,border-color] group-hover:border-blue-600 group-hover:text-blue-600 focus-visible:ring-4 focus-visible:ring-blue-600/25 sm:gap-3 sm:text-[11px] sm:tracking-[0.2em]"
                                                 >
@@ -294,7 +295,7 @@ export default async function RegistryPage({ searchParams }: Props) {
                                                         className="h-4 w-4 shrink-0"
                                                         aria-hidden
                                                     />
-                                                </Link>
+                                                </RegistryDetailLink>
                                             </div>
                                         </div>
                                     </div>

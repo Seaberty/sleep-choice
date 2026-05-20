@@ -1,5 +1,6 @@
 import { Metadata } from "next"
 import Link from "next/link"
+import { RegistryDetailLink } from "@/components/registry-detail-link"
 import Image from "next/image"
 import {
     getAutomatedRegistry,
@@ -333,12 +334,12 @@ export default async function BestPicksPage({ searchParams }: SearchProps) {
                                                             championProduct.audit_note
                                                         )}
                                                     </p>
-                                                    <Link
+                                                    <RegistryDetailLink
                                                         href={`/registry/${championProduct.slug}`}
                                                         className="inline-flex mt-4 text-[10px] font-black uppercase tracking-widest text-blue-600 hover:text-slate-950"
                                                     >
                                                         Full forensic file →
-                                                    </Link>
+                                                    </RegistryDetailLink>
                                                 </div>
                                             )}
 

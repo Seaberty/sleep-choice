@@ -1,6 +1,7 @@
 import { getProductBySlugOrId } from "@/lib/registry"
 import { notFound } from "next/navigation"
 import Link from "next/link"
+import { RegistryDetailLink } from "@/components/registry-detail-link"
 import {
     ChevronLeft,
     Microscope,
@@ -16,6 +17,7 @@ import {
 } from "lucide-react"
 import { productIntroDescriptionForJsonLd } from "@/lib/product-jsonld"
 import { outboundDealLink } from "@/lib/go-redirect"
+import { OutboundDealLink } from "@/components/outbound-deal-link"
 import { formatShelfPriceUsd } from "@/lib/deals-utils"
 import type { AuditScores } from "@/types/product"
 
@@ -124,23 +126,22 @@ export default async function JournalEntry({ params }: Props) {
                         Return_to_Journal_Feed
                     </Link>
                     <div className="flex flex-wrap items-center gap-3">
-                        <Link
+                        <RegistryDetailLink
                             href={`/registry/${encodeURIComponent(p.slug)}`}
                             className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-4 py-2 text-[9px] font-black uppercase tracking-widest text-slate-800 transition-colors hover:border-blue-600 hover:bg-blue-50 hover:text-blue-700"
                         >
                             <Layers className="h-3.5 w-3.5" />
                             Full_Dossier
-                        </Link>
+                        </RegistryDetailLink>
                         {merchantHref ? (
-                            <a
+                            <OutboundDealLink
                                 href={merchantHref}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="inline-flex items-center gap-2 rounded-xl border border-slate-950 bg-slate-950 px-4 py-2 text-[9px] font-black uppercase tracking-widest text-white transition-colors hover:bg-blue-600"
+                                loadingVariant="inline"
+                                className="relative inline-flex items-center gap-2 rounded-xl border border-slate-950 bg-slate-950 px-4 py-2 text-[9px] font-black uppercase tracking-widest text-white transition-colors hover:bg-blue-600"
                             >
                                 <ExternalLink className="h-3.5 w-3.5" />
                                 Merchant_Node
-                            </a>
+                            </OutboundDealLink>
                         ) : null}
                     </div>
                 </nav>
@@ -420,13 +421,13 @@ export default async function JournalEntry({ params }: Props) {
                                     <ArrowRight className="ml-2 inline-block h-7 w-7 md:h-8 md:w-8" />
                                 </Link>
                             </div>
-                            <Link
+                            <RegistryDetailLink
                                 href={`/registry/${encodeURIComponent(p.slug)}`}
                                 className="inline-flex items-center gap-2 self-start text-[10px] font-black uppercase tracking-widest text-blue-600 underline-offset-4 hover:underline sm:self-auto"
                             >
                                 Open full forensic dossier
                                 <ArrowRight className="h-4 w-4" />
-                            </Link>
+                            </RegistryDetailLink>
                         </div>
                     </article>
                 </div>

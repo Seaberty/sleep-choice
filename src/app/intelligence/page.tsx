@@ -1,5 +1,6 @@
 import type { Metadata } from "next"
 import Link from "next/link"
+import { RegistryDetailLink } from "@/components/registry-detail-link"
 import { listRecentBrandIntelligence } from "@/lib/brand-intelligence"
 import { Radio, ExternalLink, Hash } from "lucide-react"
 
@@ -64,13 +65,13 @@ export default async function IntelligenceCenterPage() {
                                         <span className="rounded-md bg-slate-900 px-2.5 py-1 text-[10px] font-black uppercase tracking-widest text-white">
                                             {r.source_platform}
                                         </span>
-                                        <Link
+                                        <RegistryDetailLink
                                             href={`/registry/${encodeURIComponent(r.product_slug)}`}
                                             className="text-sm font-bold text-blue-600 hover:underline"
                                         >
                                             {r.brand_slug.replace(/-/g, " ")} ·{" "}
                                             {r.product_slug}
-                                        </Link>
+                                        </RegistryDetailLink>
                                     </div>
                                     <div className="flex flex-wrap items-center gap-4 text-[10px] font-mono text-slate-500">
                                         <span>
@@ -109,13 +110,13 @@ export default async function IntelligenceCenterPage() {
                                             ))}
                                         </div>
                                     ) : null}
-                                    <Link
+                                    <RegistryDetailLink
                                         href={`/registry/${encodeURIComponent(r.product_slug)}`}
                                         className="inline-flex items-center gap-1 text-[10px] font-black uppercase tracking-widest text-blue-600 hover:text-blue-800"
                                     >
                                         Registry dossier
                                         <ExternalLink className="h-3 w-3" />
-                                    </Link>
+                                    </RegistryDetailLink>
                                 </div>
                             </li>
                         ))}

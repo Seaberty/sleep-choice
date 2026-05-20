@@ -11,12 +11,17 @@ export default {
         extend: {
             animation: {
                 "scan-line": "scan 4s linear infinite",
-                "spin-slow": "spin 8s linear infinite"
+                "spin-slow": "spin 8s linear infinite",
+                "outbound-bar": "outbound-bar 1.1s ease-in-out infinite"
             },
             keyframes: {
                 scan: {
                     "0%": { top: "0%" },
                     "100%": { top: "100%" }
+                },
+                "outbound-bar": {
+                    "0%": { transform: "translateX(-120%)" },
+                    "100%": { transform: "translateX(420%)" }
                 }
             },
             colors: {

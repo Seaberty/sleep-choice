@@ -8,6 +8,7 @@
 import React from "react"
 import Link from "next/link"
 import { productGoLink } from "@/lib/go-redirect"
+import { OutboundDealLink } from "@/components/outbound-deal-link"
 import { motion } from "framer-motion"
 import { ArrowRight, Badge, Leaf, Thermometer } from "lucide-react"
 
@@ -98,21 +99,20 @@ export default function SleepAndBeyondRecommendation({
 
                 {/* Call to Action */}
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-stretch">
-                    <a
+                    <OutboundDealLink
                         href={productGoLink(recommendation.slug)}
-                        target="_blank"
-                        rel="nofollow noopener"
-                        className="min-w-0 flex-1"
+                        loadingVariant="inline"
+                        className="relative min-w-0 flex-1"
                     >
-                        <motion.button
+                        <motion.span
                             whileHover={{ scale: 1.02 }}
                             whileTap={{ scale: 0.98 }}
                             className="flex w-full items-center justify-center gap-2 bg-blue-600 px-4 py-3.5 text-[10px] font-black uppercase tracking-[0.1em] text-white transition-all duration-200 hover:bg-blue-700 sm:px-6 sm:py-4"
                         >
                             VIEW_DETAILS
                             <ArrowRight className="h-4 w-4 shrink-0" />
-                        </motion.button>
-                    </a>
+                        </motion.span>
+                    </OutboundDealLink>
                     {onDismiss && (
                         <button
                             onClick={onDismiss}

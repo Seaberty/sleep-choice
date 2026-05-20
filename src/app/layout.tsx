@@ -4,6 +4,7 @@ import { SiteHeader } from "@/components/site-header"
 import { SiteFooter } from "@/components/site-footer"
 import { CompareDock } from "@/components/compare/compare-dock"
 import { ScrollToTop } from "@/components/scroll-to-top"
+import { OutboundNavigationProvider } from "@/components/outbound-navigation"
 import { getSiteHeaderMetrics } from "@/lib/site-metrics"
 import { cn } from "@/lib/utils"
 import { SpeedInsights } from "@vercel/speed-insights/next"
@@ -57,6 +58,7 @@ export default async function RootLayout({
                     "font-sans bg-[#fdfdfd] text-slate-900 min-h-screen flex flex-col"
                 )}
             >
+                <OutboundNavigationProvider>
                 <a
                     href="#main-content"
                     className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-[200] focus:rounded-lg focus:bg-slate-950 focus:px-4 focus:py-3 focus:text-[10px] focus:font-black focus:uppercase focus:tracking-widest focus:text-white"
@@ -131,6 +133,7 @@ export default async function RootLayout({
             gtag('config', 'G-SCZWF4WVTR');
           `}
                 </Script>
+                </OutboundNavigationProvider>
             </body>
         </html>
     )

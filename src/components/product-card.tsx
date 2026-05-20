@@ -1,7 +1,7 @@
 "use client"
 
-import React, { useEffect, useState } from "react"
-import Link from "next/link"
+import React, { useState } from "react"
+import { RegistryDetailLink } from "@/components/registry-detail-link"
 import {
     ExternalLink,
     Activity,
@@ -16,6 +16,7 @@ import { cn, withImageCacheBust } from "@/lib/utils"
 import { ProductData } from "@/types/product"
 import { AddToCompareButton } from "@/components/compare/add-to-compare-button"
 import { outboundDealLink } from "@/lib/go-redirect"
+import { OutboundDealLink } from "@/components/outbound-deal-link"
 import { formatShelfPriceUsd } from "@/lib/deals-utils"
 
 export function ProductCard({
@@ -25,13 +26,7 @@ export function ProductCard({
     data: ProductData
     className?: string
     }) {
-    const [isMounted, setIsMounted] = useState(false)
     const [imageError, setImageError] = useState(false)
-
-    useEffect(() => {
-        setIsMounted(true)
-    }, [])
-
     const detailUrl = `/registry/${data.slug}`
     const primaryOffer = data.offers?.find((o) => o.primary) ||
         data.offers?.[0] || { price: 0, url: "#", site: "Store" }
@@ -39,17 +34,6 @@ export function ProductCard({
     const overallScore = Number(
         data.audit_scores?.overall || data.rating || 0
     ).toFixed(1)
-
-    if (!isMounted) {
-        return (
-            <div
-                className={cn(
-                    "min-h-[22rem] sm:min-h-[26rem] bg-slate-50/50 rounded-3xl sm:rounded-[2rem] animate-pulse border border-slate-100",
-                    className
-                )}
-            />
-        )
-    }
 
     return (
         <div
@@ -89,7 +73,7 @@ export function ProductCard({
             </div>
 
             {/* --- 图片区：改用 16:9 比例压低重心 --- */}
-            <Link
+            <RegistryDetailLink
                 href={detailUrl}
                 className="relative w-full aspect-video bg-slate-50/50 overflow-hidden block shrink-0 border-b border-slate-50"
             >
@@ -120,7 +104,7 @@ export function ProductCard({
                     <div className="h-4 w-4 border-l border-b border-current" />
                     <div className="h-4 w-4 border-r border-b border-current" />
                 </div>
-            </Link>
+            </RegistryDetailLink>
 
             {/* --- 内容核心区 --- */}
             <div className="flex min-w-0 grow flex-col p-4 sm:p-7">
@@ -130,11 +114,11 @@ export function ProductCard({
                         <TrendingUp className="w-3 h-3 shrink-0 transition-transform group-hover:translate-x-1" />
                         <span className="truncate">{data.brand}</span>
                     </div>
-                    <Link href={detailUrl} className="block min-w-0">
+                    <RegistryDetailLink href={detailUrl} className="block min-w-0">
                         <h3 className="line-clamp-2 text-lg font-[1000] uppercase italic leading-[1.08] tracking-[-0.03em] text-slate-900 transition-colors group-hover:text-blue-600 sm:text-xl md:text-2xl">
                             {data.name || data.model}
                         </h3>
-                    </Link>
+                    </RegistryDetailLink>
                 </div>
 
                 {/* --- 性能矩阵：悬浮变蓝特效 --- */}
@@ -206,14 +190,13 @@ export function ProductCard({
                         </div>
                     </div>
 
-                    <a
+                    <OutboundDealLink
                         href={outboundDealLink(
                             data.slug,
                             data.brand,
                             primaryOffer.url
                         )}
-                        target="_blank"
-                        rel="nofollow sponsored"
+                        loadingVariant="overlay"
                         className="group/btn relative flex w-full min-w-0 flex-col gap-2 rounded-2xl bg-slate-950 p-2 text-white shadow-xl transition-all duration-500 hover:bg-blue-600 hover:shadow-blue-500/40 sm:flex-row sm:items-stretch sm:justify-between sm:gap-0"
                     >
                         <div className="min-w-0 px-3 py-1.5 sm:pl-4">
@@ -232,7 +215,7 @@ export function ProductCard({
                             </span>
                             <ExternalLink className="h-4 w-4 shrink-0 transition-transform group-hover/btn:translate-x-1" />
                         </div>
-                    </a>
+                    </OutboundDealLink>
                 </div>
             </div>
         </div>
