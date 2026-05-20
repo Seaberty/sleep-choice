@@ -4,6 +4,7 @@ Contextual Reddit reply drafts for ``reddit_rss_monitor.py``.
 
 - Classifies thread topic (mattress / comforter / pillow / sheets / …).
 - Skips misleading alerts (e.g. ``hot sleeper`` on a sheets-only thread).
+- Skips AMA threads and retail-insider brand lists without a buyer question.
 - Builds paste-safe drafts from topic + matched affiliate lane (no fixed killer blocks).
 """
 
@@ -205,14 +206,151 @@ def _intent_only_matches(matches: list[str]) -> bool:
     return bool(matches) and all(m in INTENT_KEYWORDS_SET for m in matches)
 
 
+_AMA_TITLE_RE = re.compile(
+    r"\bama\b|ask\s+me\s+anything|\bi\s*am\s*a\b|\biama\b",
+    re.I,
+)
+
+_INSIDER_TITLE_MARKERS: tuple[str, ...] = (
+    "sales manager",
+    "store manager",
+    "mattress firm",
+    "sleep expert",
+    "retail employee",
+    "worked at",
+    "years in the industry",
+    "industry insider",
+    "employee at",
+    "mattress store",
+)
+
+_LISTICLE_SUMMARY_MARKERS: tuple[str, ...] = (
+    "i'd avoid",
+    "i would avoid",
+    "stay away from",
+    "aside from",
+    "at an all time low",
+    "most people here",
+    "i think ",
+    "i recommend",
+    "i'd recommend",
+)
+
+_COMPETITOR_BRANDS: tuple[str, ...] = (
+    "saatva",
+    "nectar",
+    "dreamcloud",
+    "beautyrest",
+    "tempur",
+    "serta",
+    "stearns",
+    "casper",
+    "helix",
+    "purple",
+    "winkbed",
+    "brooklyn bedding",
+)
+
+_BUYER_INTENT_MARKERS: tuple[str, ...] = (
+    "should i",
+    "which one",
+    "which mattress",
+    "help me",
+    "looking for",
+    "debating",
+    "worth it",
+    " vs ",
+    " versus ",
+    "compare",
+    "anyone tried",
+    "experience with",
+    "experiences with",
+    "thoughts on",
+    "pull the trigger",
+    "between ",
+    "too firm",
+    "too soft",
+    "return policy",
+    "trial period",
+    "what do you think",
+    "need advice",
+    "buying a",
+    "shopping for",
+)
+
+
+def _has_buyer_intent(summary_lower: str) -> bool:
+    if "?" in summary_lower:
+        return True
+    return any(m in summary_lower for m in _BUYER_INTENT_MARKERS)
+
+
+def _is_ama_thread(title_lower: str) -> bool:
+    return bool(_AMA_TITLE_RE.search(title_lower))
+
+
+def _is_insider_thread(title_lower: str) -> bool:
+    return any(m in title_lower for m in _INSIDER_TITLE_MARKERS)
+
+
+def _is_listicle_summary(summary_lower: str) -> bool:
+    text = summary_lower.strip()
+    if len(text) < 40:
+        return False
+    has_marker = any(m in text for m in _LISTICLE_SUMMARY_MARKERS)
+    brand_hits = sum(1 for b in _COMPETITOR_BRANDS if b in text)
+    return has_marker and brand_hits >= 2
+
+
+def assess_engagement_skip(
+    title_lower: str,
+    summary_lower: str,
+) -> tuple[bool, str | None]:
+    """
+    Return (should_skip, reason). Skips threads where a paste reply would read as spam.
+    """
+    title = title_lower.strip()
+    summary = summary_lower.strip()
+
+    if _is_ama_thread(title):
+        return (
+            True,
+            "AMA / ask-me-anything thread — do not paste product pitches in expert Q&A.",
+        )
+
+    if _is_insider_thread(title) and not _has_buyer_intent(summary):
+        return (
+            True,
+            "Retail/industry insider thread without a shopper question — skip paste reply.",
+        )
+
+    if _is_listicle_summary(summary) and not _has_buyer_intent(summary):
+        return (
+            True,
+            "Brand recommendation list without a buyer question — skip paste reply.",
+        )
+
+    return False, None
+
+
 def assess_relevance(
     topic: str,
     matches: list[str],
     haystack_lower: str,
     lane: str | None,
+    *,
+    title_lower: str = "",
+    summary_lower: str = "",
 ) -> tuple[bool, str | None]:
     brands = _brand_matches(matches)
     intent_only = _intent_only_matches(matches)
+
+    skip, skip_reason = assess_engagement_skip(
+        title_lower or haystack_lower.split("\n", 1)[0],
+        summary_lower or haystack_lower,
+    )
+    if skip:
+        return False, skip_reason
 
     if topic == "sheets":
         if brands:
@@ -226,6 +364,11 @@ def assess_relevance(
         )
 
     if topic in ("mattress", "comforter", "pillow", "topper"):
+        if brands and not _has_buyer_intent(summary_lower or haystack_lower):
+            return (
+                False,
+                "Brand mention only — no shopper question detected; review manually.",
+            )
         return True, None
 
     if intent_only and topic not in INTENT_REQUIRES_TOPIC:
@@ -258,7 +401,14 @@ def analyze_thread(
     ms = set(matches)
     topic = detect_topic(h)
     lane = resolve_lane(h, ms)
-    relevant, skip_reason = assess_relevance(topic, matches, h, lane)
+    relevant, skip_reason = assess_relevance(
+        topic,
+        matches,
+        h,
+        lane,
+        title_lower=title.lower(),
+        summary_lower=summary.lower(),
+    )
     should_alert = relevant or not skip_irrelevant_alerts
     action = "REPLY" if relevant else "SKIP"
     return ThreadAnalysis(
@@ -432,3 +582,23 @@ def generate_reply_logic(matches: list[str], haystack: str) -> str:
     )
     analysis = analyze_thread(title, summary, matches, skip_irrelevant_alerts=skip)
     return generate_reply_draft(analysis)
+
+
+if __name__ == "__main__":
+    _ama_title = (
+        "/u/BridgesAreBurning on AMA - Sales manager at a locally owned Mattress Firm"
+    )
+    _ama_summary = (
+        "I'd avoid Beautyrest aside from their World Class line. Stearns & Foster. "
+        "Saatva. Dreamcloud/Nectar. Serta aside from their beds using NxG foam. "
+        "I think Tempurpedic quality is at an all time low."
+    )
+    a = analyze_thread(_ama_title, _ama_summary, ["Saatva"])
+    assert a.action == "SKIP" and a.skip_reason, a
+    b = analyze_thread(
+        "Saatva Classic too firm after 3 weeks?",
+        "Side sleeper — should I swap to Luxury Firm or wait for break-in?",
+        ["Saatva"],
+    )
+    assert b.action == "REPLY" and b.relevant, b
+    print("reddit_reply_engine self-check OK")
