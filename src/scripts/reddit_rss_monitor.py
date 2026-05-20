@@ -19,25 +19,12 @@ Environment variables (loaded from repo-root ``.env`` / ``.env.local``):
                    same ``PROXY_URL`` is reused with PySocks. By default SMTP tries
                    the proxy **before** direct dial (see ``GMAIL_SMTP_TRY_DIRECT_FIRST``).
 
-    NEXT_PUBLIC_SITE_URL — Optional; canonical site root (no trailing slash).
-        Used to build absolute links in Copy & Paste audit notes (``scg_url``);
-        defaults to ``https://sleepchoiceguide.com`` (see ``src/lib/site-origin.ts``).
+    NEXT_PUBLIC_SITE_URL — Optional; reserved for future use (killer copy uses
+        Google search CTAs, not direct URLs).
 
     REDDIT_RSS_USER_AGENT — Optional full ``User-Agent`` string for RSS HTTP
         requests. If Reddit returns ``403 Blocked``, set this to a current
         desktop browser UA (see DevTools) or route traffic via ``PROXY_URL``.
-
-    SUPABASE_URL / SUPABASE_KEY — **Required** for reply-template numbers and links:
-        candidates are read from ``audit_products``, compared on ``audit_scores``, and
-        the **only** outbound audit URL is ``/registry/{slug}`` for the winning row
-        (same page as the live registry dossier).
-
-    REDDIT_REPLY_CANDIDATE_SLUGS_THERMAL — Optional comma-separated slugs to restrict
-        tier-A / wool-pivot comparisons (otherwise brand/slug heuristics query the DB).
-
-    REDDIT_REPLY_CANDIDATE_SLUGS_FLUFFCO — Same for tier-B (FluffCo-style picks).
-
-    REDDIT_REPLY_CANDIDATE_SLUGS_SAATVA — Same for tier-C (Saatva picks).
 
     GMAIL_SMTP_TRY_DIRECT_FIRST — Set to ``1`` to try direct SMTP before the proxy.
     GMAIL_SMTP_DIRECT_TIMEOUT_SEC — Optional override for direct TCP timeout (seconds).
@@ -49,16 +36,9 @@ Run from repository root::
 
 State file (repository root): ``processed_posts.json``
 
-**Strategy:** Brand / high-priority keywords trigger **immediate** email. Broad
-(normal) keywords go to ``pending_normal_alerts`` and are sent as **one digest**
-every ``BATCH_SEND_INTERVAL`` seconds. Pending queue is **not** persisted.
-
-Each alert includes a **reply template** block (Detected Topic / Direct Link /
-Copy & Paste Audit Note). The note is built by ``generate_reply_logic``: a single
-expert-style blurb plus **one** ``/registry/{slug}`` URL from Supabase after score
-comparison, with tier Sleep & Beyond (A) > FluffCo (B) > Saatva (C).
-The main loop adjusts sleep so digest deadlines are
-not missed by a full poll interval when the queue is non-empty.
+**Strategy:** ``KEYWORDS_HIGH`` hit → immediate email. Each alert includes a
+**Copy & Paste Audit Note** from ``generate_reply_logic`` (fixed killer copy per
+brand lane — no database reads).
 """
 
 from __future__ import annotations
@@ -78,7 +58,7 @@ from contextlib import contextmanager
 import urllib.error
 import urllib.request
 from urllib.error import HTTPError
-from urllib.parse import quote, urlparse
+from urllib.parse import urlparse
 from datetime import datetime
 from email.message import EmailMessage
 from pathlib import Path
@@ -103,43 +83,24 @@ RSS_FEEDS = [
     "https://www.reddit.com/r/Bedding/comments/.rss",
 ]
 
-# --- Monitoring keywords (decoupled from reply snippets) ---
-HIGH_PRIORITY_KEYWORDS: list[str] = [
+# --- Monitoring keywords ---
+KEYWORDS_HIGH: list[str] = [
     "Saatva",
     "Sleep & Beyond",
     "FluffCo",
     "MyMerino",
-]
-NORMAL_PRIORITY_KEYWORDS: list[str] = [
-    "back pain",
+    # High-intent thermal / wool signals (promoted from the old NORMAL list)
+    "night sweats",
     "hot sleeper",
-    "mattress review",
-    "topper",
     "natural materials",
-    "pillow",
-    "value",
-    "hotel",
-    "budget",
 ]
+KEYWORDS_NORMAL: list[str] = []
 
-HIGH_PRIORITY_SET = frozenset(HIGH_PRIORITY_KEYWORDS)
-NORMAL_PRIORITY_SET = frozenset(NORMAL_PRIORITY_KEYWORDS)
-# Scan union; routing uses tier sets.
-ALL_MONITOR_KEYWORDS: list[str] = list(
-    dict.fromkeys(HIGH_PRIORITY_KEYWORDS + NORMAL_PRIORITY_KEYWORDS)
-)
+KEYWORDS_HIGH_SET = frozenset(KEYWORDS_HIGH)
+KEYWORDS_ALL: list[str] = list(dict.fromkeys(KEYWORDS_HIGH + KEYWORDS_NORMAL))
 
 POLL_INTERVAL_SEC = 60
 FETCH_TIMEOUT_SEC = 45
-
-# Normal-tier alerts: one digest email every 30 minutes.
-BATCH_SEND_INTERVAL = 1800
-
-# In-memory queue for normal-priority leads (not persisted).
-# Keys: entry_id, title, link, summary, matches, feed_url.
-pending_normal_alerts: list[dict[str, Any]] = []
-# ``time.monotonic()`` deadline for the next digest send (wall-clock–stable intervals).
-_next_digest_deadline: float = 0.0
 
 # Gmail: when PROXY_URL is set, try SMTP through the proxy first (typical for
 # regions where smtp.gmail.com is unreachable directly). Direct attempts then
@@ -171,404 +132,146 @@ def scg_url(path: str) -> str:
     return f"{base}{p}"
 
 
-# Soft landing when no tier matches (not a product dossier).
-PATH_METHODOLOGY = "/methodology"
+# Reply lane order when multiple HIGH keywords hit (thermal/wool before value before Saatva).
+_REPLY_LANE_ORDER: tuple[str, ...] = ("sleep_beyond", "fluffco", "saatva")
+
+# Substrings (lowercase) that map a thread to a killer-copy lane.
+_LANE_TRIGGERS: dict[str, tuple[str, ...]] = {
+    "sleep_beyond": (
+        "sleep & beyond",
+        "sleep and beyond",
+        "mymerino",
+        "night sweats",
+        "hot sleeper",
+        "natural materials",
+    ),
+    "fluffco": ("fluffco",),
+    "saatva": ("saatva",),
+}
+
+# Structured reply lanes: search-guided, low-promo, auditor tone (no direct URLs).
+KILLER_COPY_LANES: dict[str, dict[str, str]] = {
+    "sleep_beyond": {
+        "search_terms": "SleepChoiceGuide Sleep Beyond MyMerino night sweats hot sleeper",
+        "body": (
+            "Not affiliated — just how I read these threads.\n\n"
+            "If you're waking up clammy, memory foam is often the quiet culprit: it stores "
+            "latent heat and humidity instead of moving vapor off your skin. Merino wool "
+            "works more like evaporation — the fiber pulls moisture into the loft and releases "
+            "it, which is a different physics stack than \"gel-infused cooling\" marketing.\n\n"
+            "Sleep & Beyond's MyMerino line is where I usually point hot-sleeper posts: lighter "
+            "comforter weight, same wicking idea, fewer polyester shells parked on your body."
+        ),
+        "hook": (
+            "Are you still stuck in the foam cycle, or have you tried natural fibers yet?"
+        ),
+    },
+    "fluffco": {
+        "search_terms": (
+            "SleepChoiceGuide FluffCo down alternative comforter hotel loft"
+        ),
+        "body": (
+            "Third-party read, not a sales pitch.\n\n"
+            "A lot of \"hotel cloud\" comforters are really synthetic clusters that collapse "
+            "after a few months — you get flat fill, cold spots, and that weird clumpy wash "
+            "feel. Down-alternative baffle layouts (what FluffCo pushes on the DTC side) "
+            "aim to keep loft pockets intact so weight stays distributed instead of matting "
+            "into one slab.\n\n"
+            "Worth comparing listing specs vs owner posts on loft retention before you chase "
+            "thread count alone."
+        ),
+        "hook": "What loft level are you aiming for in your sleep setup?",
+    },
+    "saatva": {
+        "search_terms": (
+            "SleepChoiceGuide Saatva Classic firmness break-in return fee"
+        ),
+        "body": (
+            "Independent notes — I don't sell mattresses.\n\n"
+            "Saatva threads that age well usually aren't about \"luxury coils\"; they're about "
+            "the firmness trap (weeks 1–3 often read firmer than floor models) and the $99 return "
+            "processing fee people forget to bake into true cost. Forensic diffs that matter: "
+            "coil gauge + comfort-layer density vs what the ad copy implies, not the hero photo.\n\n"
+            "If heat and softening show up together, I'd line up material data on the Classic "
+            "against a natural-fill path before swapping entire coil classes."
+        ),
+        "hook": (
+            "Did you end up pulling the trigger on the Classic, or are you still "
+            "debating the firmness levels?"
+        ),
+    },
+}
 
 
-def _ensure_dotenv_loaded() -> None:
-    load_dotenv(_REPO_ROOT / ".env")
-    load_dotenv(_REPO_ROOT / ".env.local")
+def _search_cta(terms: str) -> str:
+    """Low-risk discovery line — no outbound product URL."""
+    return f"Search Google for: {terms}"
 
 
-def _parse_audit_scores(raw: Any) -> dict[str, float]:
-    if raw is None:
-        return {}
-    if isinstance(raw, str):
-        try:
-            raw = json.loads(raw)
-        except json.JSONDecodeError:
-            return {}
-    if not isinstance(raw, dict):
-        return {}
-    out: dict[str, float] = {}
-    for k, v in raw.items():
-        try:
-            fv = float(v)
-            if fv > 0:
-                out[str(k)] = fv
-        except (TypeError, ValueError):
-            continue
-    return out
-
-
-def _get_supabase_client() -> Any | None:
-    _ensure_dotenv_loaded()
-    url = (os.getenv("SUPABASE_URL") or "").strip().rstrip("/")
-    key = (
-        (os.getenv("SUPABASE_KEY") or "").strip()
-        or (os.getenv("NEXT_PUBLIC_SUPABASE_ANON_KEY") or "").strip()
-    )
-    if not url or not key:
-        return None
-    try:
-        from supabase import create_client
-
-        return create_client(url, key)
-    except Exception as exc:
-        logging.getLogger(__name__).debug("Supabase client init failed: %s", exc)
-        return None
-
-
-def _comma_env_slugs(var_name: str) -> list[str]:
-    raw = (os.getenv(var_name) or "").strip()
-    if not raw:
-        return []
-    return [p.strip() for p in raw.split(",") if p.strip()]
-
-
-def _audit_product_select() -> str:
-    return "slug, brand, model, audit_scores, price"
-
-
-def _fetch_audit_rows_by_slugs(client: Any, slugs: list[str]) -> list[dict[str, Any]]:
-    uniq = list(dict.fromkeys(s.strip() for s in slugs if s and str(s).strip()))
-    if not uniq:
-        return []
-    try:
-        res = (
-            client.table("audit_products")
-            .select(_audit_product_select())
-            .in_("slug", uniq)
-            .execute()
-        )
-        return list(res.data or [])
-    except Exception as exc:
-        logging.getLogger(__name__).debug("audit_products in(slug) failed: %s", exc)
-        return []
-
-
-def _fetch_audit_rows_or(client: Any, or_filter: str, *, limit: int) -> list[dict[str, Any]]:
-    try:
-        res = (
-            client.table("audit_products")
-            .select(_audit_product_select())
-            .or_(or_filter)
-            .limit(int(limit))
-            .execute()
-        )
-        return list(res.data or [])
-    except Exception as exc:
-        logging.getLogger(__name__).debug("audit_products or() failed: %s", exc)
-        return []
-
-
-def _fetch_candidates_tier_a(client: Any) -> list[dict[str, Any]]:
-    """Hot sleeper / wool / MyMerino — compare ``audit_scores`` on DB rows."""
-    slugs = _comma_env_slugs("REDDIT_REPLY_CANDIDATE_SLUGS_THERMAL")
-    if slugs:
-        return _fetch_audit_rows_by_slugs(client, slugs)
-    or_filter = (
-        "brand.ilike.%Sleep%Beyond%,"
-        "brand.ilike.%sleep%beyond%,"
-        "brand.ilike.%Sleep and Beyond%,"
-        "slug.ilike.%sleep-beyond%,"
-        "slug.ilike.%mymerino%,"
-        "model.ilike.%Merino%"
-    )
-    return _fetch_audit_rows_or(client, or_filter, limit=120)
-
-
-def _fetch_candidates_tier_b(client: Any) -> list[dict[str, Any]]:
-    slugs = _comma_env_slugs("REDDIT_REPLY_CANDIDATE_SLUGS_FLUFFCO")
-    if slugs:
-        return _fetch_audit_rows_by_slugs(client, slugs)
-    try:
-        res = (
-            client.table("audit_products")
-            .select(_audit_product_select())
-            .ilike("brand", "%FluffCo%")
-            .limit(120)
-            .execute()
-        )
-        return list(res.data or [])
-    except Exception as exc:
-        logging.getLogger(__name__).debug("audit_products FluffCo ilike failed: %s", exc)
-        return []
-
-
-def _fetch_candidates_tier_c(client: Any) -> list[dict[str, Any]]:
-    slugs = _comma_env_slugs("REDDIT_REPLY_CANDIDATE_SLUGS_SAATVA")
-    if slugs:
-        return _fetch_audit_rows_by_slugs(client, slugs)
-    try:
-        res = (
-            client.table("audit_products")
-            .select(_audit_product_select())
-            .ilike("brand", "%Saatva%")
-            .limit(120)
-            .execute()
-        )
-        return list(res.data or [])
-    except Exception as exc:
-        logging.getLogger(__name__).debug("audit_products Saatva ilike failed: %s", exc)
-        return []
-
-
-def _scores_from_audit_row(row: dict[str, Any]) -> dict[str, float]:
-    return _parse_audit_scores(row.get("audit_scores"))
-
-
-def _row_sort_tuple(row: dict[str, Any], keys: tuple[str, ...]) -> tuple[float, ...]:
-    sc = _scores_from_audit_row(row)
-    return tuple(_pick_score(sc, k) or -1.0 for k in keys)
-
-
-def _best_audit_product(
-    rows: list[dict[str, Any]], sort_keys: tuple[str, ...]
-) -> dict[str, Any] | None:
-    rows = [r for r in rows if r.get("slug")]
-    if not rows:
-        return None
-    return max(rows, key=lambda r: _row_sort_tuple(r, sort_keys))
-
-
-def _registry_dossier_url(slug: str) -> str:
-    """Single allowed product link: live audit dossier ``/registry/{slug}``."""
-    s = (slug or "").strip()
-    if not s:
-        return ""
-    return scg_url(f"/registry/{quote(s, safe='')}")
-
-
-def _product_line_label(row: dict[str, Any]) -> str:
-    brand = str(row.get("brand") or "").strip()
-    model = str(row.get("model") or "").strip()
-    if brand and model:
-        return f"{brand} **{model}**"
-    return brand or model or "this product"
-
-
-def _no_db_candidates_message(pool: str) -> str:
+def _assemble_killer_copy(lane_key: str) -> str:
+    lane = KILLER_COPY_LANES[lane_key]
     return (
-        f"✍️ **SleepChoiceGuide** — no matching rows in ``audit_products`` for: {pool}. "
-        "Add listings in Supabase or set ``REDDIT_REPLY_CANDIDATE_SLUGS_*`` to an explicit "
-        "comma-separated slug list so we can compare ``audit_scores`` and link the dossier."
+        f"{lane['body']}\n\n"
+        f"{_search_cta(lane['search_terms'])}\n\n"
+        f"{lane['hook']}"
     )
 
 
-def _missing_supabase_message() -> str:
-    return (
-        "✍️ **SleepChoiceGuide** — configure ``SUPABASE_URL`` and ``SUPABASE_KEY`` (or "
-        "``NEXT_PUBLIC_SUPABASE_ANON_KEY``) so this reply can read ``audit_products`` and "
-        "emit a single ``/registry/{slug}`` audit URL."
-    )
+def _killer_copy_sleep_beyond() -> str:
+    return _assemble_killer_copy("sleep_beyond")
 
 
-def _pick_score(row: dict[str, float], *keys: str) -> float | None:
-    for k in keys:
-        v = row.get(k)
-        if v is not None and isinstance(v, (int, float)) and float(v) > 0:
-            return float(v)
+def _killer_copy_fluffco() -> str:
+    return _assemble_killer_copy("fluffco")
+
+
+def _killer_copy_saatva() -> str:
+    return _assemble_killer_copy("saatva")
+
+
+_KILLER_COPY_BUILDERS: dict[str, Any] = {
+    "sleep_beyond": _killer_copy_sleep_beyond,
+    "fluffco": _killer_copy_fluffco,
+    "saatva": _killer_copy_saatva,
+}
+
+
+def _resolve_reply_lane(haystack_lower: str, match_set: set[str]) -> str | None:
+    """First matching lane in priority order."""
+    for lane in _REPLY_LANE_ORDER:
+        for trigger in _LANE_TRIGGERS[lane]:
+            if trigger in haystack_lower:
+                return lane
+            if any(trigger in m.lower() for m in match_set):
+                return lane
     return None
-
-
-def _explicit_saatva_intent(haystack_lower: str, match_set: set[str]) -> bool:
-    """Priority C: only when the post clearly names Saatva."""
-    if "saatva" in haystack_lower:
-        return True
-    return "Saatva" in match_set
-
-
-def _match_priority_a(haystack_lower: str, match_set: set[str]) -> bool:
-    """
-    Priority A — authorized high-conversion: hot sleeper, topper, natural materials
-    (plus MyMerino product-line hits → same single Sleep & Beyond recommendation).
-    """
-    if "hot sleeper" in haystack_lower or "hot sleeper" in match_set:
-        return True
-    if "topper" in haystack_lower or "topper" in match_set:
-        return True
-    if "natural materials" in haystack_lower or "natural materials" in match_set:
-        return True
-    if "MyMerino" in match_set or "mymerino" in haystack_lower:
-        return True
-    return False
-
-
-def _match_priority_b(haystack_lower: str, match_set: set[str]) -> bool:
-    """Priority B — pillow / value / hotel / budget (and close variants)."""
-    if "FluffCo" in match_set:
-        return True
-    needles = (
-        "pillow",
-        "pillows",
-        "value",
-        "hotel",
-        "budget",
-        "affordable",
-        "cheap",
-    )
-    return any(n in haystack_lower for n in needles)
-
-
-def _resolve_reply_tier(
-    haystack_lower: str, match_set: set[str]
-) -> str | None:
-    """
-    Single-diagnosis tier. If multiple keyword families hit, keep:
-    Sleep & Beyond (A) > FluffCo (B) > Saatva audit (C).
-    """
-    a = _match_priority_a(haystack_lower, match_set)
-    b = _match_priority_b(haystack_lower, match_set)
-    c = _explicit_saatva_intent(haystack_lower, match_set)
-    if a:
-        return "A"
-    if b:
-        return "B"
-    if c:
-        return "C"
-    return None
-
-
-def _body_tier_a(winner: dict[str, Any]) -> str:
-    sc = _scores_from_audit_row(winner)
-    label = _product_line_label(winner)
-    cool = _pick_score(sc, "cooling", "thermal")
-    overall = _pick_score(sc, "overall")
-    if cool is not None:
-        score_clause = f"**{label}** leads our compared pool at **{cool:.1f}/10** on **cooling**"
-    elif overall is not None:
-        score_clause = f"**{label}** leads our compared pool at **{overall:.1f}/10** overall (full ``audit_scores`` on the dossier)"
-    else:
-        score_clause = f"**{label}** is the compared-pool pick (scores live on the dossier)"
-    return (
-        f"🔍 Quick Audit: For hot sleepers / wool toppers, {score_clause} in ``audit_products``. "
-        "Wool protein fibers wick moisture instead of parking humidity on your skin like a lot of gel-marketing stacks."
-    )
-
-
-def _body_tier_b(winner: dict[str, Any]) -> str:
-    sc = _scores_from_audit_row(winner)
-    label = _product_line_label(winner)
-    overall = _pick_score(sc, "overall")
-    sup = _pick_score(sc, "support")
-    if overall is not None:
-        bits = f"**{overall:.1f}/10** overall"
-        if sup is not None:
-            bits += f", **{sup:.1f}/10** support"
-        score_clause = f"{label} tops our FluffCo pool at {bits}"
-    else:
-        score_clause = f"{label} is the compared-pool value pick (see dossier for scores)"
-    return (
-        f"🔍 Quick Audit: On value-for-money vs hotel-style specs, {score_clause} in ``audit_products``. "
-        "Same rubric we render on the registry page—no separate marketing URL."
-    )
-
-
-def _body_tier_c(winner: dict[str, Any]) -> str:
-    sc = _scores_from_audit_row(winner)
-    label = _product_line_label(winner)
-    sup = _pick_score(sc, "support", "pressure")
-    cool = _pick_score(sc, "cooling")
-    if sup is not None:
-        spine = f"**{sup:.1f}/10** on **support** / pressure (spinal-alignment axis in our sheet)"
-    else:
-        spine = "support / pressure scores on the dossier (we read the same JSON the site uses)"
-    cool_clause = ""
-    if cool is not None:
-        cool_clause = f" **Cooling** on that row is **{cool:.1f}/10**—still line it up against natural fills if heat is the complaint."
-    return (
-        f"🔍 Quick Audit: In our **Saatva** pool, **{label}** prints {spine}.{cool_clause} "
-        "**Break-in** still matters: dual-coil faces can read firmer than people expect early."
-    )
-
-
-def _body_tier_c_pivot_wool(winner: dict[str, Any]) -> str:
-    label = _product_line_label(winner)
-    sc = _scores_from_audit_row(winner)
-    cool = _pick_score(sc, "cooling", "thermal")
-    if cool is not None:
-        tail = f"Compared wool-side rows land **{label}** at **{cool:.1f}/10** on **cooling** in ``audit_products``."
-    else:
-        tail = f"Compared wool-side pick: **{label}** (scores on dossier)."
-    return (
-        "🔍 Quick Audit (troubleshooting): **Sagging / pain** next to a Saatva-class hybrid is often "
-        "**comfort-layer groove** vs true structural collapse—different failure mode. "
-        f"If trapped heat rides along with softening, {tail}"
-    )
-
-
-def _mentions_sagging_or_pain(haystack_lower: str) -> bool:
-    """Pain / sagging threads: no pure-praise copy; switch to troubleshooting + pivot."""
-    if "sagging" in haystack_lower:
-        return True
-    return re.search(r"\bpain\b", haystack_lower) is not None
 
 
 def generate_reply_logic(matches: list[str], haystack: str) -> str:
     """
-    Single expert blurb + **one** URL: the winning row's ``/registry/{slug}`` dossier.
+    Fixed killer copy for the matched brand lane — no database reads.
 
-    Flow: resolve tier → fetch ``audit_products`` candidates from Supabase → sort by
-    the relevant ``audit_scores`` keys → link only the recommended slug's registry page.
+    Lane priority: Sleep & Beyond / thermal > FluffCo > Saatva.
     """
     h = haystack.lower()
     ms = set(matches)
-    tier = _resolve_reply_tier(h, ms)
-    client = _get_supabase_client()
-    if not client:
-        return _missing_supabase_message()
-
-    if tier == "A":
-        rows = _fetch_candidates_tier_a(client)
-        winner = _best_audit_product(rows, ("cooling", "thermal", "overall"))
-        if not winner:
-            return _no_db_candidates_message("thermal / wool (tier A)")
-        url = _registry_dossier_url(str(winner.get("slug") or ""))
-        return f"{_body_tier_a(winner)}\n{url}"
-
-    if tier == "B":
-        rows = _fetch_candidates_tier_b(client)
-        winner = _best_audit_product(rows, ("overall", "pressure", "cooling"))
-        if not winner:
-            return _no_db_candidates_message("FluffCo (tier B)")
-        url = _registry_dossier_url(str(winner.get("slug") or ""))
-        return f"{_body_tier_b(winner)}\n{url}"
-
-    if tier == "C":
-        if _mentions_sagging_or_pain(h):
-            rows = _fetch_candidates_tier_a(client)
-            winner = _best_audit_product(rows, ("cooling", "thermal", "overall"))
-            if not winner:
-                return _no_db_candidates_message("wool pivot after pain/sagging (tier-A pool)")
-            url = _registry_dossier_url(str(winner.get("slug") or ""))
-            return f"{_body_tier_c_pivot_wool(winner)}\n{url}"
-        rows = _fetch_candidates_tier_c(client)
-        winner = _best_audit_product(rows, ("support", "pressure", "overall"))
-        if not winner:
-            return _no_db_candidates_message("Saatva (tier C)")
-        url = _registry_dossier_url(str(winner.get("slug") or ""))
-        return f"{_body_tier_c(winner)}\n{url}"
-
+    lane = _resolve_reply_lane(h, ms)
+    if lane and lane in _KILLER_COPY_BUILDERS:
+        return _KILLER_COPY_BUILDERS[lane]()
     return (
-        "✍️ **SleepChoiceGuide** — no single-brand tier matched this thread yet "
-        f"(see methodology: {scg_url(PATH_METHODOLOGY)}). "
-        "When a tier hits, the note links only the winning ``audit_products`` dossier."
+        "Keyword hit but no lane mapping on my side.\n\n"
+        f"{_search_cta('SleepChoiceGuide methodology audit scores')}\n\n"
+        "What product category is the thread actually about — mattress, topper, or bedding?"
     )
 
 
 def format_copy_paste_audit_note(matches: list[str], haystack: str) -> str:
-    """
-    Copy-and-paste block for email alerts (same body as ``generate_reply_logic``).
-
-    Numbers and the single outbound link come from Supabase ``audit_products`` after
-    score comparison; the URL is always ``/registry/{slug}`` for the recommended row.
-    """
+    """Copy-and-paste block for email alerts."""
     return generate_reply_logic(matches, haystack)
 
 
 def audit_appendix(matches: list[str], haystack: str) -> str:
-    """Alias for ``format_copy_paste_audit_note`` (single combined audit note)."""
+    """Alias for ``format_copy_paste_audit_note``."""
     return format_copy_paste_audit_note(matches, haystack)
 
 
@@ -755,47 +458,6 @@ def format_alert_email_body(
         f"Feed: {feed_url}\n\n"
         f"{block}"
     )
-
-
-# -----------------------------------------------------------------------------
-# Digest batch email
-# -----------------------------------------------------------------------------
-
-
-def build_digest_subject(items: list[dict[str, Any]]) -> str:
-    """Subject line like ``[Reddit Digest] 5 New Leads Found (back pain, topper…)``."""
-    n = len(items)
-    ordered: list[str] = []
-    seen: set[str] = set()
-    for it in items:
-        for m in it.get("matches") or []:
-            if m not in seen:
-                seen.add(m)
-                ordered.append(m)
-    preview = ", ".join(ordered[:6])
-    if len(ordered) > 6:
-        preview += ", ..."
-    return f"[Reddit Digest] {n} New Leads Found ({preview})"
-
-
-def send_digest_email(processed: set[str], items: list[dict[str, Any]]) -> None:
-    """One email with all normal-tier leads; marks each ``entry_id`` processed."""
-    chunks: list[str] = []
-    for i, it in enumerate(items, 1):
-        title = it.get("title", "")
-        link = it.get("link", "")
-        summary = it.get("summary") or ""
-        feed_url = it.get("feed_url", "")
-        matches = it.get("matches") or []
-        body_one = format_alert_email_body(
-            title, link, summary, feed_url, matches
-        )
-        chunks.append(f"--- Lead {i} ---\n{body_one}")
-    body = "\n".join(chunks)
-    subject = build_digest_subject(items)
-    send_email(subject=subject, body=body)
-    for it in items:
-        processed.add(it["entry_id"])
 
 
 # -----------------------------------------------------------------------------
@@ -1200,69 +862,13 @@ def load_env() -> None:
 
 
 # -----------------------------------------------------------------------------
-# Main loop — routing, digest deadline, adaptive sleep
+# Main loop
 # -----------------------------------------------------------------------------
 
 
-def _try_flush_normal_digest(processed: set[str]) -> tuple[bool, int]:
-    """
-    If ``pending_normal_alerts`` is non-empty and ``_next_digest_deadline`` has
-    passed, send one digest email and slide the deadline forward by
-    ``BATCH_SEND_INTERVAL``.
-    """
-    global pending_normal_alerts, _next_digest_deadline
-
-    if not pending_normal_alerts:
-        return False, 0
-    if time.monotonic() < _next_digest_deadline:
-        return False, 0
-
-    batch = list(pending_normal_alerts)
-    try:
-        send_digest_email(processed, batch)
-    except Exception:
-        logger.exception(
-            "NORMAL digest email failed (%d leads remain queued)", len(batch)
-        )
-        return False, 0
-
-    n = len(batch)
-    pending_normal_alerts.clear()
-    _next_digest_deadline = time.monotonic() + BATCH_SEND_INTERVAL
-    logger.info(
-        "NORMAL digest email sent | bundled_leads=%d | next_digest_in=%ss",
-        n,
-        BATCH_SEND_INTERVAL,
-    )
-    return True, n
-
-
-def compute_poll_sleep_seconds() -> float:
-    """
-    Default ``POLL_INTERVAL_SEC``, but wake sooner when a digest deadline is
-    near so batched mail is not delayed by a full poll interval.
-    """
-    if not pending_normal_alerts:
-        return float(POLL_INTERVAL_SEC)
-    gap = _next_digest_deadline - time.monotonic()
-    if gap <= 0:
-        return 1.0
-    return min(float(POLL_INTERVAL_SEC), gap)
-
-
 def process_cycle(processed: set[str]) -> None:
-    """RSS poll + HIGH immediate email + NORMAL queue + timed digest flush."""
-    global pending_normal_alerts
-
+    """Fetch RSS → match KEYWORDS_HIGH → email → persist processed ids."""
     dirty = False
-    digest_leads_flushed = 0
-    digest_emails_sent = 0
-
-    flushed, n_flush = _try_flush_normal_digest(processed)
-    if flushed:
-        dirty = True
-        digest_leads_flushed += n_flush
-        digest_emails_sent += 1
 
     logger.info(
         "RSS fetch cycle starting (%d feeds, timeout %ss each)",
@@ -1273,14 +879,10 @@ def process_cycle(processed: set[str]) -> None:
     pairs.sort(key=lambda p: published_unix(p[1]))
 
     n_feed_entries = len(pairs)
-    n_skip_already_tracked = 0
-    n_skip_pending = 0
-    n_new_no_keyword = 0
-    n_high_immediate = 0
-    n_normal_queued_cycle = 0
+    n_skip_tracked = 0
+    n_no_keyword = 0
+    n_alerted = 0
     n_email_failed = 0
-
-    pending_ids = {p["entry_id"] for p in pending_normal_alerts}
 
     for feed_url, entry in pairs:
         eid = entry_id_for(entry)
@@ -1288,10 +890,7 @@ def process_cycle(processed: set[str]) -> None:
             logger.warning("Skipping entry without id/link from %s", feed_url)
             continue
         if eid in processed:
-            n_skip_already_tracked += 1
-            continue
-        if eid in pending_ids:
-            n_skip_pending += 1
+            n_skip_tracked += 1
             continue
 
         title = getattr(entry, "title", "") or ""
@@ -1300,102 +899,59 @@ def process_cycle(processed: set[str]) -> None:
         summary_plain = entry_plain_summary(entry)
         link = getattr(entry, "link", "") or ""
         haystack = f"{title}\n{summary_plain}"
-        matches = matched_keywords(haystack, ALL_MONITOR_KEYWORDS)
+        matches = matched_keywords(haystack, KEYWORDS_ALL)
+        high_hits = [m for m in matches if m in KEYWORDS_HIGH_SET]
 
-        if not matches:
+        if not high_hits:
             processed.add(eid)
             dirty = True
-            n_new_no_keyword += 1
+            n_no_keyword += 1
             continue
 
-        if HIGH_PRIORITY_SET.intersection(matches):
-            body = format_alert_email_body(
-                title,
-                link,
-                summary_plain or "",
-                feed_url,
-                matches,
-            )
-            subject = f"[Reddit HIGH] {', '.join(matches)} — {title[:80]}"
-            logger.info(
-                "HIGH priority → immediate email | keywords=%s | id=%s | title=%r",
-                ", ".join(matches),
-                eid,
-                title[:120],
-            )
-            try:
-                send_email(subject=subject, body=body)
-            except Exception:
-                logger.exception("HIGH priority email failed | id=%s", eid)
-                n_email_failed += 1
-                continue
-            processed.add(eid)
-            dirty = True
-            n_high_immediate += 1
-            continue
-
-        if NORMAL_PRIORITY_SET.intersection(matches):
-            pending_normal_alerts.append(
-                {
-                    "entry_id": eid,
-                    "title": title,
-                    "link": link,
-                    "summary": summary_plain or "",
-                    "matches": matches,
-                    "feed_url": feed_url,
-                }
-            )
-            pending_ids.add(eid)
-            n_normal_queued_cycle += 1
-            logger.info(
-                "NORMAL priority → digest queue | keywords=%s | queue_size=%d | "
-                "id=%s | title=%r",
-                ", ".join(matches),
-                len(pending_normal_alerts),
-                eid,
-                title[:120],
-            )
+        body = format_alert_email_body(
+            title,
+            link,
+            summary_plain or "",
+            feed_url,
+            high_hits,
+        )
+        subject = f"[Reddit] {', '.join(high_hits)} — {title[:80]}"
+        logger.info(
+            "HIGH match → email | keywords=%s | id=%s | title=%r",
+            ", ".join(high_hits),
+            eid,
+            title[:120],
+        )
+        try:
+            send_email(subject=subject, body=body)
+        except Exception:
+            logger.exception("Alert email failed | id=%s", eid)
+            n_email_failed += 1
             continue
 
         processed.add(eid)
         dirty = True
-
-    flushed2, n_flush2 = _try_flush_normal_digest(processed)
-    if flushed2:
-        dirty = True
-        digest_leads_flushed += n_flush2
-        digest_emails_sent += 1
+        n_alerted += 1
 
     if dirty:
         save_processed_ids(STATE_PATH, processed)
 
     logger.info(
-        "Cycle done: entries=%d, skip_tracked=%d, skip_pending=%d, "
-        "no_keyword=%d, HIGH_immediate=%d, NORMAL_queued_cycle=%d, "
-        "pending_backlog=%d, digest_flush_leads=%d, digest_emails=%d, "
-        "failed=%d | poll=%ss digest_every=%ss",
+        "Cycle done: entries=%d, skip_tracked=%d, no_match=%d, "
+        "alerted=%d, failed=%d | poll=%ss",
         n_feed_entries,
-        n_skip_already_tracked,
-        n_skip_pending,
-        n_new_no_keyword,
-        n_high_immediate,
-        n_normal_queued_cycle,
-        len(pending_normal_alerts),
-        digest_leads_flushed,
-        digest_emails_sent,
+        n_skip_tracked,
+        n_no_keyword,
+        n_alerted,
         n_email_failed,
         POLL_INTERVAL_SEC,
-        BATCH_SEND_INTERVAL,
     )
 
 
 def run_once() -> None:
-    """Single RSS poll + email/digest step; for CI (e.g. GitHub Actions)."""
-    global _next_digest_deadline
-
+    """Single RSS poll + email step; for CI (e.g. GitHub Actions)."""
     load_env()
     processed = load_processed_ids(STATE_PATH)
-    _next_digest_deadline = time.monotonic() + BATCH_SEND_INTERVAL
     logger.info(
         "Reddit RSS monitor — single run | state=%s (%d ids)",
         STATE_PATH,
@@ -1410,22 +966,17 @@ def run_once() -> None:
 
 
 def run_forever() -> None:
-    """Poll RSS on an adaptive interval; digest deadlines are not overslept."""
-    global _next_digest_deadline
-
+    """Poll RSS every ``POLL_INTERVAL_SEC``."""
     load_env()
     processed = load_processed_ids(STATE_PATH)
-    _next_digest_deadline = time.monotonic() + BATCH_SEND_INTERVAL
     tz_name = datetime.now().astimezone().tzname()
     logger.info(
-        "Starting Reddit RSS monitor | state=%s (%d ids) | poll<=%ss | "
-        "digest_deadline_interval=%ss | HIGH=%s | NORMAL=%s | tz=%s",
+        "Starting Reddit RSS monitor | state=%s (%d ids) | poll=%ss | "
+        "KEYWORDS_HIGH=%s | tz=%s",
         STATE_PATH,
         len(processed),
         POLL_INTERVAL_SEC,
-        BATCH_SEND_INTERVAL,
-        ", ".join(HIGH_PRIORITY_KEYWORDS),
-        ", ".join(NORMAL_PRIORITY_KEYWORDS),
+        ", ".join(KEYWORDS_HIGH),
         tz_name,
     )
 
@@ -1436,7 +987,7 @@ def run_forever() -> None:
             process_cycle(processed)
         except Exception as e:
             logger.exception("Cycle error (continuing): %s", e)
-        time.sleep(max(1.0, compute_poll_sleep_seconds()))
+        time.sleep(float(POLL_INTERVAL_SEC))
 
 
 def main() -> None:

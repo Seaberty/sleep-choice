@@ -8,13 +8,12 @@
 #   REDDIT_RSS_USER_AGENT      — 可选（403 Blocked 时）
 #   NEXT_PUBLIC_SITE_URL       — 可选（邮件内链接，如 https://sleepchoiceguide.com）
 #
-# ``pending_normal_alerts`` 为内存队列，单次 Action 内有效；跨次运行仅
-# ``processed_posts.json`` 通过 cache 复用以去重。
+# ``processed_posts.json`` 通过 cache 复用以跨次运行去重。
 name: Reddit RSS monitor
 
 on:
   schedule:
-    - cron: "*/15 * * * *"
+    - cron: "*/5 * * * *"
   workflow_dispatch:
 
 concurrency:
@@ -24,7 +23,6 @@ concurrency:
 jobs:
   poll:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
 
     steps:
       - uses: actions/checkout@v4

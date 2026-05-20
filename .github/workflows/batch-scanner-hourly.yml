@@ -1,16 +1,15 @@
-# 官网情报同步（Playwright 逐站 + 品牌冷却，单次往往数十分钟）
-# 床垫价格无需「每小时」刷新；默认每 4 小时 UTC 整点一次。若要改回每小时：0 * * * *
-name: Batch scanner — site-only (every 4h)
+# 官网情报同步（Playwright 逐站 + 品牌冷却）
+name: Batch scanner — site-only (every 6h)
 
 on:
   schedule:
-    - cron: "0 */4 * * *"
+    - cron: "0 */6 * * *"
   workflow_dispatch:
 
 jobs:
   run:
     runs-on: ubuntu-latest
-    timeout-minutes: 120
+    timeout-minutes: 30
     defaults:
       run:
         working-directory: src/scripts

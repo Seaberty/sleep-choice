@@ -1,16 +1,17 @@
 # Weekly promo bundle + Pinterest PNGs + Reddit drafts (artifacts for download).
 # Does not post to external APIs — human uploads / review recommended.
+# Cron 0 1 * * 1 (UTC) = 每周一北京时间 09:00
 name: Promo assets export
 
 on:
   schedule:
-    - cron: "15 7 * * 1"
+    - cron: "0 1 * * 1"
   workflow_dispatch:
 
 jobs:
   export:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 15
     defaults:
       run:
         working-directory: src/scripts

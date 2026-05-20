@@ -1,16 +1,17 @@
-# 每日增量同步（对应 cron: 0 6 * * *）
-# GitHub Actions 的 cron 一律为 UTC。北京时间早 6 点 ≈ cron: "0 22 * * *"（前一日 UTC）
+# 每日增量同步
+# GitHub Actions 的 cron 一律为 UTC
 name: Batch scanner — daily incremental
 
 on:
   schedule:
-    - cron: "0 6 * * *"
+    # 修正时差，此时间对应北京时间早上 06:00
+    - cron: "0 22 * * *"
   workflow_dispatch:
 
 jobs:
   run:
     runs-on: ubuntu-latest
-    timeout-minutes: 120
+    timeout-minutes: 45
     defaults:
       run:
         working-directory: src/scripts

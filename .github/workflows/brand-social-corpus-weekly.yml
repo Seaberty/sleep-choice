@@ -3,20 +3,18 @@
 # Step 1 — public.brand_social_corpus：按 audit_products 去重 brand_slug，Reddit search.json。
 # Step 2 — public.brand_intelligence：全量产品从 corpus + DeepSeek upsert（--limit 0）。
 #
-# 与 batch_scanner 分工：本 workflow 只做社媒沉淀 + 情报表；官网 PDP 审计见 batch-scanner-daily。
+# Cron 0 21 * * 6 (UTC) = 每周日北京时间 05:00
 #
 # Secrets：
 #   SUPABASE_URL, SUPABASE_KEY   — service_role（corpus + intelligence 写入）
-#   DEEPSEEK_API_KEY             — Step 2 必需（503/429 等会自动重试）
+#   DEEPSEEK_API_KEY             — Step 2 必需
 #
-# 可选：REDDIT_RSS_USER_AGENT（Reddit 403）；BRAVE_SEARCH_API_KEY + run 中加 --brave（Amazon/TP）
-#
-# 调参：cron、timeout-minutes、inter-brand-sleep、brand_intel 的 sleep-between-products
+# 可选：REDDIT_RSS_USER_AGENT；BRAVE_SEARCH_API_KEY + run 中加 --brave
 name: Intelligence pipeline — weekly (corpus + brand_intel)
 
 on:
   schedule:
-    - cron: "0 8 * * 0"
+    - cron: "0 21 * * 6"
   workflow_dispatch:
 
 concurrency:
@@ -26,7 +24,7 @@ concurrency:
 jobs:
   pipeline:
     runs-on: ubuntu-latest
-    timeout-minutes: 360
+    timeout-minutes: 45
     defaults:
       run:
         working-directory: src/scripts
